@@ -18,6 +18,7 @@ namespace sl12
 			Device* pDevice;
 			Buffer* pSrcBuffer;
 			Buffer* pDstBuffer;
+			D3D12_RESOURCE_STATES initState;
 
 			~BufferInitRenderCommand()
 			{
@@ -28,6 +29,7 @@ namespace sl12
 				auto d3dCmdList = pCmdlist->GetLatestCommandList();
 				d3dCmdList->CopyResource(pDstBuffer->GetResourceDep(), pSrcBuffer->GetResourceDep());
 				pDevice->KillObject(pSrcBuffer);
+				pCmdlist->TransitionBarrier(pDstBuffer, D3D12_RESOURCE_STATE_COPY_DEST, initState);
 			}
 		};	// struct BufferInitRenderCommand
 	}
@@ -48,7 +50,7 @@ namespace sl12
 	ResourceItemBase* ResourceItemMesh::LoadFunction(ResourceLoader* pLoader, const std::string& filepath)
 	{
 		ResourceMesh mesh_bin;
-		std::fstream ifs(filepath, std::ios::in | std::ios::binary);
+		std::fstream ifs(pLoader->MakeFullPath(filepath), std::ios::in | std::ios::binary);
 		cereal::BinaryInputArchive ar(ifs);
 		ar(cereal::make_nvp("mesh", mesh_bin));
 
@@ -82,15 +84,22 @@ namespace sl12
 			}
 
 			Buffer* staging = new Buffer();
-			if (!staging->Initialize(pDev, data.size(), stride, usage, true, false))
+
+			BufferDesc creationDesc{};
+			creationDesc.size = data.size();
+			creationDesc.stride = stride;
+			creationDesc.usage = usage;
+			creationDesc.heap = BufferHeap::Dynamic;
+			if (!staging->Initialize(pDev, creationDesc))
 			{
 				return false;
 			}
-			auto p = staging->Map(nullptr);
+			auto p = staging->Map();
 			memcpy(p, data.data(), data.size());
 			staging->Unmap();
 
-			if (!buff.Initialize(pDev, data.size(), stride, usage, false, false))
+			creationDesc.heap = BufferHeap::Default;
+			if (!buff.Initialize(pDev, creationDesc))
 			{
 				return false;
 			}
@@ -112,6 +121,9 @@ namespace sl12
 			command->pDevice = pDev;
 			command->pSrcBuffer = staging;
 			command->pDstBuffer = &buff;
+			command->initState = (usage == BufferUsage::VertexBuffer
+				? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+				: D3D12_RESOURCE_STATE_INDEX_BUFFER); 
 
 			pDev->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
 			return true;

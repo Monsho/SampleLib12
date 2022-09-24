@@ -37,11 +37,11 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\d3d12.props" />
+    <Import Project="..\props\SampleLib.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\d3d12.props" />
+    <Import Project="..\props\SampleLib.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -53,6 +53,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -69,6 +70,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -104,10 +106,7 @@
     <ClInclude Include="include\sl12\device.h" />
     <ClInclude Include="include\sl12\fence.h" />
     <ClInclude Include="include\sl12\file.h" />
-    <ClInclude Include="include\sl12\glb_mesh.h" />
     <ClInclude Include="include\sl12\gui.h" />
-    <ClInclude Include="include\sl12\mesh.h" />
-    <ClInclude Include="include\sl12\mesh_format.h" />
     <ClInclude Include="include\sl12\mesh_manager.h" />
     <ClInclude Include="include\sl12\pipeline_state.h" />
     <ClInclude Include="include\sl12\render_command.h" />
@@ -130,16 +129,18 @@
     <ClInclude Include="include\sl12\texture_view.h" />
     <ClInclude Include="include\sl12\timestamp.h" />
     <ClInclude Include="include\sl12\types.h" />
+    <ClInclude Include="include\sl12\unique_handle.h" />
     <ClInclude Include="include\sl12\util.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\External\imgui\imgui.cpp" />
-    <ClCompile Include="..\External\imgui\imgui_demo.cpp" />
-    <ClCompile Include="..\External\imgui\imgui_draw.cpp" />
-    <ClCompile Include="..\External\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="..\External\RTXGI\rtxgi-sdk\src\ddgi\DDGIVolume.cpp" />
-    <ClCompile Include="..\External\RTXGI\rtxgi-sdk\src\ddgi\gfx\DDGIVolume_D3D12.cpp" />
-    <ClCompile Include="..\External\RTXGI\rtxgi-sdk\src\Math.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\ddgi\DDGIVolume.cpp" />
+    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\ddgi\gfx\DDGIVolume_D3D12.cpp" />
+    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\Math.cpp" />
     <ClCompile Include="src\acceleration_structure.cpp" />
     <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\buffer.cpp" />
@@ -152,9 +153,7 @@
     <ClCompile Include="src\descriptor_heap.cpp" />
     <ClCompile Include="src\device.cpp" />
     <ClCompile Include="src\fence.cpp" />
-    <ClCompile Include="src\glb_mesh.cpp" />
     <ClCompile Include="src\gui.cpp" />
-    <ClCompile Include="src\mesh.cpp" />
     <ClCompile Include="src\mesh_manager.cpp" />
     <ClCompile Include="src\pipeline_state.cpp" />
     <ClCompile Include="src\render_command.cpp" />
@@ -212,13 +211,15 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets" Condition="Exists('..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets')" />
-    <Import Project="..\packages\Microsoft.glTF.CPP.1.6.3.1\build\native\Microsoft.glTF.CPP.targets" Condition="Exists('..\packages\Microsoft.glTF.CPP.1.6.3.1\build\native\Microsoft.glTF.CPP.targets')" />
+    <Import Project="..\packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets" Condition="Exists('..\packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets'))" />
-    <Error Condition="!Exists('..\packages\Microsoft.glTF.CPP.1.6.3.1\build\native\Microsoft.glTF.CPP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.glTF.CPP.1.6.3.1\build\native\Microsoft.glTF.CPP.targets'))" />
+    <Error Condition="!Exists('..\packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\WinPixEventRuntime.1.0.220810001\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_win10.2022.7.30.1\build\native\directxtex_desktop_win10.targets'))" />
   </Target>
 </Project>

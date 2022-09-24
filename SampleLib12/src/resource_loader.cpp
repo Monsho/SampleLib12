@@ -1,5 +1,7 @@
 ﻿#include "sl12/resource_loader.h"
 
+#include <filesystem>
+
 #include "sl12/device.h"
 
 
@@ -30,11 +32,12 @@ namespace sl12
 	}
 
 	//--------
-	bool ResourceLoader::Initialize(Device* pDevice)
+	bool ResourceLoader::Initialize(Device* pDevice, const std::string& basePath)
 	{
 		pDevice_ = pDevice;
 		handleID_ = 0;
 		resourceMap_.clear();
+		resourceBasePath_ = basePath;
 
 		// create thread.
 		std::thread th([&]
@@ -95,6 +98,14 @@ namespace sl12
 
 		requestList_.clear();
 		resourceMap_.clear();
+	}
+
+	//--------
+	std::string ResourceLoader::MakeFullPath(const std::string& filePath)
+	{
+		std::filesystem::path p(resourceBasePath_);
+		p.append(filePath);
+		return p.string();
 	}
 
 	//--------

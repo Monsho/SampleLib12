@@ -1,4 +1,6 @@
-﻿#include <sl12/texture.h>
+﻿#define _CRT_SECURE_NO_WARNINGS
+
+#include <sl12/texture.h>
 
 #include <sl12/device.h>
 #include <sl12/command_list.h>
@@ -6,9 +8,15 @@
 #include <sl12/swapchain.h>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../../External/stb/stb_image.h"
+#include "stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #define TINYEXR_IMPLEMENTATION
-#include "../../External/tinyexr/tinyexr.h"
+#define TINYEXR_USE_MINIZ 0
+#define TINYEXR_USE_STB_ZLIB 1
+#include "tinyexr.h"
 
 
 namespace sl12

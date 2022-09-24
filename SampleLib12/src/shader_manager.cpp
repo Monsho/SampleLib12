@@ -11,11 +11,6 @@ namespace sl12
 {
 	namespace
 	{
-		std::wstring ToWString(const std::string& str)
-		{
-			return std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(str);
-		}
-
 		std::wstring GetTargetProfile(ShaderType::Type type, int majorVersion, int minorVersion)
 		{
 			const wchar_t* kProfileType[] =
@@ -49,7 +44,7 @@ namespace sl12
 					{
 						dir += "/";
 					}
-					includeDirs_.push_back(ToWString(dir));
+					includeDirs_.push_back(StringToWString(dir));
 				}
 			}
 			virtual ~DefaultIncludeHandler()
@@ -384,16 +379,16 @@ namespace sl12
 	{
 		RequestItem* item = new RequestItem();
 
-		item->srcCode = ToWString(srcCode);
-		item->fileName = ToWString(fileName);
-		item->entryPoint = ToWString(entryPoint);
+		item->srcCode = StringToWString(srcCode);
+		item->fileName = StringToWString(fileName);
+		item->entryPoint = StringToWString(entryPoint);
 		item->targetProfile = GetTargetProfile(type, majorVersion, minorVersion);
 		item->type = type;
 		if (args)
 		{
 			item->args.reserve(args->size());
 			for (auto&& a : *args)
-				item->args.push_back(ToWString(a));
+				item->args.push_back(StringToWString(a));
 		}
 		if (defines)
 			item->defines = *defines;
@@ -411,17 +406,17 @@ namespace sl12
 	{
 		RequestItem* item = new RequestItem();
 
-		item->filePath = ToWString(filePath);
+		item->filePath = StringToWString(filePath);
 		item->fileDir = GetFilePath(filePath);
-		item->fileName = ToWString(GetFileNameWithoutExtent(filePath));
-		item->entryPoint = ToWString(entryPoint);
+		item->fileName = StringToWString(GetFileNameWithoutExtent(filePath));
+		item->entryPoint = StringToWString(entryPoint);
 		item->targetProfile = GetTargetProfile(type, majorVersion, minorVersion);
 		item->type = type;
 		if (args)
 		{
 			item->args.reserve(args->size());
 			for (auto&& a : *args)
-				item->args.push_back(ToWString(a));
+				item->args.push_back(StringToWString(a));
 		}
 		if (defines)
 			item->defines = *defines;
@@ -464,7 +459,7 @@ namespace sl12
 		{
 			DxcDefine def;
 
-			tmp_def_strs.push_back(ToWString(s.name));
+			tmp_def_strs.push_back(StringToWString(s.name));
 			def.Name = tmp_def_strs[tmp_def_strs.size() - 1].c_str();
 			if (s.value.empty())
 			{
@@ -472,7 +467,7 @@ namespace sl12
 			}
 			else
 			{
-				tmp_def_strs.push_back(ToWString(s.value));
+				tmp_def_strs.push_back(StringToWString(s.value));
 				def.Value = tmp_def_strs[tmp_def_strs.size() - 1].c_str();
 			}
 			tmp_defs.push_back(def);

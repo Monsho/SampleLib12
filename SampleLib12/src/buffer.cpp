@@ -8,35 +8,17 @@
 namespace sl12
 {
 	//----
-	bool Buffer::Initialize(Device* pDev, size_t size, size_t stride, BufferUsage::Type type, bool isDynamic, bool isUAV)
+	bool Buffer::Initialize(Device* pDev, const BufferDesc& desc)
 	{
-		auto initialState = D3D12_RESOURCE_STATE_COMMON;
-		//if (!isDynamic)
-		//{
-		//	initialState = D3D12_RESOURCE_STATE_COPY_DEST;
-		//}
-		//if (type == BufferUsage::ReadBack)
-		//{
-		//	initialState = D3D12_RESOURCE_STATE_COPY_DEST;
-		//}
-		return Initialize(pDev, size, stride, type, initialState, isDynamic, isUAV);
-	}
+		static const D3D12_HEAP_TYPE kHeapTypes[] = {
+			D3D12_HEAP_TYPE_DEFAULT,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_HEAP_TYPE_READBACK,
+		};
+		D3D12_HEAP_TYPE heapType = kHeapTypes[desc.heap];
 
-	//----
-	bool Buffer::Initialize(Device* pDev, size_t size, size_t stride, BufferUsage::Type type, D3D12_RESOURCE_STATES initialState, bool isDynamic, bool isUAV)
-	{
-		D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_UPLOAD;
-		if (!isDynamic)
-		{
-			heapType = D3D12_HEAP_TYPE_DEFAULT;
-		}
-		if (type == BufferUsage::ReadBack)
-		{
-			heapType = D3D12_HEAP_TYPE_READBACK;
-		}
-
-		size_t allocSize = size;
-		if (type == BufferUsage::ConstantBuffer)
+		size_t allocSize = desc.size;
+		if (desc.usage & BufferUsage::ConstantBuffer)
 		{
 			allocSize = GetAlignedSize(allocSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 		}
@@ -44,40 +26,47 @@ namespace sl12
 		// ByteAddressBufferの場合はR32_TYPELESSに設定する
 		DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 
-		D3D12_HEAP_PROPERTIES prop{};
-		prop.Type = heapType;
-		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		prop.CreationNodeMask = 1;
-		prop.VisibleNodeMask = 1;
+		D3D12_HEAP_PROPERTIES heapProp{};
+		heapProp.Type = heapType;
+		heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProp.CreationNodeMask = 1;
+		heapProp.VisibleNodeMask = 1;
 
-		D3D12_RESOURCE_DESC desc{};
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		desc.Alignment = 0;
-		desc.Width = allocSize;
-		desc.Height = 1;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		desc.Flags = isUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+		if (desc.forceSysRam)
+		{
+			const D3D12_CPU_PAGE_PROPERTY  kCpuPages[] = {
+				D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE,
+				D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE,
+				D3D12_CPU_PAGE_PROPERTY_WRITE_BACK,
+			};
+			heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
+			heapProp.CPUPageProperty = kCpuPages[desc.heap];
+			heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+		}
 
-		currentState_ = initialState;
+		D3D12_RESOURCE_DESC resDesc{};
+		resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		resDesc.Alignment = 0;
+		resDesc.Width = allocSize;
+		resDesc.Height = 1;
+		resDesc.DepthOrArraySize = 1;
+		resDesc.MipLevels = 1;
+		resDesc.Format = format;
+		resDesc.SampleDesc.Count = 1;
+		resDesc.SampleDesc.Quality = 0;
+		resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		resDesc.Flags = (desc.usage & BufferUsage::UnorderedAccess) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
-		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, D3D12_HEAP_FLAG_NONE, &desc, currentState_, nullptr, IID_PPV_ARGS(&pResource_));
+		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, desc.initialState, nullptr, IID_PPV_ARGS(&pResource_));
 		if (FAILED(hr))
 		{
 			return false;
 		}
 
-		resourceDesc_ = desc;
-		heapProp_ = prop;
-		size_ = size;
-		stride_ = stride;
-		bufferUsage_ = type;
-		isUAV_ = isUAV;
+		bufferDesc_ = desc;
+		resourceDesc_ = resDesc;
+		heapProp_ = heapProp;
 		return true;
 	}
 
@@ -98,21 +87,28 @@ namespace sl12
 		{
 			return;
 		}
-		if (offset + size > size_)
+		if (offset + size > bufferDesc_.size)
 		{
 			return;
 		}
 
-		if (heapProp_.Type == D3D12_HEAP_TYPE_UPLOAD)
+		if (bufferDesc_.heap == BufferHeap::Dynamic)
 		{
-			u8* p = reinterpret_cast<u8*>(Map(pCmdList));
-			memcpy(p + offset, pData, size);
-			Unmap();
+			D3D12_RANGE range{};
+			range.Begin = offset;
+			range.End = offset + size;
+			void* p = Map(range);
+			memcpy(p, pData, size);
+			Unmap(range);
 		}
 		else
 		{
+			BufferDesc tmpDesc{};
+			tmpDesc.size = size;
+			tmpDesc.usage = BufferUsage::Copy;
+			tmpDesc.heap = BufferHeap::Dynamic;
 			Buffer* src = new Buffer();
-			if (!src->Initialize(pDev, size, stride_, bufferUsage_, true, false))
+			if (!src->Initialize(pDev, tmpDesc))
 			{
 				return;
 			}
@@ -125,10 +121,6 @@ namespace sl12
 	}
 
 	//----
-	void* Buffer::Map(CommandList*)
-	{
-		return Map();
-	}
 	void* Buffer::Map()
 	{
 		if (!pResource_)

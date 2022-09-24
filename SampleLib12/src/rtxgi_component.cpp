@@ -141,13 +141,24 @@ namespace sl12
 
 		// constant buffer.
 		{
-			sl12::u32 stride = sizeof(rtxgi::DDGIVolumeDescGPUPacked);
-			sl12::u32 size = stride * numVolumes;
-			if (!constantSTB_.Initialize(pParentDevice_, size, stride, sl12::BufferUsage::ShaderResource, D3D12_RESOURCE_STATE_COMMON, false, false))
+			auto stride = sizeof(rtxgi::DDGIVolumeDescGPUPacked);
+			auto size = stride * numVolumes;
+			
+			BufferDesc creationDesc{};
+			creationDesc.size = size;
+			creationDesc.stride = stride;
+			creationDesc.usage = BufferUsage::ShaderResource;
+			creationDesc.heap = BufferHeap::Default;
+			creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
+			if (!constantSTB_.Initialize(pParentDevice_, creationDesc))
 			{
 				return false;
 			}
-			if (!constantSTBUpload_.Initialize(pParentDevice_, size * 2, stride, sl12::BufferUsage::ShaderResource, D3D12_RESOURCE_STATE_GENERIC_READ, true, false))
+
+			creationDesc.size = size * 2;
+			creationDesc.heap = BufferHeap::Dynamic;
+			creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+			if (!constantSTBUpload_.Initialize(pParentDevice_, creationDesc))
 			{
 				return false;
 			}
@@ -155,7 +166,7 @@ namespace sl12
 			ddgiVolumeResource_->constantsBufferUpload = constantSTBUpload_.GetResourceDep();
 			ddgiVolumeResource_->constantsBufferSizeInBytes = size;
 
-			if (!constantSTBView_.Initialize(pParentDevice_, &constantSTB_, 0, numVolumes, stride))
+			if (!constantSTBView_.Initialize(pParentDevice_, &constantSTB_, 0, (u32)numVolumes, (u32)stride))
 			{
 				return false;
 			}
@@ -165,7 +176,7 @@ namespace sl12
 			srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 			srvDesc.Buffer.NumElements = numVolumes;
-			srvDesc.Buffer.StructureByteStride = stride;
+			srvDesc.Buffer.StructureByteStride = (UINT)stride;
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 			auto p_device_dep = pParentDevice_->GetDeviceDep();

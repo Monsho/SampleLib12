@@ -100,8 +100,10 @@ namespace sl12
 		{}
 		~ResourceLoader();
 
-		bool Initialize(Device* pDevice);
+		bool Initialize(Device* pDevice, const std::string& basePath);
 		void Destroy();
+
+		std::string MakeFullPath(const std::string& filePath);
 
 		ResourceHandle LoadRequest(const std::string& filepath, LoadFunc func);
 
@@ -144,6 +146,7 @@ namespace sl12
 		Device*				pDevice_ = nullptr;
 		MeshManager*		pMeshManager_ = nullptr;
 		std::atomic<u64>	handleID_ = 0;
+		std::string			resourceBasePath_;
 
 		std::map<u64, std::unique_ptr<ResourceItemBase>>	resourceMap_;
 

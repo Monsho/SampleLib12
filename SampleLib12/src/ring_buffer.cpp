@@ -15,7 +15,12 @@ namespace sl12
 		size_ = 64 * 1024;		// init 64KB
 
 		pCopySource_ = new Buffer();
-		bool bSuccess = pCopySource_->Initialize(pParentDevice_, size_, 0, sl12::BufferUsage::ConstantBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, true, false);
+		BufferDesc creationDesc{};
+		creationDesc.size = size_;
+		creationDesc.usage = BufferUsage::ConstantBuffer;
+		creationDesc.heap = BufferHeap::Dynamic;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		bool bSuccess = pCopySource_->Initialize(pParentDevice_, creationDesc);
 		assert(bSuccess);
 	}
 
@@ -52,13 +57,15 @@ namespace sl12
 		if ((tail_ < head_) && (head_ < tail_ + size + kWaterMark))
 		{
 			// create new ring buffer.
+			BufferDesc newDesc = pCopySource_->GetBufferDesc();
 			pParentDevice_->KillObject(pCopySource_);
 			pCopySource_ = new Buffer();
 			do
 			{
 				size_ *= 2;
 			} while(size_ < size);
-			bool bSuccess = pCopySource_->Initialize(pParentDevice_, size_, 0, sl12::BufferUsage::ConstantBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, true, false);
+			newDesc.size = size_;
+			bool bSuccess = pCopySource_->Initialize(pParentDevice_, newDesc);
 			assert(bSuccess);
 
 			prevHead_ = head_ = tail_ = 0;

@@ -1,10 +1,10 @@
-#include <sl12/acceleration_structure.h>
+ï»¿#include <sl12/acceleration_structure.h>
 
 
 namespace sl12
 {
 	//-------------------------------------------------------------------
-	// Geometry Desc‚ğOŠpƒ|ƒŠƒSƒ“ƒƒbƒVƒ…‚Æ‚µ‚Ä‰Šú‰»
+	// Geometry Descã‚’ä¸‰è§’ãƒãƒªã‚´ãƒ³ãƒ¡ãƒƒã‚·ãƒ¥ã¨ã—ã¦åˆæœŸåŒ–
 	//-------------------------------------------------------------------
 	void GeometryStructureDesc::InitializeAsTriangle(
 		D3D12_RAYTRACING_GEOMETRY_FLAGS	flags,
@@ -60,7 +60,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// Geometry Desc‚ğAABB‚Æ‚µ‚Ä‰Šú‰»
+	// Geometry Descã‚’AABBã¨ã—ã¦åˆæœŸåŒ–
 	//-------------------------------------------------------------------
 	void GeometryStructureDesc::InitializeAsAABB(
 		D3D12_RAYTRACING_GEOMETRY_FLAGS	flags,
@@ -80,7 +80,7 @@ namespace sl12
 
 
 	//-------------------------------------------------------------------
-	// Top AS‚Æ‚µ‚Ä‰Šú‰»
+	// Top ASã¨ã—ã¦åˆæœŸåŒ–
 	//-------------------------------------------------------------------
 	bool StructureInputDesc::InitializeAsTop(
 		sl12::Device*										pDevice,
@@ -103,7 +103,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// Bottom AS‚Æ‚µ‚Ä‰Šú‰»
+	// Bottom ASã¨ã—ã¦åˆæœŸåŒ–
 	//-------------------------------------------------------------------
 	bool StructureInputDesc::InitializeAsBottom(
 		sl12::Device*										pDevice,
@@ -133,7 +133,7 @@ namespace sl12
 
 
 	//-------------------------------------------------------------------
-	// ƒCƒ“ƒXƒ^ƒ“ƒX‹Lqq‚ğ‰Šú‰»‚·‚é
+	// ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹è¨˜è¿°å­ã‚’åˆæœŸåŒ–ã™ã‚‹
 	//-------------------------------------------------------------------
 	void TopInstanceDesc::Initialize(
 		const DirectX::XMFLOAT4X4&			transform,
@@ -177,8 +177,8 @@ namespace sl12
 
 
 	//-------------------------------------------------------------------
-	// AS—p‚Ìƒoƒbƒtƒ@‚ğ¶¬‚·‚é
-	// ƒIƒvƒVƒ‡ƒ“‚ÅƒXƒNƒ‰ƒbƒ`ƒoƒbƒtƒ@‚à¶¬
+	// ASç”¨ã®ãƒãƒƒãƒ•ã‚¡ã‚’ç”Ÿæˆã™ã‚‹
+	// ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã§ã‚¹ã‚¯ãƒ©ãƒƒãƒãƒãƒƒãƒ•ã‚¡ã‚‚ç”Ÿæˆ
 	//-------------------------------------------------------------------
 	bool AccelerationStructure::CreateBuffer(
 		Device*			pDevice,
@@ -190,7 +190,12 @@ namespace sl12
 		{
 			return false;
 		}
-		if (!pDxrBuffer_->Initialize(pDevice, size, 0, BufferUsage::AccelerationStructure, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, false, true))
+
+		BufferDesc desc{};
+		desc.size = size;
+		desc.usage = BufferUsage::AccelerationStructure | BufferUsage::UnorderedAccess;
+		desc.initialState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+		if (!pDxrBuffer_->Initialize(pDevice, desc))
 		{
 			return false;
 		}
@@ -199,7 +204,12 @@ namespace sl12
 		{
 			pScratchBuffer_ = new Buffer();
 			scratchCreated_ = true;
-			if (!pScratchBuffer_->Initialize(pDevice, scratchSize, 0, BufferUsage::ShaderResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, false, true))
+
+			BufferDesc scratchDesc{};
+			scratchDesc.size = scratchSize;
+			scratchDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+			scratchDesc.initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			if (!pScratchBuffer_->Initialize(pDevice, scratchDesc))
 			{
 				return false;
 			}
@@ -209,7 +219,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// ƒXƒNƒ‰ƒbƒ`ƒoƒbƒtƒ@‚ğŠO•”‚©‚çİ’è‚·‚é
+	// ã‚¹ã‚¯ãƒ©ãƒƒãƒãƒãƒƒãƒ•ã‚¡ã‚’å¤–éƒ¨ã‹ã‚‰è¨­å®šã™ã‚‹
 	//-------------------------------------------------------------------
 	void AccelerationStructure::SetScratchBuffer(Buffer* p)
 	{
@@ -225,7 +235,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// ”jŠü‚·‚é
+	// ç ´æ£„ã™ã‚‹
 	//-------------------------------------------------------------------
 	void AccelerationStructure::Destroy()
 	{
@@ -234,7 +244,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// ƒXƒNƒ‰ƒbƒ`ƒoƒbƒtƒ@‚Ì‚İ”jŠü‚·‚é
+	// ã‚¹ã‚¯ãƒ©ãƒƒãƒãƒãƒƒãƒ•ã‚¡ã®ã¿ç ´æ£„ã™ã‚‹
 	//-------------------------------------------------------------------
 	void AccelerationStructure::DestroyScratchBuffer()
 	{
@@ -248,7 +258,7 @@ namespace sl12
 
 
 	//-------------------------------------------------------------------
-	// Bottom AS‚Ìƒrƒ‹ƒhƒRƒ}ƒ“ƒh‚ğ”­s‚·‚é
+	// Bottom ASã®ãƒ“ãƒ«ãƒ‰ã‚³ãƒãƒ³ãƒ‰ã‚’ç™ºè¡Œã™ã‚‹
 	//-------------------------------------------------------------------
 	bool BottomAccelerationStructure::Build(Device* pDevice, CommandList* pCmdList, const StructureInputDesc& desc, bool barrier)
 	{
@@ -275,7 +285,7 @@ namespace sl12
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC InfoDesc;
 		InfoDesc.InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE;
 
-		// Compaction‚Ìî•ñƒoƒbƒtƒ@¶¬
+		// Compactionã®æƒ…å ±ãƒãƒƒãƒ•ã‚¡ç”Ÿæˆ
 		Buffer* pInfoBuffer = nullptr;
 		if (isCompaction)
 		{
@@ -284,31 +294,31 @@ namespace sl12
 			{
 				return false;
 			}
-			if (!pInfoBuffer->Initialize(pDevice,
-				sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC),
-				0,
-				BufferUsage::ShaderResource,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				false, true))
+
+			BufferDesc infoDesc{};
+			infoDesc.size =sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC);
+			infoDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+			infoDesc.heap = BufferHeap::Default;
+			infoDesc.initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			if (!pInfoBuffer->Initialize(pDevice, infoDesc))
 			{
 				SafeDelete(pInfoBuffer);
 				return false;
 			}
 			InfoDesc.DestBuffer = pInfoBuffer->GetResourceDep()->GetGPUVirtualAddress();
 
-			// î•ñƒRƒs[æƒoƒbƒtƒ@‚ğ¶¬‚·‚é
+			// æƒ…å ±ã‚³ãƒ”ãƒ¼å…ˆãƒãƒƒãƒ•ã‚¡ã‚’ç”Ÿæˆã™ã‚‹
 			pPostBuildReadBuffer_ = new Buffer();
 			if (!pPostBuildReadBuffer_)
 			{
 				SafeDelete(pInfoBuffer);
 				return false;
 			}
-			if (!pPostBuildReadBuffer_->Initialize(pDevice,
-				sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC),
-				0,
-				BufferUsage::ReadBack,
-				D3D12_RESOURCE_STATE_COPY_DEST,
-				false, false))
+
+			infoDesc.usage = BufferUsage::Copy;
+			infoDesc.heap = BufferHeap::ReadBack;
+			infoDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+			if (!pPostBuildReadBuffer_->Initialize(pDevice, infoDesc))
 			{
 				SafeDelete(pInfoBuffer);
 				SafeDelete(pPostBuildReadBuffer_);
@@ -316,18 +326,18 @@ namespace sl12
 			}
 		}
 
-		// ƒrƒ‹ƒhƒRƒ}ƒ“ƒh
+		// ãƒ“ãƒ«ãƒ‰ã‚³ãƒãƒ³ãƒ‰
 		pCmdList->GetDxrCommandList()->BuildRaytracingAccelerationStructure(
 			&buildDesc,
 			isCompaction ? 1 : 0,
 			isCompaction ? &InfoDesc : nullptr);
 
-		// ƒoƒŠƒA
-		// Compaction—LŒø‚Èê‡‚Í•K‚¸ƒoƒŠƒA‚ğ’£‚Á‚ÄƒTƒCƒYæ“¾‚ğŠmÀ‚É‚·‚é
+		// ãƒãƒªã‚¢
+		// Compactionæœ‰åŠ¹ãªå ´åˆã¯å¿…ãšãƒãƒªã‚¢ã‚’å¼µã£ã¦ã‚µã‚¤ã‚ºå–å¾—ã‚’ç¢ºå®Ÿã«ã™ã‚‹
 		if (barrier || isCompaction)
 		{
-			// TopASƒrƒ‹ƒh‘O‚ÉBottomAS‚Ìƒrƒ‹ƒhŠ®—¹‚ğ‘Ò‚Â•K—v‚ª‚ ‚è‚Ü‚·.
-			// ƒŠƒ\[ƒXƒoƒŠƒA‚ğ’£‚é‚±‚Æ‚ÅBottomASƒrƒ‹ƒh‚ªŠ®—¹‚µ‚Ä‚¢‚é‚±‚Æ‚ğ•ÛØ‚µ‚Ü‚·.
+			// TopASãƒ“ãƒ«ãƒ‰å‰ã«BottomASã®ãƒ“ãƒ«ãƒ‰å®Œäº†ã‚’å¾…ã¤å¿…è¦ãŒã‚ã‚Šã¾ã™.
+			// ãƒªã‚½ãƒ¼ã‚¹ãƒãƒªã‚¢ã‚’å¼µã‚‹ã“ã¨ã§BottomASãƒ“ãƒ«ãƒ‰ãŒå®Œäº†ã—ã¦ã„ã‚‹ã“ã¨ã‚’ä¿è¨¼ã—ã¾ã™.
 			pCmdList->UAVBarrier(pDxrBuffer_);
 
 			if (isCompaction)
@@ -342,7 +352,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// BLAS‚ÌCompaction‚ğÀs‚·‚é
+	// BLASã®Compactionã‚’å®Ÿè¡Œã™ã‚‹
 	//-------------------------------------------------------------------
 	bool BottomAccelerationStructure::CompactAS(Device* pDevice, CommandList* pCmdList, bool barrier)
 	{
@@ -351,23 +361,29 @@ namespace sl12
 			return false;
 		}
 
-		// ƒTƒCƒYæ“¾
-		auto pDesc = (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC*)pPostBuildReadBuffer_->Map(nullptr);
+		// ã‚µã‚¤ã‚ºå–å¾—
+		auto pDesc = (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC*)pPostBuildReadBuffer_->Map();
 		u64 size = pDesc->CompactedSizeInBytes;
 		pPostBuildReadBuffer_->Unmap();
 
-		// V‚µ‚¢AS—pƒoƒbƒtƒ@‚ğ¶¬‚·‚é
+		// æ–°ã—ã„ASç”¨ãƒãƒƒãƒ•ã‚¡ã‚’ç”Ÿæˆã™ã‚‹
 		Buffer* pNewASBuffer = new Buffer();
 		if (!pNewASBuffer)
 		{
 			return false;
 		}
-		if (!pNewASBuffer->Initialize(pDevice, size, 0, sl12::BufferUsage::AccelerationStructure, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, false, true))
+
+		BufferDesc newDesc{};
+		newDesc.size = size;
+		newDesc.usage = BufferUsage::AccelerationStructure | BufferUsage::UnorderedAccess;
+		newDesc.heap = BufferHeap::Default;
+		newDesc.initialState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+		if (!pNewASBuffer->Initialize(pDevice, newDesc))
 		{
 			return false;
 		}
 
-		// Compaction Copy‚ğs‚¤
+		// Compaction Copyã‚’è¡Œã†
 		pCmdList->GetDxrCommandList()->CopyRaytracingAccelerationStructure(
 			pNewASBuffer->GetResourceDep()->GetGPUVirtualAddress(),
 			pDxrBuffer_->GetResourceDep()->GetGPUVirtualAddress(),
@@ -378,7 +394,7 @@ namespace sl12
 			pCmdList->UAVBarrier(pNewASBuffer);
 		}
 
-		// ƒoƒbƒtƒ@ƒXƒƒbƒv
+		// ãƒãƒƒãƒ•ã‚¡ã‚¹ãƒ¯ãƒƒãƒ—
 		pDevice->KillObject(pDxrBuffer_);
 		pDevice->KillObject(pPostBuildReadBuffer_);
 		pDxrBuffer_ = pNewASBuffer;
@@ -389,7 +405,7 @@ namespace sl12
 
 
 	//-------------------------------------------------------------------
-	// Top AS—p‚Ìƒoƒbƒtƒ@‚ğ¶¬‚·‚é
+	// Top ASç”¨ã®ãƒãƒƒãƒ•ã‚¡ã‚’ç”Ÿæˆã™ã‚‹
 	//-------------------------------------------------------------------
 	bool TopAccelerationStructure::CreateBuffer(
 		sl12::Device*			pDevice,
@@ -418,7 +434,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// Top AS—p‚ÌƒCƒ“ƒXƒ^ƒ“ƒXƒoƒbƒtƒ@‚ğ¶¬‚·‚é
+	// Top ASç”¨ã®ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ãƒãƒƒãƒ•ã‚¡ã‚’ç”Ÿæˆã™ã‚‹
 	//-------------------------------------------------------------------
 	bool TopAccelerationStructure::CreateInstanceBuffer(sl12::Device* pDevice, const TopInstanceDesc* pDescs, int descsCount)
 	{
@@ -427,14 +443,19 @@ namespace sl12
 		if (descsCount <= 0)
 			return false;
 
-		sl12::SafeDelete(pInstanceBuffer_);
+		SafeDelete(pInstanceBuffer_);
 		pInstanceBuffer_ = new sl12::Buffer();
-		if (!pInstanceBuffer_->Initialize(pDevice, sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descsCount, 0, sl12::BufferUsage::ShaderResource, true, false))
+
+		BufferDesc creationDesc{};
+		creationDesc.size = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descsCount;
+		creationDesc.usage = BufferUsage::ShaderResource;
+		creationDesc.heap = BufferHeap::Dynamic;
+		if (!pInstanceBuffer_->Initialize(pDevice, creationDesc))
 		{
 			return false;
 		}
 
-		auto p = reinterpret_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(pInstanceBuffer_->Map(nullptr));
+		auto p = reinterpret_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(pInstanceBuffer_->Map());
 		for (int i = 0; i < descsCount; i++)
 		{
 			p[i] = pDescs[i].dxrDesc;
@@ -445,7 +466,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// Top AS‚Ìƒrƒ‹ƒhƒRƒ}ƒ“ƒh‚ğ”­s‚·‚é
+	// Top ASã®ãƒ“ãƒ«ãƒ‰ã‚³ãƒãƒ³ãƒ‰ã‚’ç™ºè¡Œã™ã‚‹
 	//-------------------------------------------------------------------
 	bool TopAccelerationStructure::Build(sl12::CommandList* pCmdList, const StructureInputDesc& desc, bool barrier)
 	{
@@ -464,14 +485,14 @@ namespace sl12
 		buildDesc.Inputs.InstanceDescs = pInstanceBuffer_->GetResourceDep()->GetGPUVirtualAddress();
 		buildDesc.ScratchAccelerationStructureData = pScratchBuffer_->GetResourceDep()->GetGPUVirtualAddress();
 
-		// ƒrƒ‹ƒhƒRƒ}ƒ“ƒh
+		// ãƒ“ãƒ«ãƒ‰ã‚³ãƒãƒ³ãƒ‰
 		pCmdList->GetDxrCommandList()->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
-		// ƒoƒŠƒA
+		// ãƒãƒªã‚¢
 		if (barrier)
 		{
-			// TopASƒrƒ‹ƒh‘O‚ÉBottomAS‚Ìƒrƒ‹ƒhŠ®—¹‚ğ‘Ò‚Â•K—v‚ª‚ ‚è‚Ü‚·.
-			// ƒŠƒ\[ƒXƒoƒŠƒA‚ğ’£‚é‚±‚Æ‚ÅBottomASƒrƒ‹ƒh‚ªŠ®—¹‚µ‚Ä‚¢‚é‚±‚Æ‚ğ•ÛØ‚µ‚Ü‚·.
+			// TopASãƒ“ãƒ«ãƒ‰å‰ã«BottomASã®ãƒ“ãƒ«ãƒ‰å®Œäº†ã‚’å¾…ã¤å¿…è¦ãŒã‚ã‚Šã¾ã™.
+			// ãƒªã‚½ãƒ¼ã‚¹ãƒãƒªã‚¢ã‚’å¼µã‚‹ã“ã¨ã§BottomASãƒ“ãƒ«ãƒ‰ãŒå®Œäº†ã—ã¦ã„ã‚‹ã“ã¨ã‚’ä¿è¨¼ã—ã¾ã™.
 			pCmdList->UAVBarrier(pDxrBuffer_);
 		}
 
@@ -479,7 +500,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// ”jŠü‚·‚é
+	// ç ´æ£„ã™ã‚‹
 	//-------------------------------------------------------------------
 	void TopAccelerationStructure::Destroy()
 	{
@@ -489,7 +510,7 @@ namespace sl12
 	}
 
 	//-------------------------------------------------------------------
-	// ƒCƒ“ƒXƒ^ƒ“ƒXƒoƒbƒtƒ@‚Ì‚İ”jŠü‚·‚é
+	// ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ãƒãƒƒãƒ•ã‚¡ã®ã¿ç ´æ£„ã™ã‚‹
 	//-------------------------------------------------------------------
 	void TopAccelerationStructure::DestroyInstanceBuffer()
 	{

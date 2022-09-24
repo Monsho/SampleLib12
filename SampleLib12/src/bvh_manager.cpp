@@ -206,7 +206,7 @@ namespace sl12
 			desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 			desc.Flags = flags;
 			desc.Triangles.VertexBuffer.StartAddress = vb.GetResourceDep()->GetGPUVirtualAddress() + submesh.positionVBV.GetBufferOffset();
-			desc.Triangles.VertexBuffer.StrideInBytes = vb.GetStride();
+			desc.Triangles.VertexBuffer.StrideInBytes = vb.GetBufferDesc().stride;
 			desc.Triangles.VertexCount = submesh.vertexCount;
 			desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 			desc.Triangles.IndexBuffer = ib.GetResourceDep()->GetGPUVirtualAddress() + submesh.indexBV.GetBufferOffset();
@@ -335,26 +335,23 @@ namespace sl12
 	//----
 	bool BvhManager::CreateCompactionBuffer(u32 maxCount)
 	{
+		BufferDesc creationDesc{};
+		creationDesc.size = sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) * maxCount;
+		creationDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
 		pCompactionInfoBuffer_ = new Buffer();
-		if (!pCompactionInfoBuffer_->Initialize(pDevice_,
-			sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) * maxCount,
-			0,
-			BufferUsage::ShaderResource,
-			D3D12_RESOURCE_STATE_COMMON,
-			false, true))
+		if (!pCompactionInfoBuffer_->Initialize(pDevice_, creationDesc))
 		{
 			SafeDelete(pCompactionInfoBuffer_);
 			return false;
 		}
 
 		// 情報コピー先バッファを生成する
+		creationDesc.size = sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) * maxCount;
+		creationDesc.usage = BufferUsage::Copy;
+		creationDesc.heap = BufferHeap::ReadBack;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
 		pCompactionReadback_ = std::make_shared<Buffer>();
-		if (!pCompactionReadback_->Initialize(pDevice_,
-			sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) * maxCount,
-			0,
-			BufferUsage::ReadBack,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			false, false))
+		if (!pCompactionReadback_->Initialize(pDevice_, creationDesc))
 		{
 			SafeDelete(pCompactionInfoBuffer_);
 			return false;
@@ -388,14 +385,17 @@ namespace sl12
 	//----
 	bool BvhManager::ReadyScratchBuffer(u64 size)
 	{
-		if (!pScratchBuffer_ || pScratchBuffer_->GetSize() < size)
+		if (!pScratchBuffer_ || pScratchBuffer_->GetBufferDesc().size < size)
 		{
 			if (pScratchBuffer_)
 			{
 				pDevice_->KillObject(pScratchBuffer_);
 			}
 			pScratchBuffer_ = new Buffer();
-			if (!pScratchBuffer_->Initialize(pDevice_, size, 0, BufferUsage::ShaderResource, D3D12_RESOURCE_STATE_COMMON, false, true))
+			BufferDesc creationDesc{};
+			creationDesc.size = size;
+			creationDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+			if (!pScratchBuffer_->Initialize(pDevice_, creationDesc))
 			{
 				return false;
 			}
@@ -464,7 +464,7 @@ namespace sl12
 	{
 		// get compaction size.
 		Buffer* pInfoBuffer = geom->pCompactionReadback_.get();
-		auto pDesc = (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC*)pInfoBuffer->Map(nullptr);
+		auto pDesc = (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC*)pInfoBuffer->Map();
 		u64 size = pDesc[geom->compactionIndex_].CompactedSizeInBytes;
 		pInfoBuffer->Unmap();
 		geom->pCompactionReadback_.reset();
@@ -570,13 +570,17 @@ namespace sl12
 
 		// create instance buffer.
 		Buffer* pInstBuffer = new Buffer();
-		if (!pInstBuffer->Initialize(pDevice_, sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descs.size(), 0, sl12::BufferUsage::ShaderResource, true, false))
+		BufferDesc creationDesc{};
+		creationDesc.size = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descs.size();
+		creationDesc.usage = BufferUsage::ShaderResource;
+		creationDesc.heap = BufferHeap::Dynamic;
+		if (!pInstBuffer->Initialize(pDevice_, creationDesc))
 		{
 			return nullptr;
 		}
 
-		auto p = reinterpret_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(pInstBuffer->Map(nullptr));
-		memcpy(pInstBuffer->Map(nullptr), descs.data(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descs.size());
+		auto p = reinterpret_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(pInstBuffer->Map());
+		memcpy(pInstBuffer->Map(), descs.data(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descs.size());
 		pInstBuffer->Unmap();
 
 		// alloc bvh memory.

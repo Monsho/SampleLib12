@@ -60,7 +60,7 @@ namespace sl12
 
 		// load file.
 		File texBin;
-		if (!texBin.ReadFile(filepath.c_str()))
+		if (!texBin.ReadFile(pLoader->MakeFullPath(filepath).c_str()))
 		{
 			return nullptr;
 		}

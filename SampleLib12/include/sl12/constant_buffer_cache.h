@@ -21,7 +21,11 @@ namespace sl12
 
 			ConstBuffer(Device* pDev, u32 s)
 			{
-				cb.Initialize(pDev, s, 0, BufferUsage::ConstantBuffer, true, false);
+				BufferDesc desc{};
+				desc.size = s;
+				desc.usage = BufferUsage::ConstantBuffer;
+				desc.heap = BufferHeap::Dynamic;
+				cb.Initialize(pDev, desc);
 				cbv.Initialize(pDev, &cb);
 				size = s;
 			}
@@ -152,7 +156,7 @@ namespace sl12
 
 			if (pBuffer)
 			{
-				memcpy(ret->cb.Map(nullptr), pBuffer, size);
+				memcpy(ret->cb.Map(), pBuffer, size);
 				ret->cb.Unmap();
 			}
 

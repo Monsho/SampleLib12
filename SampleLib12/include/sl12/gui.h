@@ -34,8 +34,18 @@ namespace sl12
 
 	struct InputData
 	{
-		int	mouseX{ 0 }, mouseY{ 0 };
-		u32	mouseButton{ 0 };
+		int	mouseX = 0, mouseY = 0;
+		u32	mouseButton = 0;
+		u64 key = 0;
+		int scancode = 0;
+		bool keyDown = false;
+		u16 chara = 0;
+
+		void Reset()
+		{
+			key = 0;
+			chara = 0;
+		}
 	};	// struct InputData
 
 	class Gui
@@ -54,10 +64,13 @@ namespace sl12
 		void Destroy();
 
 		// フォントイメージ生成
-		bool CreateFontImage(Device* pDevice, CommandList& cmdList);
+		bool CreateFontImage(Device* pDevice, CommandList* pCmdList);
 
 		// 新しいフレームの開始
 		void BeginNewFrame(CommandList* pDrawCmdList, u32 frameWidth, u32 frameHeight, const InputData& input, float frameScale = 1.0f, float timeStep = 1.0f / 60.0f);
+
+		// Load d3d12 commands.
+		void LoadDrawCommands(CommandList* pCmdList);
 
 	private:
 		Device*			pOwner_{ nullptr };

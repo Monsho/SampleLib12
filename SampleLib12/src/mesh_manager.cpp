@@ -14,7 +14,11 @@ namespace sl12
 		, alignment_(align)
 	{
 		pBuffer_ = new Buffer();
-		bool bSuccess = pBuffer_->Initialize(pDev, initSize, 0, usage, D3D12_RESOURCE_STATE_COMMON, false, false);
+
+		BufferDesc creationDesc{};
+		creationDesc.size = initSize;
+		creationDesc.usage = usage;
+		bool bSuccess = pBuffer_->Initialize(pDev, creationDesc);
 		assert(bSuccess);
 
 		Block block;
@@ -133,14 +137,18 @@ namespace sl12
 			incSize += initSize_;
 		}
 
-		auto currSize = (pNextBuffer_ != nullptr) ? pNextBuffer_->GetSize() : pBuffer_->GetSize();
+		auto currSize = (pNextBuffer_ != nullptr) ? pNextBuffer_->GetBufferDesc().size : pBuffer_->GetBufferDesc().size;
 		auto newSize = currSize + incSize;
 		if (pNextBuffer_)
 		{
 			pParentDevice_->KillObject(pNextBuffer_);
 		}
 		pNextBuffer_ = new Buffer();
-		bool bSuccess = pNextBuffer_->Initialize(pParentDevice_, newSize, 0, pBuffer_->GetBufferUsage(), D3D12_RESOURCE_STATE_GENERIC_READ, false, false);
+
+		BufferDesc creationDesc = pBuffer_->GetBufferDesc();
+		creationDesc.size = newSize;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		bool bSuccess = pNextBuffer_->Initialize(pParentDevice_, creationDesc);
 		if (!bSuccess)
 		{
 			return false;
@@ -165,7 +173,7 @@ namespace sl12
 	{
 		if (pNextBuffer_)
 		{
-			auto copySize = pBuffer_->GetSize();
+			auto copySize = pBuffer_->GetBufferDesc().size;
 			pCmdList->TransitionBarrier(pNextBuffer_, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
 			pCmdList->GetLatestCommandList()->CopyBufferRegion(pNextBuffer_->GetResourceDep(), 0, pBuffer_->GetResourceDep(), 0, copySize);
 
@@ -219,7 +227,12 @@ namespace sl12
 					totalSize += v->src.size();
 				}
 				auto pSrcBuffer = new Buffer();
-				pSrcBuffer->Initialize(pParentDevice_, totalSize, 0, BufferUsage::VertexBuffer, true, false);
+
+				BufferDesc creationDesc{};
+				creationDesc.size = totalSize;
+				creationDesc.usage = BufferUsage::VertexBuffer;
+				creationDesc.heap = BufferHeap::Dynamic;
+				pSrcBuffer->Initialize(pParentDevice_, creationDesc);
 				{
 					u8* p = (u8*)pSrcBuffer->Map();
 					for (auto&& v : src)

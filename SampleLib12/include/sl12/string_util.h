@@ -4,6 +4,7 @@
 #include <string>
 #include <cctype>
 #include <algorithm>
+#include <filesystem>
 
 namespace sl12
 {
@@ -64,6 +65,43 @@ namespace sl12
 			ret = "./";
 		}
 		return ret;
+	}
+
+	inline std::string JoinPath(const std::string& frontPath, const std::string& backPath)
+	{
+		std::filesystem::path p(frontPath);
+		p.append(backPath);
+		return p.string();
+	}
+
+	inline std::wstring StringToWString(const std::string& str)
+	{
+#ifdef WIN32
+		if (str.empty())
+			return std::wstring();
+
+		int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+		std::wstring wstrTo(size_needed, 0);
+		MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+		return wstrTo;
+#else
+#error support windows only.
+#endif
+	}
+
+	inline std::string WStringToString(const std::wstring& str)
+	{
+#ifdef WIN32
+		if (str.empty())
+			return std::string();
+
+		int size_needed = WideCharToMultiByte(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0, NULL, NULL);
+		std::string strTo(size_needed, 0);
+		WideCharToMultiByte(CP_UTF8, 0, &str[0], (int)str.size(), &strTo[0], size_needed, NULL, NULL);
+		return strTo;
+#else
+#error support windows only.
+#endif
 	}
 
 }	// namespace sl12

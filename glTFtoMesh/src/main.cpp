@@ -19,7 +19,7 @@
 #include "mesh_work.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../../External/stb/stb_image.h"
+#include "stb_image.h"
 
 #define private public
 #include "sl12/resource_mesh.h"

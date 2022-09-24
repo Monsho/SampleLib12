@@ -25,7 +25,7 @@ namespace sl12
 		{
 			return false;
 		}
-		if (pBuffer->GetBufferUsage() != BufferUsage::ConstantBuffer)
+		if (!(pBuffer->GetBufferDesc().usage & BufferUsage::ConstantBuffer))
 		{
 			return false;
 		}
@@ -66,14 +66,16 @@ namespace sl12
 		{
 			return false;
 		}
-		if (pBuffer->GetBufferUsage() != BufferUsage::VertexBuffer)
+
+		auto&& desc = pBuffer->GetBufferDesc();
+		if (!(desc.usage & BufferUsage::VertexBuffer))
 		{
 			return false;
 		}
 
 		view_.BufferLocation = pBuffer->GetResourceDep()->GetGPUVirtualAddress() + offset;
-		view_.SizeInBytes = (size == 0) ? static_cast<u32>(pBuffer->GetSize() - offset) : static_cast<u32>(size);
-		view_.StrideInBytes = static_cast<u32>(pBuffer->GetStride());
+		view_.SizeInBytes = (size == 0) ? static_cast<u32>(desc.size - offset) : static_cast<u32>(size);
+		view_.StrideInBytes = static_cast<u32>(desc.stride);
 		bufferOffset_ = offset;
 
 		return true;
@@ -84,13 +86,15 @@ namespace sl12
 		{
 			return false;
 		}
-		if (pBuffer->GetBufferUsage() != BufferUsage::VertexBuffer)
+
+		auto&& desc = pBuffer->GetBufferDesc(); 
+		if (!(desc.usage & BufferUsage::VertexBuffer))
 		{
 			return false;
 		}
 
 		view_.BufferLocation = pBuffer->GetResourceDep()->GetGPUVirtualAddress() + offset;
-		view_.SizeInBytes = (size == 0) ? static_cast<u32>(pBuffer->GetSize() - offset) : static_cast<u32>(size);
+		view_.SizeInBytes = (size == 0) ? static_cast<u32>(desc.stride - offset) : static_cast<u32>(size);
 		view_.StrideInBytes = static_cast<u32>(stride);
 		bufferOffset_ = offset;
 
@@ -109,18 +113,20 @@ namespace sl12
 		{
 			return false;
 		}
-		if (pBuffer->GetBufferUsage() != BufferUsage::IndexBuffer)
+
+		auto&& desc = pBuffer->GetBufferDesc(); 
+		if (!(desc.usage & BufferUsage::IndexBuffer))
 		{
 			return false;
 		}
-		if (pBuffer->GetStride() != 4 && pBuffer->GetStride() != 2)
+		if (desc.stride != 4 && desc.stride != 2)
 		{
 			return false;
 		}
 
 		view_.BufferLocation = pBuffer->GetResourceDep()->GetGPUVirtualAddress() + offset;
-		view_.SizeInBytes = (size == 0) ? static_cast<u32>(pBuffer->GetSize() - offset) : static_cast<u32>(size);
-		view_.Format = (pBuffer->GetStride() == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+		view_.SizeInBytes = (size == 0) ? static_cast<u32>(desc.size - offset) : static_cast<u32>(size);
+		view_.Format = (desc.stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 		bufferOffset_ = offset;
 
 		return true;
@@ -131,7 +137,9 @@ namespace sl12
 		{
 			return false;
 		}
-		if (pBuffer->GetBufferUsage() != BufferUsage::IndexBuffer)
+
+		auto&& desc = pBuffer->GetBufferDesc(); 
+		if (!(desc.usage & BufferUsage::IndexBuffer))
 		{
 			return false;
 		}
@@ -141,7 +149,7 @@ namespace sl12
 		}
 
 		view_.BufferLocation = pBuffer->GetResourceDep()->GetGPUVirtualAddress() + offset;
-		view_.SizeInBytes = (size == 0) ? static_cast<u32>(pBuffer->GetSize() - offset) : static_cast<u32>(size);
+		view_.SizeInBytes = (size == 0) ? static_cast<u32>(desc.size - offset) : static_cast<u32>(size);
 		view_.Format = (stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 		bufferOffset_ = offset;
 

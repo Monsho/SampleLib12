@@ -1,0 +1,18 @@
+[submodule "ThirdParty/stb"]
+	path = ThirdParty/stb
+	url = https://github.com/nothings/stb.git
+[submodule "ThirdParty/meshoptimizer"]
+	path = ThirdParty/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer.git
+[submodule "ThirdParty/cereal"]
+	path = ThirdParty/cereal
+	url = https://github.com/USCiLab/cereal.git
+[submodule "ThirdParty/imgui"]
+	path = ThirdParty/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "ThirdParty/tinyexr"]
+	path = ThirdParty/tinyexr
+	url = https://github.com/syoyo/tinyexr.git
+[submodule "ThirdParty/RTXGI"]
+	path = ThirdParty/RTXGI
+	url = https://github.com/NVIDIAGameWorks/RTXGI.git

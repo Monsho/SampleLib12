@@ -7,28 +7,29 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SampleLib12", "SampleLib12\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "glTFtoMesh", "glTFtoMesh\glTFtoMesh.vcxproj", "{2FF9FB7A-62DC-42DB-A44D-805514E0FE62}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RenderTest", "RenderTest\RenderTest.vcxproj", "{2765DF32-2330-4AFA-970C-BC1B14E3576A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{027478E8-F042-4016-BAA7-CDD455A319EA} = {027478E8-F042-4016-BAA7-CDD455A319EA}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
-		Debug|x86 = Debug|x86
 		Release|x64 = Release|x64
-		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{027478E8-F042-4016-BAA7-CDD455A319EA}.Debug|x64.ActiveCfg = Debug|x64
 		{027478E8-F042-4016-BAA7-CDD455A319EA}.Debug|x64.Build.0 = Debug|x64
-		{027478E8-F042-4016-BAA7-CDD455A319EA}.Debug|x86.ActiveCfg = Debug|x64
-		{027478E8-F042-4016-BAA7-CDD455A319EA}.Debug|x86.Build.0 = Debug|x64
 		{027478E8-F042-4016-BAA7-CDD455A319EA}.Release|x64.ActiveCfg = Release|x64
 		{027478E8-F042-4016-BAA7-CDD455A319EA}.Release|x64.Build.0 = Release|x64
-		{027478E8-F042-4016-BAA7-CDD455A319EA}.Release|x86.ActiveCfg = Release|x64
-		{027478E8-F042-4016-BAA7-CDD455A319EA}.Release|x86.Build.0 = Release|x64
 		{2FF9FB7A-62DC-42DB-A44D-805514E0FE62}.Debug|x64.ActiveCfg = Debug|x64
 		{2FF9FB7A-62DC-42DB-A44D-805514E0FE62}.Debug|x64.Build.0 = Debug|x64
-		{2FF9FB7A-62DC-42DB-A44D-805514E0FE62}.Debug|x86.ActiveCfg = Debug|x64
 		{2FF9FB7A-62DC-42DB-A44D-805514E0FE62}.Release|x64.ActiveCfg = Release|x64
 		{2FF9FB7A-62DC-42DB-A44D-805514E0FE62}.Release|x64.Build.0 = Release|x64
-		{2FF9FB7A-62DC-42DB-A44D-805514E0FE62}.Release|x86.ActiveCfg = Release|x64
+		{2765DF32-2330-4AFA-970C-BC1B14E3576A}.Debug|x64.ActiveCfg = Debug|x64
+		{2765DF32-2330-4AFA-970C-BC1B14E3576A}.Debug|x64.Build.0 = Debug|x64
+		{2765DF32-2330-4AFA-970C-BC1B14E3576A}.Release|x64.ActiveCfg = Release|x64
+		{2765DF32-2330-4AFA-970C-BC1B14E3576A}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

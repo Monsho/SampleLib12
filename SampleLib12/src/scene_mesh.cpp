@@ -29,60 +29,52 @@ namespace sl12
 
 	//------------
 	//----
-	SceneSubmesh::SceneSubmesh(sl12::Device* pDevice, const sl12::ResourceItemMesh::Submesh& submesh)
+	SceneSubmesh::SceneSubmesh(Device* pDevice, const ResourceItemMesh::Submesh& submesh)
 		: pParentDevice_(pDevice)
 	{
 		// create buffers.
-		pMeshletBoundsB_ = new sl12::Buffer();
-		pMeshletDrawInfoB_ = new sl12::Buffer();
-		pMeshletBoundsBV_ = new sl12::BufferView();
-		pMeshletDrawInfoBV_ = new sl12::BufferView();
-		pBoundsStaging_ = new sl12::Buffer();
-		pDrawInfoStaging_ = new sl12::Buffer();
-		pMeshletCB_ = new sl12::Buffer();
-		pMeshletCBV_ = new sl12::ConstantBufferView();
+		pMeshletBoundsB_ = new Buffer();
+		pMeshletDrawInfoB_ = new Buffer();
+		pMeshletBoundsBV_ = new BufferView();
+		pMeshletDrawInfoBV_ = new BufferView();
+		pBoundsStaging_ = new Buffer();
+		pDrawInfoStaging_ = new Buffer();
+		pMeshletCB_ = new Buffer();
+		pMeshletCBV_ = new ConstantBufferView();
 
-		pMeshletBoundsB_->Initialize(
-			pDevice,
-			sizeof(MeshletBound) * submesh.meshlets.size(),
-			sizeof(MeshletBound),
-			sl12::BufferUsage::ShaderResource,
-			D3D12_RESOURCE_STATE_COMMON,
-			false, false);
-		pBoundsStaging_->Initialize(
-			pDevice,
-			sizeof(MeshletBound) * submesh.meshlets.size(),
-			sizeof(MeshletBound),
-			sl12::BufferUsage::ShaderResource,
-			true, false);
-		pMeshletDrawInfoB_->Initialize(
-			pDevice,
-			sizeof(MeshletDrawInfo) * submesh.meshlets.size(),
-			sizeof(MeshletDrawInfo),
-			sl12::BufferUsage::ShaderResource,
-			D3D12_RESOURCE_STATE_COMMON,
-			false, false);
-		pDrawInfoStaging_->Initialize(
-			pDevice,
-			sizeof(MeshletDrawInfo) * submesh.meshlets.size(),
-			sizeof(MeshletDrawInfo),
-			sl12::BufferUsage::ShaderResource,
-			true, false);
+		BufferDesc creationDesc{};
+		creationDesc.size = sizeof(MeshletBound) * submesh.meshlets.size();
+		creationDesc.stride = sizeof(MeshletBound);
+		creationDesc.usage = BufferUsage::ShaderResource;
+		creationDesc.heap = BufferHeap::Default;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
+		pMeshletBoundsB_->Initialize(pDevice, creationDesc);
+
+		creationDesc.heap = BufferHeap::Dynamic;
+		pBoundsStaging_->Initialize(pDevice, creationDesc);
+
+		creationDesc.size = sizeof(MeshletDrawInfo) * submesh.meshlets.size();
+		creationDesc.stride = sizeof(MeshletDrawInfo);
+		creationDesc.heap = BufferHeap::Default;
+		pMeshletDrawInfoB_->Initialize(pDevice, creationDesc);
+
+		creationDesc.heap = BufferHeap::Dynamic;
+		pDrawInfoStaging_->Initialize(pDevice, creationDesc);
+
 		pMeshletBoundsBV_->Initialize(pDevice, pMeshletBoundsB_, 0, 0, sizeof(MeshletBound));
 		pMeshletDrawInfoBV_->Initialize(pDevice, pMeshletDrawInfoB_, 0, 0, sizeof(MeshletDrawInfo));
 
-		pMeshletCB_->Initialize(
-			pDevice,
-			sizeof(MeshletCB),
-			sizeof(MeshletCB),
-			sl12::BufferUsage::ConstantBuffer,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			true, false);
+		creationDesc.size = sizeof(MeshletCB);
+		creationDesc.stride = 0;
+		creationDesc.usage = BufferUsage::ConstantBuffer;
+		creationDesc.heap = BufferHeap::Dynamic;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		pMeshletCB_->Initialize(pDevice, creationDesc);
 		pMeshletCBV_->Initialize(pDevice, pMeshletCB_);
 
 		// upload meshlet data.
-		auto bound = (MeshletBound*)pBoundsStaging_->Map(nullptr);
-		auto draw_info = (MeshletDrawInfo*)pDrawInfoStaging_->Map(nullptr);
+		auto bound = (MeshletBound*)pBoundsStaging_->Map();
+		auto draw_info = (MeshletDrawInfo*)pDrawInfoStaging_->Map();
 		for (auto&& meshlet : submesh.meshlets)
 		{
 			bound->aabbMin = meshlet.boundingInfo.box.aabbMin;
@@ -129,13 +121,13 @@ namespace sl12
 	{
 		if (pBoundsStaging_)
 		{
-			pCmdList->GetLatestCommandList()->CopyBufferRegion(pMeshletBoundsB_->GetResourceDep(), 0, pBoundsStaging_->GetResourceDep(), 0, pBoundsStaging_->GetSize());
+			pCmdList->GetLatestCommandList()->CopyBufferRegion(pMeshletBoundsB_->GetResourceDep(), 0, pBoundsStaging_->GetResourceDep(), 0, pBoundsStaging_->GetBufferDesc().size);
 			pParentDevice_->KillObject(pBoundsStaging_);
 			pBoundsStaging_ = nullptr;
 		}
 		if (pDrawInfoStaging_)
 		{
-			pCmdList->GetLatestCommandList()->CopyBufferRegion(pMeshletDrawInfoB_->GetResourceDep(), 0, pDrawInfoStaging_->GetResourceDep(), 0, pDrawInfoStaging_->GetSize());
+			pCmdList->GetLatestCommandList()->CopyBufferRegion(pMeshletDrawInfoB_->GetResourceDep(), 0, pDrawInfoStaging_->GetResourceDep(), 0, pDrawInfoStaging_->GetBufferDesc().size);
 			pParentDevice_->KillObject(pDrawInfoStaging_);
 			pDrawInfoStaging_ = nullptr;
 		}
@@ -173,34 +165,26 @@ namespace sl12
 		pFalseNegativeCountUAV_ = new sl12::UnorderedAccessView();
 
 		u32 argSize = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
-		pIndirectArgBuffer_->Initialize(
-			pDevice,
-			argSize * total_meshlets_count * 2,
-			argSize,
-			sl12::BufferUsage::ShaderResource,
-			D3D12_RESOURCE_STATE_COMMON,
-			false, true);
-		pIndirectCountBuffer_->Initialize(
-			pDevice,
-			sizeof(u32) * submesh_count * 2,
-			sizeof(u32),
-			sl12::BufferUsage::ShaderResource,
-			D3D12_RESOURCE_STATE_COMMON,
-			false, true);
-		pFalseNegativeBuffer_->Initialize(
-			pDevice,
-			sizeof(u32) * total_meshlets_count,
-			sizeof(u32),
-			sl12::BufferUsage::ShaderResource,
-			D3D12_RESOURCE_STATE_COMMON,
-			false, true);
-		pFalseNegativeCountBuffer_->Initialize(
-			pDevice,
-			sizeof(u32) * submesh_count,
-			sizeof(u32),
-			sl12::BufferUsage::ShaderResource,
-			D3D12_RESOURCE_STATE_COMMON,
-			false, true);
+
+		BufferDesc creationDesc{};
+		creationDesc.size = argSize * total_meshlets_count * 2;
+		creationDesc.stride = argSize;
+		creationDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+		creationDesc.heap = BufferHeap::Default;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
+		pIndirectArgBuffer_->Initialize(pDevice, creationDesc);
+
+		creationDesc.size = sizeof(u32) * submesh_count * 2;
+		creationDesc.stride = sizeof(u32);
+		pIndirectCountBuffer_->Initialize(pDevice, creationDesc);
+
+		creationDesc.size = sizeof(u32) * total_meshlets_count;
+		creationDesc.stride = sizeof(u32);
+		pFalseNegativeBuffer_->Initialize(pDevice, creationDesc);
+
+		creationDesc.size = sizeof(u32) * submesh_count;
+		creationDesc.stride = sizeof(u32);
+		pFalseNegativeCountBuffer_->Initialize(pDevice, creationDesc);
 
 		pIndirectArgUAV_->Initialize(
 			pDevice,
@@ -235,7 +219,7 @@ namespace sl12
 			cb->indirectCount2ndByteOffset = sizeof(sl12::u32) * (submesh_offset * 2 + 1);
 			cb->falseNegativeIndexOffset = meshlets_offset;
 			cb->falseNegativeCountByteOffset = sizeof(sl12::u32) * submesh_offset;
-			memcpy(ss->pMeshletCB_->Map(nullptr), cb, sizeof(*cb));
+			memcpy(ss->pMeshletCB_->Map(), cb, sizeof(*cb));
 			ss->pMeshletCB_->Unmap();
 
 			sceneSubmeshes_.push_back(std::move(ss));
@@ -279,24 +263,22 @@ namespace sl12
 		if (!pMaterialCB_)
 		{
 			auto&& materials = pParentResource_->GetMaterials();
-			u32 matDataSize = GetAlignedSize(sizeof(MeshMaterialData), (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+			u32 matDataSize = (u32)GetAlignedSize(sizeof(MeshMaterialData), (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 			pMaterialCB_ = new Buffer();
-			pMaterialCB_->Initialize(
-				pParentDevice_,
-				matDataSize * materials.size(),
-				0,
-				BufferUsage::ConstantBuffer,
-				false, false);
+
+			BufferDesc creationDesc{};
+			creationDesc.size = matDataSize * materials.size();
+			creationDesc.usage = BufferUsage::ConstantBuffer;
+			pMaterialCB_->Initialize(pParentDevice_, creationDesc);
 
 			Buffer* pCopySrc = new Buffer();
-			pCopySrc->Initialize(
-				pParentDevice_,
-				matDataSize * materials.size(),
-				0,
-				BufferUsage::ConstantBuffer,
-				true, false);
 
-			u8* pData = (u8*)pCopySrc->Map(nullptr);
+			creationDesc.size = matDataSize * materials.size();
+			creationDesc.usage = BufferUsage::Copy;
+			creationDesc.heap = BufferHeap::Dynamic;
+			pCopySrc->Initialize(pParentDevice_, creationDesc);
+
+			u8* pData = (u8*)pCopySrc->Map();
 			materialCBVs_.resize(materials.size());
 			for (size_t i = 0; i < materials.size(); i++)
 			{

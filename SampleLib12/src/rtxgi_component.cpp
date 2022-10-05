@@ -680,14 +680,14 @@ namespace sl12
 	}
 
 	//----
-	ConstantBufferCache::Handle RtxgiComponent::CreateConstantBuffer(ConstantBufferCache* pCache, int volumeIndex)
+	CbvHandle RtxgiComponent::CreateConstantBuffer(CbvManager* pCbvMan, int volumeIndex)
 	{
 		// TODO: need implement multi volume.
 		rtxgi::DDGIConstants cb;
 		cb.volumeIndex = volumeIndex;
 		cb.uavOffset = 0;
 		cb.srvOffset = 0;
-		return pCache->GetUnusedConstBuffer(sizeof(cb), &cb);
+		return pCbvMan->GetTemporal(&cb, sizeof(cb));
 	}
 
 	//----

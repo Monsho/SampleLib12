@@ -83,7 +83,7 @@ namespace sl12
 		~SceneMesh();
 
 		void BeginNewFrame(CommandList* pCmdList) override;
-		void CreateRenderCommand(ConstantBufferCache* pCBCache, RenderCommandsList& outRenderCmds) override;
+		void CreateRenderCommand(CbvManager* pCbvMan, RenderCommandsList& outRenderCmds) override;
 
 		const ResourceItemMesh* GetParentResource() const
 		{

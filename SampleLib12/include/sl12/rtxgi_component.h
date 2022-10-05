@@ -5,7 +5,7 @@
 #include <sl12/texture.h>
 #include <sl12/buffer_view.h>
 #include <sl12/texture_view.h>
-#include <sl12/constant_buffer_cache.h>
+#include <sl12/cbv_manager.h>
 
 
 namespace rtxgi
@@ -132,7 +132,7 @@ namespace sl12
 		int GetNumProbes() const;
 		int GetNumRaysPerProbe() const;
 
-		ConstantBufferCache::Handle CreateConstantBuffer(ConstantBufferCache* pCache, int volumeIndex);
+		CbvHandle CreateConstantBuffer(CbvManager* pCbvMan, int volumeIndex);
 
 		void SetDescHysteresis(float v);
 		void SetDescIrradianceThreshold(float v);

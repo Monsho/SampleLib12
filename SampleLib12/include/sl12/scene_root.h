@@ -24,7 +24,7 @@ namespace sl12
 		{}
 
 		// create unique render command.
-		virtual void CreateRenderCommand(ConstantBufferCache* pCBCache, RenderCommandsList& outRenderCmds)
+		virtual void CreateRenderCommand(CbvManager* pCbvMan, RenderCommandsList& outRenderCmds)
 		{}
 	};	// class SceneNode
 
@@ -43,7 +43,7 @@ namespace sl12
 
 		void BeginNewFrame(CommandList* pCmdList);
 
-		void GatherRenderCommands(ConstantBufferCache* pCBCache, RenderCommandsList& outRenderCmds);
+		void GatherRenderCommands(CbvManager* pCbvMan, RenderCommandsList& outRenderCmds);
 
 		void GabageCollect();
 

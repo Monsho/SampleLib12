@@ -2,11 +2,11 @@
 #include "sl12/resource_loader.h"
 #include "sl12/shader_manager.h"
 #include "sl12/command_list.h"
-#include "sl12/constant_buffer_cache.h"
 #include "sl12/gui.h"
 #include "sl12/root_signature.h"
 #include "sl12/pipeline_state.h"
 #include "sl12/unique_handle.h"
+#include "sl12/cbv_manager.h"
 
 
 class SampleApplication
@@ -87,7 +87,7 @@ private:
 	UniqueHandle<sl12::ResourceLoader>	resLoader_;
 	UniqueHandle<sl12::ShaderManager>	shaderMan_;
 	UniqueHandle<CommandLists>			mainCmdList_;
-	UniqueHandle<sl12::ConstantBufferCache>	cbvCache_;
+	UniqueHandle<sl12::CbvManager>		cbvMan_;
 
 	UniqueHandle<sl12::RootSignature>			rsVsPs_;
 	UniqueHandle<sl12::GraphicsPipelineState>	psoMesh_;

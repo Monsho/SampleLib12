@@ -71,10 +71,9 @@ bool SampleApplication::Initialize()
 		return false;
 	}
 
-	// init cbv cache.
-	cbvCache_ = sl12::MakeUnique<sl12::ConstantBufferCache>(nullptr);
-	cbvCache_->Initialize(&device_);
-
+	// init cbv manager.
+	cbvMan_ = sl12::MakeUnique<sl12::CbvManager>(nullptr, &device_);
+	
 	// create sampler.
 	{
 		linearSampler_ = sl12::MakeUnique<sl12::Sampler>(&device_);
@@ -211,7 +210,7 @@ bool SampleApplication::Execute()
 	device_.SyncKillObjects();
 
 	device_.LoadRenderCommands(pCmdList);
-	cbvCache_->BeginNewFrame();
+	cbvMan_->BeginNewFrame();
 
 	// clear swapchain.
 	auto&& swapchain = device_.GetSwapchain();
@@ -260,12 +259,12 @@ bool SampleApplication::Execute()
 		DirectX::XMStoreFloat4x4(&cbScene.mtxWorldToProj, mtxWorldToClip);
 		DirectX::XMStoreFloat4x4(&cbScene.mtxWorldToView, mtxWorldToView);
 
-		auto hSceneCB = cbvCache_->GetUnusedConstBuffer(sizeof(cbScene), &cbScene);
+		auto hSceneCB = cbvMan_->GetTemporal(&cbScene, sizeof(cbScene));
 
 		MeshCB cbMesh;
 		DirectX::XMStoreFloat4x4(&cbMesh.mtxLocalToWorld, DirectX::XMMatrixIdentity());
 
-		auto hMeshCB = cbvCache_->GetUnusedConstBuffer(sizeof(cbMesh), &cbMesh);
+		auto hMeshCB = cbvMan_->GetTemporal(&cbMesh, sizeof(cbMesh));
 
 		// set descriptors.
 		sl12::DescriptorSet descSet;
@@ -362,7 +361,7 @@ void SampleApplication::Finalize()
 	rsVsPs_.Reset();
 	depthTex_.Reset();
 	depthDSV_.Reset();
-	cbvCache_.Reset();
+	cbvMan_.Reset();
 	mainCmdList_.Reset();
 	shaderMan_.Reset();
 	resLoader_.Reset();

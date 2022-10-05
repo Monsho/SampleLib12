@@ -19,7 +19,7 @@ namespace sl12
 
 	//------------
 	//----
-	MeshRenderCommand::MeshRenderCommand(SceneMesh* pMesh, ConstantBufferCache* pCBCache)
+	MeshRenderCommand::MeshRenderCommand(SceneMesh* pMesh, CbvManager* pCbvMan)
 		: pParentMesh_(pMesh)
 	{
 		isUnbound_ = false;
@@ -34,7 +34,7 @@ namespace sl12
 		cb.curr = pMesh->GetMtxLocalToWorld();
 		cb.prev = pMesh->GetMtxPrevLocalToWorld();
 
-		cbHandle_ = pCBCache->GetUnusedConstBuffer(sizeof(cb), &cb);
+		cbHandle_ = pCbvMan->GetTemporal(&cb, sizeof(cb));
 
 		// create submesh commands.
 		auto sbCount = pMesh->GetSubmeshCount();

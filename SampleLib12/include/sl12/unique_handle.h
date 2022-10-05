@@ -10,9 +10,12 @@ namespace sl12
 	{
 	public:
 		UniqueHandle()
+			: pParentDevice_(nullptr)
+			, pObject_(nullptr)
 		{}
 		UniqueHandle(Device* pDev)
 			: pParentDevice_(pDev)
+			, pObject_(nullptr)
 		{}
 		UniqueHandle(T* p, Device* pDev = nullptr)
 			: pParentDevice_(pDev)
@@ -37,6 +40,11 @@ namespace sl12
 			}
 			return *this;
 		}
+		UniqueHandle& operator=(nullptr_t) noexcept
+		{
+			Reset();
+			return *this;
+		}
 
 		T* operator->() const noexcept
 		{
@@ -48,7 +56,7 @@ namespace sl12
 			return pObject_;
 		}
 
-		void Reset(T* p = nullptr)
+		void Reset(T* p = nullptr) noexcept
 		{
 			if (pObject_)
 			{
@@ -66,11 +74,17 @@ namespace sl12
 			pObject_ = p;
 		}
 
-		T* Release()
+		T* Release() noexcept
 		{
 			T* p = pObject_;
 			pObject_ = nullptr;
 			return p;
+		}
+
+		void Swap(UniqueHandle& Right) noexcept
+		{
+			std::swap(pParentDevice_, Right.pParentDevice_);
+			std::swap(pObject_, Right.pObject_);
 		}
 
 	private:

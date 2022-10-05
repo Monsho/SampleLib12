@@ -50,7 +50,7 @@ namespace sl12
 		Result result;
 
 		std::unique_lock<std::mutex> lock(mutex_);
-		if ((tail_ > head_) && (size > size_ - tail_))
+		if ((tail_ >= head_) && (size > size_ - tail_))
 		{
 			tail_ = 0;
 		}

@@ -309,9 +309,9 @@ namespace sl12
 	}
 
 	//----
-	void SceneMesh::CreateRenderCommand(ConstantBufferCache* pCBCache, RenderCommandsList& outRenderCmds)
+	void SceneMesh::CreateRenderCommand(CbvManager* pCbvMan, RenderCommandsList& outRenderCmds)
 	{
-		auto ret = std::make_unique<MeshRenderCommand>(this, pCBCache);
+		auto ret = std::make_unique<MeshRenderCommand>(this, pCbvMan);
 		mtxPrevLocalToWorld_ = mtxLocalToWorld_;
 		outRenderCmds.push_back(std::move(ret));
 	}

@@ -65,13 +65,13 @@ namespace sl12
 	}
 
 	//----
-	void SceneRoot::GatherRenderCommands(ConstantBufferCache* pCBCache, RenderCommandsList& outRenderCmds)
+	void SceneRoot::GatherRenderCommands(CbvManager* pCbvMan, RenderCommandsList& outRenderCmds)
 	{
 		for (auto&& node : nodes_)
 		{
 			if (auto r = node.lock())
 			{
-				r->CreateRenderCommand(pCBCache, outRenderCmds);
+				r->CreateRenderCommand(pCbvMan, outRenderCmds);
 			}
 		}
 	}

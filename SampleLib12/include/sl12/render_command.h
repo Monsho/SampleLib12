@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 #include "sl12/util.h"
-#include "sl12/constant_buffer_cache.h"
+#include "sl12/cbv_manager.h"
 
 
 namespace sl12
@@ -87,7 +87,7 @@ namespace sl12
 		: public RenderCommand
 	{
 	public:
-		MeshRenderCommand(SceneMesh* pMesh, ConstantBufferCache* pCBCache);
+		MeshRenderCommand(SceneMesh* pMesh, CbvManager* pCbvMan);
 		virtual ~MeshRenderCommand();
 
 		// getter
@@ -109,8 +109,8 @@ namespace sl12
 		}
 
 	private:
-		SceneMesh*					pParentMesh_ = nullptr;
-		ConstantBufferCache::Handle	cbHandle_;
+		SceneMesh*	pParentMesh_ = nullptr;
+		CbvHandle	cbHandle_;
 
 		std::vector<std::unique_ptr<SubmeshRenderCommand>>	submeshCommands_;
 	};	// class MeshRenderCommand

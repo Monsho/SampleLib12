@@ -10,6 +10,11 @@ namespace sl12
 	//----
 	bool Buffer::Initialize(Device* pDev, const BufferDesc& desc)
 	{
+		if (desc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil))
+		{
+			return false;
+		}
+		
 		static const D3D12_HEAP_TYPE kHeapTypes[] = {
 			D3D12_HEAP_TYPE_DEFAULT,
 			D3D12_HEAP_TYPE_UPLOAD,
@@ -18,7 +23,7 @@ namespace sl12
 		D3D12_HEAP_TYPE heapType = kHeapTypes[desc.heap];
 
 		size_t allocSize = desc.size;
-		if (desc.usage & BufferUsage::ConstantBuffer)
+		if (desc.usage & ResourceUsage::ConstantBuffer)
 		{
 			allocSize = GetAlignedSize(allocSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 		}
@@ -56,7 +61,7 @@ namespace sl12
 		resDesc.SampleDesc.Count = 1;
 		resDesc.SampleDesc.Quality = 0;
 		resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		resDesc.Flags = (desc.usage & BufferUsage::UnorderedAccess) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+		resDesc.Flags = (desc.usage & ResourceUsage::UnorderedAccess) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
 		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, desc.initialState, nullptr, IID_PPV_ARGS(&pResource_));
 		if (FAILED(hr))
@@ -105,7 +110,7 @@ namespace sl12
 		{
 			BufferDesc tmpDesc{};
 			tmpDesc.size = size;
-			tmpDesc.usage = BufferUsage::Copy;
+			tmpDesc.usage = ResourceUsage::Unknown;
 			tmpDesc.heap = BufferHeap::Dynamic;
 			Buffer* src = new Buffer();
 			if (!src->Initialize(pDev, tmpDesc))

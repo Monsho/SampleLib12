@@ -78,8 +78,8 @@ namespace sl12
 		: pParentDevice_(pDev)
 	{
 		const size_t kBlockSize = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-		residentAllocator_ = MakeUnique<BufferSuballocAllocator>(nullptr, pDev, kBlockSize, BufferHeap::Default, BufferUsage::ConstantBuffer, D3D12_RESOURCE_STATE_COMMON);
-		temporalAllocator_ = MakeUnique<BufferSuballocAllocator>(nullptr, pDev, kBlockSize, BufferHeap::Dynamic, BufferUsage::ConstantBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+		residentAllocator_ = MakeUnique<BufferSuballocAllocator>(nullptr, pDev, kBlockSize, BufferHeap::Default, ResourceUsage::ConstantBuffer, D3D12_RESOURCE_STATE_COMMON);
+		temporalAllocator_ = MakeUnique<BufferSuballocAllocator>(nullptr, pDev, kBlockSize, BufferHeap::Dynamic, ResourceUsage::ConstantBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
 		ringBuffer_ = MakeUnique<CopyRingBuffer>(nullptr, pDev);
 	}
 

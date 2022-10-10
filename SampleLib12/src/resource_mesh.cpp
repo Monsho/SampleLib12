@@ -76,7 +76,7 @@ namespace sl12
 		// create buffers.
 		auto pDev = pLoader->GetDevice();
 		auto pMeshMan = pLoader->GetMeshManager();
-		auto CreateBuffer = [&](Buffer& buff, MeshManager::Handle* pHandle, const std::vector<u8>& data, size_t stride, BufferUsage::Type usage, bool isEmpyOk = false)
+		auto CreateBuffer = [&](Buffer& buff, MeshManager::Handle* pHandle, const std::vector<u8>& data, size_t stride, u32 usage, bool isEmpyOk = false)
 		{
 			if (data.empty())
 			{
@@ -107,11 +107,11 @@ namespace sl12
 			// for mesh manager.
 			if (pHandle && pMeshMan)
 			{
-				if (usage == BufferUsage::VertexBuffer)
+				if (usage & ResourceUsage::VertexBuffer)
 				{
 					*pHandle = pMeshMan->DeployVertexBuffer(data.data(), data.size());
 				}
-				else if (usage == BufferUsage::IndexBuffer)
+				else if (usage & ResourceUsage::IndexBuffer)
 				{
 					*pHandle = pMeshMan->DeployIndexBuffer(data.data(), data.size());
 				}
@@ -121,38 +121,38 @@ namespace sl12
 			command->pDevice = pDev;
 			command->pSrcBuffer = staging;
 			command->pDstBuffer = &buff;
-			command->initState = (usage == BufferUsage::VertexBuffer
+			command->initState = (usage & ResourceUsage::VertexBuffer
 				? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
 				: D3D12_RESOURCE_STATE_INDEX_BUFFER); 
 
 			pDev->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
 			return true;
 		};
-		if (!CreateBuffer(ret->positionVB_, &ret->hPosition_, mesh_bin.GetVBPosition(), sizeof(DirectX::XMFLOAT3), BufferUsage::VertexBuffer))
+		if (!CreateBuffer(ret->positionVB_, &ret->hPosition_, mesh_bin.GetVBPosition(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->normalVB_, &ret->hNormal_, mesh_bin.GetVBNormal(), sizeof(DirectX::XMFLOAT3), BufferUsage::VertexBuffer))
+		if (!CreateBuffer(ret->normalVB_, &ret->hNormal_, mesh_bin.GetVBNormal(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->tangentVB_, &ret->hTangent_, mesh_bin.GetVBTangent(), sizeof(DirectX::XMFLOAT4), BufferUsage::VertexBuffer))
+		if (!CreateBuffer(ret->tangentVB_, &ret->hTangent_, mesh_bin.GetVBTangent(), sizeof(DirectX::XMFLOAT4), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->texcoordVB_, &ret->hTexcoord_, mesh_bin.GetVBTexcoord(), sizeof(DirectX::XMFLOAT2), BufferUsage::VertexBuffer))
+		if (!CreateBuffer(ret->texcoordVB_, &ret->hTexcoord_, mesh_bin.GetVBTexcoord(), sizeof(DirectX::XMFLOAT2), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->indexBuffer_, &ret->hIndex_, mesh_bin.GetIndexBuffer(), sizeof(u32), BufferUsage::IndexBuffer))
+		if (!CreateBuffer(ret->indexBuffer_, &ret->hIndex_, mesh_bin.GetIndexBuffer(), sizeof(u32), ResourceUsage::IndexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->meshletPackedPrimitive_, nullptr, mesh_bin.GetMeshletPackedPrimitive(), sizeof(u32), BufferUsage::ShaderResource, true))
+		if (!CreateBuffer(ret->meshletPackedPrimitive_, nullptr, mesh_bin.GetMeshletPackedPrimitive(), sizeof(u32), ResourceUsage::ShaderResource, true))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->meshletVertexIndex_, nullptr, mesh_bin.GetMeshletVertexIndex(), sizeof(u32), BufferUsage::ShaderResource, true))
+		if (!CreateBuffer(ret->meshletVertexIndex_, nullptr, mesh_bin.GetMeshletVertexIndex(), sizeof(u32), ResourceUsage::ShaderResource, true))
 		{
 			return nullptr;
 		}

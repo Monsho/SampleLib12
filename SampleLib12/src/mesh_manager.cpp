@@ -8,7 +8,7 @@ namespace sl12
 {
 	//----------------
 	//----
-	BufferHeapAllocator::BufferHeapAllocator(Device* pDev, size_t initSize, size_t align, BufferUsage::Type usage)
+	BufferHeapAllocator::BufferHeapAllocator(Device* pDev, size_t initSize, size_t align, u32 usage)
 		: pParentDevice_(pDev)
 		, initSize_(initSize)
 		, alignment_(align)
@@ -189,8 +189,8 @@ namespace sl12
 	MeshManager::MeshManager(Device* pDev, size_t vertexSize, size_t indexSize)
 		: pParentDevice_(pDev)
 	{
-		pVertexHeap_ = std::make_unique<BufferHeapAllocator>(pDev, vertexSize, 4, BufferUsage::VertexBuffer);
-		pIndexHeap_ = std::make_unique<BufferHeapAllocator>(pDev, indexSize, 4, BufferUsage::IndexBuffer);
+		pVertexHeap_ = std::make_unique<BufferHeapAllocator>(pDev, vertexSize, 4, ResourceUsage::VertexBuffer);
+		pIndexHeap_ = std::make_unique<BufferHeapAllocator>(pDev, indexSize, 4, ResourceUsage::IndexBuffer);
 	}
 
 	//----
@@ -230,7 +230,7 @@ namespace sl12
 
 				BufferDesc creationDesc{};
 				creationDesc.size = totalSize;
-				creationDesc.usage = BufferUsage::VertexBuffer;
+				creationDesc.usage = ResourceUsage::VertexBuffer;
 				creationDesc.heap = BufferHeap::Dynamic;
 				pSrcBuffer->Initialize(pParentDevice_, creationDesc);
 				{

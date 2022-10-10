@@ -269,7 +269,7 @@ namespace sl12
 		}
 		BufferDesc creationDesc{};
 		creationDesc.size = sizeof(VertexUniform);
-		creationDesc.usage = BufferUsage::ConstantBuffer;
+		creationDesc.usage = ResourceUsage::ConstantBuffer;
 		creationDesc.heap = BufferHeap::Dynamic;
 		for (u32 i = 0; i < kMaxFrameCount; i++)
 		{
@@ -401,7 +401,7 @@ namespace sl12
 			BufferDesc creationDesc{};
 			creationDesc.size = vertex_size;
 			creationDesc.stride = sizeof(ImDrawVert);
-			creationDesc.usage = BufferUsage::VertexBuffer;
+			creationDesc.usage = ResourceUsage::VertexBuffer;
 			creationDesc.heap = BufferHeap::Dynamic;
 
 			vbuffer.Destroy();
@@ -420,7 +420,7 @@ namespace sl12
 			BufferDesc creationDesc{};
 			creationDesc.size = index_size;
 			creationDesc.stride = sizeof(ImDrawIdx);
-			creationDesc.usage = BufferUsage::IndexBuffer;
+			creationDesc.usage = ResourceUsage::IndexBuffer;
 			creationDesc.heap = BufferHeap::Dynamic;
 
 			ibuffer.Destroy();

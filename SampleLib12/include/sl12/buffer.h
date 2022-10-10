@@ -8,20 +8,6 @@ namespace sl12
 	class Device;
 	class CommandList;
 
-	struct BufferUsage
-	{
-		enum Type
-		{
-			ConstantBuffer			= 0x1 << 0,
-			VertexBuffer			= 0x1 << 1,
-			IndexBuffer				= 0x1 << 2,
-			ShaderResource			= 0x1 << 3,
-			UnorderedAccess			= 0x1 << 4,
-			AccelerationStructure	= 0x1 << 5,
-			Copy					= 0x1 << 6
-		};
-	};	// struct BufferUsage
-
 	struct BufferHeap
 	{
 		enum Type
@@ -38,7 +24,7 @@ namespace sl12
 	{
 		size_t					size = 0;
 		size_t					stride = 0;
-		u32						usage = BufferUsage::ConstantBuffer;
+		u32						usage = ResourceUsage::ConstantBuffer;
 		BufferHeap::Type		heap = BufferHeap::Default;
 		D3D12_RESOURCE_STATES	initialState = D3D12_RESOURCE_STATE_COMMON;
 		bool					forceSysRam = false;

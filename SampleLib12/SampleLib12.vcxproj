@@ -111,7 +111,7 @@
     <ClInclude Include="include\sl12\mesh_manager.h" />
     <ClInclude Include="include\sl12\pipeline_state.h" />
     <ClInclude Include="include\sl12\render_command.h" />
-    <ClInclude Include="include\sl12\render_resource_manager.h" />
+    <ClInclude Include="include\sl12\render_graph.h" />
     <ClInclude Include="include\sl12\resource_loader.h" />
     <ClInclude Include="include\sl12\resource_mesh.h" />
     <ClInclude Include="include\sl12\resource_texture.h" />
@@ -160,7 +160,7 @@
     <ClCompile Include="src\mesh_manager.cpp" />
     <ClCompile Include="src\pipeline_state.cpp" />
     <ClCompile Include="src\render_command.cpp" />
-    <ClCompile Include="src\render_resource_manager.cpp" />
+    <ClCompile Include="src\render_graph.cpp" />
     <ClCompile Include="src\resource_loader.cpp" />
     <ClCompile Include="src\resource_mesh.cpp" />
     <ClCompile Include="src\resource_texture.cpp" />

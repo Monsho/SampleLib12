@@ -147,7 +147,7 @@ namespace sl12
 			BufferDesc creationDesc{};
 			creationDesc.size = size;
 			creationDesc.stride = stride;
-			creationDesc.usage = BufferUsage::ShaderResource;
+			creationDesc.usage = ResourceUsage::ShaderResource;
 			creationDesc.heap = BufferHeap::Default;
 			creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 			if (!constantSTB_.Initialize(pParentDevice_, creationDesc))
@@ -356,13 +356,12 @@ namespace sl12
 		desc.depth = 1;
 		desc.mipLevels = 1;
 		desc.sampleCount = 1;
-		desc.isUav = true;
 
 		// create texture resources.
 		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::RayData, desc.width, desc.height);
 		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::RayData, ddgiDesc.probeRayDataFormat);
 		desc.initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		desc.isRenderTarget = false;
+		desc.usage = ResourceUsage::UnorderedAccess;
 		if (!textures_[ETextureType::RayData].Initialize(pParentDevice_, desc))
 		{
 			return false;
@@ -372,7 +371,7 @@ namespace sl12
 		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Irradiance, desc.width, desc.height);
 		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Irradiance, ddgiDesc.probeIrradianceFormat);
 		desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		desc.isRenderTarget = true;
+		desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
 		if (!textures_[ETextureType::Irradiance].Initialize(pParentDevice_, desc))
 		{
 			return false;
@@ -382,7 +381,7 @@ namespace sl12
 		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Distance, desc.width, desc.height);
 		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Distance, ddgiDesc.probeDistanceFormat);
 		desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		desc.isRenderTarget = true;
+		desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
 		if (!textures_[ETextureType::Distance].Initialize(pParentDevice_, desc))
 		{
 			return false;
@@ -392,7 +391,7 @@ namespace sl12
 		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Data, desc.width, desc.height);
 		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Data, ddgiDesc.probeDataFormat);
 		desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		desc.isRenderTarget = false;
+		desc.usage = ResourceUsage::UnorderedAccess;
 		if (!textures_[ETextureType::ProbeData].Initialize(pParentDevice_, desc))
 		{
 			return false;

@@ -25,7 +25,7 @@ namespace sl12
 		{
 			return false;
 		}
-		if (!(pBuffer->GetBufferDesc().usage & BufferUsage::ConstantBuffer))
+		if (!(pBuffer->GetBufferDesc().usage & ResourceUsage::ConstantBuffer))
 		{
 			return false;
 		}
@@ -68,7 +68,7 @@ namespace sl12
 		}
 
 		auto&& desc = pBuffer->GetBufferDesc();
-		if (!(desc.usage & BufferUsage::VertexBuffer))
+		if (!(desc.usage & ResourceUsage::VertexBuffer))
 		{
 			return false;
 		}
@@ -88,7 +88,7 @@ namespace sl12
 		}
 
 		auto&& desc = pBuffer->GetBufferDesc(); 
-		if (!(desc.usage & BufferUsage::VertexBuffer))
+		if (!(desc.usage & ResourceUsage::VertexBuffer))
 		{
 			return false;
 		}
@@ -115,7 +115,7 @@ namespace sl12
 		}
 
 		auto&& desc = pBuffer->GetBufferDesc(); 
-		if (!(desc.usage & BufferUsage::IndexBuffer))
+		if (!(desc.usage & ResourceUsage::IndexBuffer))
 		{
 			return false;
 		}
@@ -139,7 +139,7 @@ namespace sl12
 		}
 
 		auto&& desc = pBuffer->GetBufferDesc(); 
-		if (!(desc.usage & BufferUsage::IndexBuffer))
+		if (!(desc.usage & ResourceUsage::IndexBuffer))
 		{
 			return false;
 		}

@@ -45,7 +45,7 @@ namespace sl12
 		BufferDesc creationDesc{};
 		creationDesc.size = sizeof(MeshletBound) * submesh.meshlets.size();
 		creationDesc.stride = sizeof(MeshletBound);
-		creationDesc.usage = BufferUsage::ShaderResource;
+		creationDesc.usage = ResourceUsage::ShaderResource;
 		creationDesc.heap = BufferHeap::Default;
 		creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 		pMeshletBoundsB_->Initialize(pDevice, creationDesc);
@@ -66,7 +66,7 @@ namespace sl12
 
 		creationDesc.size = sizeof(MeshletCB);
 		creationDesc.stride = 0;
-		creationDesc.usage = BufferUsage::ConstantBuffer;
+		creationDesc.usage = ResourceUsage::ConstantBuffer;
 		creationDesc.heap = BufferHeap::Dynamic;
 		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		pMeshletCB_->Initialize(pDevice, creationDesc);
@@ -169,7 +169,7 @@ namespace sl12
 		BufferDesc creationDesc{};
 		creationDesc.size = argSize * total_meshlets_count * 2;
 		creationDesc.stride = argSize;
-		creationDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+		creationDesc.usage = ResourceUsage::ShaderResource | ResourceUsage::UnorderedAccess;
 		creationDesc.heap = BufferHeap::Default;
 		creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 		pIndirectArgBuffer_->Initialize(pDevice, creationDesc);
@@ -268,13 +268,13 @@ namespace sl12
 
 			BufferDesc creationDesc{};
 			creationDesc.size = matDataSize * materials.size();
-			creationDesc.usage = BufferUsage::ConstantBuffer;
+			creationDesc.usage = ResourceUsage::ConstantBuffer;
 			pMaterialCB_->Initialize(pParentDevice_, creationDesc);
 
 			Buffer* pCopySrc = new Buffer();
 
 			creationDesc.size = matDataSize * materials.size();
-			creationDesc.usage = BufferUsage::Copy;
+			creationDesc.usage = ResourceUsage::Unknown;
 			creationDesc.heap = BufferHeap::Dynamic;
 			pCopySrc->Initialize(pParentDevice_, creationDesc);
 

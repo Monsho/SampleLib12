@@ -7,6 +7,7 @@
 #include "sl12/pipeline_state.h"
 #include "sl12/unique_handle.h"
 #include "sl12/cbv_manager.h"
+#include "sl12/render_graph.h"
 
 
 class SampleApplication
@@ -88,9 +89,13 @@ private:
 	UniqueHandle<sl12::ShaderManager>	shaderMan_;
 	UniqueHandle<CommandLists>			mainCmdList_;
 	UniqueHandle<sl12::CbvManager>		cbvMan_;
+	UniqueHandle<sl12::RenderGraph>		renderGraph_;
 
 	UniqueHandle<sl12::RootSignature>			rsVsPs_;
+	UniqueHandle<sl12::RootSignature>			rsCs_;
 	UniqueHandle<sl12::GraphicsPipelineState>	psoMesh_;
+	UniqueHandle<sl12::GraphicsPipelineState>	psoTonemap_;
+	UniqueHandle<sl12::ComputePipelineState>	psoLighting_;
 
 	UniqueHandle<sl12::Texture>				depthTex_;
 	UniqueHandle<sl12::DepthStencilView>	depthDSV_;
@@ -103,6 +108,9 @@ private:
 	sl12::ResourceHandle	hSuzanneMesh_;
 	sl12::ShaderHandle		hMeshVV_;
 	sl12::ShaderHandle		hMeshP_;
+	sl12::ShaderHandle		hLightingC_;
+	sl12::ShaderHandle		hFullscreenVV_;
+	sl12::ShaderHandle		hTonemapP_;
 
 	int	displayWidth_, displayHeight_;
 };	// class SampleApplication

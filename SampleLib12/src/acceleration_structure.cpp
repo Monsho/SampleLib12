@@ -193,7 +193,7 @@ namespace sl12
 
 		BufferDesc desc{};
 		desc.size = size;
-		desc.usage = BufferUsage::AccelerationStructure | BufferUsage::UnorderedAccess;
+		desc.usage = ResourceUsage::AccelerationStructure | ResourceUsage::UnorderedAccess;
 		desc.initialState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 		if (!pDxrBuffer_->Initialize(pDevice, desc))
 		{
@@ -207,7 +207,7 @@ namespace sl12
 
 			BufferDesc scratchDesc{};
 			scratchDesc.size = scratchSize;
-			scratchDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+			scratchDesc.usage = ResourceUsage::ShaderResource | ResourceUsage::UnorderedAccess;
 			scratchDesc.initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 			if (!pScratchBuffer_->Initialize(pDevice, scratchDesc))
 			{
@@ -297,7 +297,7 @@ namespace sl12
 
 			BufferDesc infoDesc{};
 			infoDesc.size =sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC);
-			infoDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+			infoDesc.usage = ResourceUsage::ShaderResource | ResourceUsage::UnorderedAccess;
 			infoDesc.heap = BufferHeap::Default;
 			infoDesc.initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 			if (!pInfoBuffer->Initialize(pDevice, infoDesc))
@@ -315,7 +315,7 @@ namespace sl12
 				return false;
 			}
 
-			infoDesc.usage = BufferUsage::Copy;
+			infoDesc.usage = ResourceUsage::Unknown;
 			infoDesc.heap = BufferHeap::ReadBack;
 			infoDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
 			if (!pPostBuildReadBuffer_->Initialize(pDevice, infoDesc))
@@ -375,7 +375,7 @@ namespace sl12
 
 		BufferDesc newDesc{};
 		newDesc.size = size;
-		newDesc.usage = BufferUsage::AccelerationStructure | BufferUsage::UnorderedAccess;
+		newDesc.usage = ResourceUsage::AccelerationStructure | ResourceUsage::UnorderedAccess;
 		newDesc.heap = BufferHeap::Default;
 		newDesc.initialState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 		if (!pNewASBuffer->Initialize(pDevice, newDesc))
@@ -448,7 +448,7 @@ namespace sl12
 
 		BufferDesc creationDesc{};
 		creationDesc.size = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descsCount;
-		creationDesc.usage = BufferUsage::ShaderResource;
+		creationDesc.usage = ResourceUsage::ShaderResource;
 		creationDesc.heap = BufferHeap::Dynamic;
 		if (!pInstanceBuffer_->Initialize(pDevice, creationDesc))
 		{

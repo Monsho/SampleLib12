@@ -24,6 +24,11 @@ namespace sl12
 	//----
 	bool Texture::Initialize(Device* pDev, const TextureDesc& desc)
 	{
+		if (desc.usage & (ResourceUsage::ConstantBuffer | ResourceUsage::VertexBuffer | ResourceUsage::IndexBuffer | ResourceUsage::AccelerationStructure))
+		{
+			return false;
+		}
+		
 		const D3D12_RESOURCE_DIMENSION kDimensionTable[] = {
 			D3D12_RESOURCE_DIMENSION_TEXTURE1D,
 			D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -44,6 +49,10 @@ namespace sl12
 			prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 		}
 
+		bool isRenderTarget = (desc.usage & ResourceUsage::RenderTarget) != 0;
+		bool isDepthStencil = (desc.usage & ResourceUsage::DepthStencil) != 0;
+		bool isUAV = (desc.usage & ResourceUsage::UnorderedAccess) != 0;
+
 		D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
 
 		resourceDesc_.Dimension = kDimensionTable[desc.dimension];
@@ -56,9 +65,9 @@ namespace sl12
 		resourceDesc_.SampleDesc.Count = desc.sampleCount;
 		resourceDesc_.SampleDesc.Quality = 0;
 		resourceDesc_.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		resourceDesc_.Flags = desc.isRenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
-		resourceDesc_.Flags |= desc.isDepthBuffer ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
-		resourceDesc_.Flags |= desc.isUav ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+		resourceDesc_.Flags = isRenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
+		resourceDesc_.Flags |= isDepthStencil ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
+		resourceDesc_.Flags |= isUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
 		// 深度バッファの場合はリソースフォーマットをTYPELESSにしなければならない
 		switch (resourceDesc_.Format)
@@ -77,7 +86,7 @@ namespace sl12
 
 		D3D12_CLEAR_VALUE* pClearValue = nullptr;
 		D3D12_CLEAR_VALUE clearValue{};
-		if (desc.isRenderTarget)
+		if (isRenderTarget)
 		{
 			pClearValue = &clearValue_;
 			clearValue_.Format = desc.format;
@@ -86,7 +95,7 @@ namespace sl12
 			if (currentState_ == D3D12_RESOURCE_STATE_COMMON)
 				currentState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		}
-		else if (desc.isDepthBuffer)
+		else if (isDepthStencil)
 		{
 			pClearValue = &clearValue_;
 			clearValue_.Format = desc.format;
@@ -705,7 +714,7 @@ namespace sl12
 		textureDesc_.mipLevels = resourceDesc_.MipLevels;
 		textureDesc_.format = resourceDesc_.Format;
 		textureDesc_.sampleCount = resourceDesc_.SampleDesc.Count;
-		textureDesc_.isRenderTarget = true;
+		textureDesc_.usage = ResourceUsage::RenderTarget;
 
 		currentState_ = D3D12_RESOURCE_STATE_PRESENT;
 

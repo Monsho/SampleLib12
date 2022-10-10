@@ -33,12 +33,10 @@ namespace sl12
 		DXGI_FORMAT				format					= DXGI_FORMAT_UNKNOWN;
 		D3D12_RESOURCE_STATES	initialState			= D3D12_RESOURCE_STATE_COMMON;
 		u32						sampleCount				= 1;
+		u32						usage					= ResourceUsage::Unknown;
 		float					clearColor[4]			= { 0.0f };
 		float					clearDepth				= 1.0f;
 		u8						clearStencil			= 0;
-		bool					isRenderTarget			= false;
-		bool					isDepthBuffer			= false;
-		bool					isUav					= false;
 		bool					forceSysRam				= false;
 	};	// struct TextureDesc
 

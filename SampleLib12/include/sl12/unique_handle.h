@@ -58,6 +58,11 @@ namespace sl12
 
 		void Reset(T* p = nullptr) noexcept
 		{
+			if (pObject_ == p)
+			{
+				return;
+			}
+			
 			if (pObject_)
 			{
 				if (pParentDevice_)
@@ -83,8 +88,18 @@ namespace sl12
 
 		void Swap(UniqueHandle& Right) noexcept
 		{
+			if (pObject_ == Right.pObject_)
+			{
+				return;
+			}
+			
 			std::swap(pParentDevice_, Right.pParentDevice_);
 			std::swap(pObject_, Right.pObject_);
+		}
+
+		bool IsValid() const noexcept
+		{
+			return pObject_ != nullptr;
 		}
 
 	private:

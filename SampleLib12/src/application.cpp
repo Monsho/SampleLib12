@@ -1,4 +1,4 @@
-#include "sl12/application.h"
+ï»¿#include "sl12/application.h"
 
 
 
@@ -30,7 +30,7 @@ namespace sl12
 			return DefWindowProc(hWnd, message, wParam, lParam);
 		}
 
-		// Window‚Ì‰Šú‰»
+		// Windowã®åˆæœŸåŒ–
 		HWND InitializeWindow(HINSTANCE hInstance, int nCmdShow, int screenWidth, int screenHeight)
 		{
 			// Initialize the window class.
@@ -66,7 +66,7 @@ namespace sl12
 	}
 
 	//--------------------------------------------------
-	// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+	// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 	//--------------------------------------------------
 	Application::Application(HINSTANCE hInstance, int nCmdShow, int screenWidth, int screenHeight, ColorSpaceType csType)
 	{
@@ -74,12 +74,12 @@ namespace sl12
 		screenWidth_ = screenWidth;
 		screenHeight_ = screenHeight;
 
-		// Window‚Ì‰Šú‰»
+		// Windowã®åˆæœŸåŒ–
 		hWnd_ = InitializeWindow(hInstance, nCmdShow, screenWidth, screenHeight);
 
 		CpuTimer::Initialize();
 
-		// D3D12ƒfƒoƒCƒX‚Ì‰Šú‰»
+		// D3D12ãƒ‡ãƒã‚¤ã‚¹ã®åˆæœŸåŒ–
 		std::array<uint32_t, D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES> kDescNums
 		{ 65535, 128, 256, 64 };
 		auto isInitDevice = device_.Initialize(hWnd_, screenWidth, screenHeight, kDescNums, csType);
@@ -100,7 +100,7 @@ namespace sl12
 		// show window.
 		ShowWindow(hWnd_, nCmdShow);
 
-		// ‚æ‚­g‚¤ƒTƒ“ƒvƒ‰[‚¾‚¯ì‚Á‚Ä‚¨‚­
+		// ã‚ˆãä½¿ã†ã‚µãƒ³ãƒ—ãƒ©ãƒ¼ã ã‘ä½œã£ã¦ãŠã
 		{
 			D3D12_SAMPLER_DESC desc{};
 			desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -129,7 +129,7 @@ namespace sl12
 	}
 
 	//--------------------------------------------------
-	// ƒfƒXƒgƒ‰ƒNƒ^
+	// ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 	//--------------------------------------------------
 	Application::~Application()
 	{
@@ -143,7 +143,7 @@ namespace sl12
 	}
 
 	//--------------------------------------------------
-	// ƒAƒvƒŠƒP[ƒVƒ‡ƒ“‚ğÀs‚·‚é
+	// ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã‚’å®Ÿè¡Œã™ã‚‹
 	//--------------------------------------------------
 	int Application::Run()
 	{
@@ -155,7 +155,7 @@ namespace sl12
 
 		deltaTime_ = sl12::CpuTimer();
 
-		// ƒƒCƒ“ƒ‹[ƒv
+		// ãƒ¡ã‚¤ãƒ³ãƒ«ãƒ¼ãƒ—
 		MSG msg = { 0 };
 		while (true)
 		{

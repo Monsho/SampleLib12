@@ -45,7 +45,7 @@ namespace sl12
 		};	// struct Handle
 
 	public:
-		BufferHeapAllocator(Device* pDev, size_t initSize, size_t align, BufferUsage::Type usage);
+		BufferHeapAllocator(Device* pDev, size_t initSize, size_t align, u32 usage);
 		~BufferHeapAllocator();
 
 		Handle Allocate(size_t inSize);

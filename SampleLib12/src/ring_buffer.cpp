@@ -17,7 +17,7 @@ namespace sl12
 		pCopySource_ = new Buffer();
 		BufferDesc creationDesc{};
 		creationDesc.size = size_;
-		creationDesc.usage = BufferUsage::ConstantBuffer;
+		creationDesc.usage = ResourceUsage::ConstantBuffer;
 		creationDesc.heap = BufferHeap::Dynamic;
 		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		bool bSuccess = pCopySource_->Initialize(pParentDevice_, creationDesc);

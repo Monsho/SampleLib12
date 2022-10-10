@@ -337,7 +337,7 @@ namespace sl12
 	{
 		BufferDesc creationDesc{};
 		creationDesc.size = sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) * maxCount;
-		creationDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+		creationDesc.usage = ResourceUsage::ShaderResource | ResourceUsage::UnorderedAccess;
 		pCompactionInfoBuffer_ = new Buffer();
 		if (!pCompactionInfoBuffer_->Initialize(pDevice_, creationDesc))
 		{
@@ -347,7 +347,7 @@ namespace sl12
 
 		// 情報コピー先バッファを生成する
 		creationDesc.size = sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) * maxCount;
-		creationDesc.usage = BufferUsage::Copy;
+		creationDesc.usage = ResourceUsage::Unknown;
 		creationDesc.heap = BufferHeap::ReadBack;
 		creationDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
 		pCompactionReadback_ = std::make_shared<Buffer>();
@@ -394,7 +394,7 @@ namespace sl12
 			pScratchBuffer_ = new Buffer();
 			BufferDesc creationDesc{};
 			creationDesc.size = size;
-			creationDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
+			creationDesc.usage = ResourceUsage::ShaderResource | ResourceUsage::UnorderedAccess;
 			if (!pScratchBuffer_->Initialize(pDevice_, creationDesc))
 			{
 				return false;
@@ -572,7 +572,7 @@ namespace sl12
 		Buffer* pInstBuffer = new Buffer();
 		BufferDesc creationDesc{};
 		creationDesc.size = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * descs.size();
-		creationDesc.usage = BufferUsage::ShaderResource;
+		creationDesc.usage = ResourceUsage::ShaderResource;
 		creationDesc.heap = BufferHeap::Dynamic;
 		if (!pInstBuffer->Initialize(pDevice_, creationDesc))
 		{

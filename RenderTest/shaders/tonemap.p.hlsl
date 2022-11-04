@@ -18,7 +18,7 @@ PSOutput main(PSInput In)
 {
 	PSOutput Out = (PSOutput)0;
 
-	Out.color = float4(texAccum[uint2(In.position.xy)].rgb, 1);
+	Out.color = float4(pow(texAccum[uint2(In.position.xy)].rgb, 1/2.2), 1);
 
 	return Out;
 }

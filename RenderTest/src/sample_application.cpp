@@ -109,7 +109,7 @@ bool SampleApplication::Initialize()
 		"main", sl12::ShaderType::Pixel, 6, 5, nullptr, nullptr);
 	
 	// load request.
-	hSuzanneMesh_ = resLoader_->LoadRequest<sl12::ResourceItemMesh>("mesh/suzanne/suzanne.rmesh");
+	hSuzanneMesh_ = resLoader_->LoadRequest<sl12::ResourceItemMesh>("mesh/chinese_dragon/chinese_dragon.rmesh");
 
 	// init command list.
 	mainCmdList_ = sl12::MakeUnique<CommandLists>(nullptr);
@@ -386,7 +386,7 @@ bool SampleApplication::Execute()
 	// create scene constant buffer.
 	sl12::CbvHandle hSceneCB;
 	{
-		DirectX::XMFLOAT3 camPos(0.0f, 0.0f, 300.0f);
+		DirectX::XMFLOAT3 camPos(300.0f, 100.0f, 0.0f);
 		DirectX::XMFLOAT3 tgtPos(0.0f, 0.0f, 0.0f);
 		DirectX::XMFLOAT3 upVec(0.0f, 1.0f, 0.0f);
 		auto cp = DirectX::XMLoadFloat3(&camPos);

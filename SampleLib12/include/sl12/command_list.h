@@ -69,10 +69,6 @@ namespace sl12
 
 		void Execute();
 
-		// こちらのリソース遷移バリアは基本的に使わないで！
-		void TransitionBarrier(Texture* p, D3D12_RESOURCE_STATES nextState);
-		void TransitionBarrier(Buffer* p, D3D12_RESOURCE_STATES nextState);
-
 		// リソースの状態遷移バリア
 		void TransitionBarrier(Texture* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
 		void TransitionBarrier(Texture* p, UINT subresource, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);

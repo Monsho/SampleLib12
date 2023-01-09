@@ -38,6 +38,7 @@ namespace sl12
 		float					clearDepth				= 1.0f;
 		u8						clearStencil			= 0;
 		bool					forceSysRam				= false;
+		bool					deviceShared			= false;
 	};	// struct TextureDesc
 
 	class Texture
@@ -82,7 +83,6 @@ namespace sl12
 		ID3D12Resource*			pResource_{ nullptr };
 		TextureDesc				textureDesc_{};
 		D3D12_RESOURCE_DESC		resourceDesc_{};
-		D3D12_RESOURCE_STATES	currentState_{ D3D12_RESOURCE_STATE_COMMON };
 		D3D12_CLEAR_VALUE		clearValue_{};
 	};	// class Texture
 

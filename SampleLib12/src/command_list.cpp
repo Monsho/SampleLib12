@@ -101,27 +101,6 @@ namespace sl12
 	}
 
 	//----
-	void CommandList::TransitionBarrier(Texture* p, D3D12_RESOURCE_STATES nextState)
-	{
-		if (!p)
-			return;
-
-		if (p->currentState_ != nextState)
-		{
-			D3D12_RESOURCE_BARRIER barrier;
-			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			barrier.Transition.pResource = p->pResource_;
-			barrier.Transition.StateBefore = p->currentState_;
-			barrier.Transition.StateAfter = nextState;
-			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			GetCommandList()->ResourceBarrier(1, &barrier);
-
-			p->currentState_ = nextState;
-		}
-	}
-
-	//----
 	void CommandList::TransitionBarrier(Texture* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState)
 	{
 		if (!p)

@@ -54,6 +54,10 @@ namespace sl12
 		bool isUAV = (desc.usage & ResourceUsage::UnorderedAccess) != 0;
 
 		D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
+		if (desc.deviceShared)
+		{
+			flags = D3D12_HEAP_FLAG_SHARED;
+		}
 
 		resourceDesc_.Dimension = kDimensionTable[desc.dimension];
 		resourceDesc_.Alignment = 0;
@@ -68,6 +72,7 @@ namespace sl12
 		resourceDesc_.Flags = isRenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
 		resourceDesc_.Flags |= isDepthStencil ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
 		resourceDesc_.Flags |= isUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+		resourceDesc_.Flags |= desc.deviceShared ? D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
 		// 深度バッファの場合はリソースフォーマットをTYPELESSにしなければならない
 		switch (resourceDesc_.Format)
@@ -82,7 +87,7 @@ namespace sl12
 			resourceDesc_.Format = DXGI_FORMAT_R16_TYPELESS; break;
 		}
 
-		currentState_ = desc.initialState;
+		D3D12_RESOURCE_STATES init_state = desc.initialState;
 
 		D3D12_CLEAR_VALUE* pClearValue = nullptr;
 		D3D12_CLEAR_VALUE clearValue{};
@@ -92,8 +97,8 @@ namespace sl12
 			clearValue_.Format = desc.format;
 			memcpy(clearValue_.Color, desc.clearColor, sizeof(clearValue_.Color));
 
-			if (currentState_ == D3D12_RESOURCE_STATE_COMMON)
-				currentState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
+				init_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		}
 		else if (isDepthStencil)
 		{
@@ -102,16 +107,16 @@ namespace sl12
 			clearValue_.DepthStencil.Depth = desc.clearDepth;
 			clearValue_.DepthStencil.Stencil = desc.clearStencil;
 
-			if (currentState_ == D3D12_RESOURCE_STATE_COMMON)
-				currentState_ = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+			if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
+				init_state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 		}
 		else
 		{
-			if (currentState_ == D3D12_RESOURCE_STATE_COMMON)
-				currentState_ = D3D12_RESOURCE_STATE_COPY_DEST;
+			if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
+				init_state = D3D12_RESOURCE_STATE_COPY_DEST;
 		}
 
-		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, flags, &resourceDesc_, currentState_, pClearValue, IID_PPV_ARGS(&pResource_));
+		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, flags, &resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
 		if (FAILED(hr))
 		{
 			return false;
@@ -197,7 +202,6 @@ namespace sl12
 
 		// 情報を格納
 		resourceDesc_ = desc;
-		currentState_ = D3D12_RESOURCE_STATE_COPY_DEST;
 		memset(&textureDesc_, 0, sizeof(textureDesc_));
 		textureDesc_.width = static_cast<u32>(desc.Width);
 		textureDesc_.height = desc.Height;
@@ -715,8 +719,6 @@ namespace sl12
 		textureDesc_.format = resourceDesc_.Format;
 		textureDesc_.sampleCount = resourceDesc_.SampleDesc.Count;
 		textureDesc_.usage = ResourceUsage::RenderTarget;
-
-		currentState_ = D3D12_RESOURCE_STATE_PRESENT;
 
 		return true;
 	}

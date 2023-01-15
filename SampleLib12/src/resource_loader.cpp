@@ -32,9 +32,13 @@ namespace sl12
 	}
 
 	//--------
-	bool ResourceLoader::Initialize(Device* pDevice, const std::string& basePath)
+	bool ResourceLoader::Initialize(Device* pDevice, MeshManager* pMeshMan, const std::string& basePath)
 	{
+		assert(pDevice != nullptr);
+		assert(pMeshMan != nullptr);
+
 		pDevice_ = pDevice;
+		pMeshManager_ = pMeshMan;
 		handleID_ = 0;
 		resourceMap_.clear();
 		resourceBasePath_ = basePath;

@@ -87,6 +87,7 @@ private:
 	
 	UniqueHandle<sl12::ResourceLoader>	resLoader_;
 	UniqueHandle<sl12::ShaderManager>	shaderMan_;
+	UniqueHandle<sl12::MeshManager>		meshMan_;
 	UniqueHandle<CommandLists>			mainCmdList_;
 	UniqueHandle<sl12::CbvManager>		cbvMan_;
 	UniqueHandle<sl12::RenderGraph>		renderGraph_;

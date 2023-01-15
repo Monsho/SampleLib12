@@ -37,11 +37,11 @@ namespace sl12
 	//---------------
 	ResourceItemMesh::~ResourceItemMesh()
 	{
-		positionVB_.Destroy();
-		normalVB_.Destroy();
-		tangentVB_.Destroy();
-		texcoordVB_.Destroy();
-		indexBuffer_.Destroy();
+		// positionVB_.Destroy();
+		// normalVB_.Destroy();
+		// tangentVB_.Destroy();
+		// texcoordVB_.Destroy();
+		// indexBuffer_.Destroy();
 		meshletPackedPrimitive_.Destroy();
 		meshletVertexIndex_.Destroy();
 	}
@@ -76,32 +76,45 @@ namespace sl12
 		// create buffers.
 		auto pDev = pLoader->GetDevice();
 		auto pMeshMan = pLoader->GetMeshManager();
-		auto CreateBuffer = [&](Buffer& buff, MeshManager::Handle* pHandle, const std::vector<u8>& data, size_t stride, u32 usage, bool isEmpyOk = false)
+		auto CreateBuffer = [&](Buffer* buff, MeshManager::Handle* pHandle, const std::vector<u8>& data, size_t stride, u32 usage, bool isEmpyOk = false)
 		{
 			if (data.empty())
 			{
 				return isEmpyOk;
 			}
 
-			Buffer* staging = new Buffer();
-
-			BufferDesc creationDesc{};
-			creationDesc.size = data.size();
-			creationDesc.stride = stride;
-			creationDesc.usage = usage;
-			creationDesc.heap = BufferHeap::Dynamic;
-			if (!staging->Initialize(pDev, creationDesc))
+			if (buff)
 			{
-				return false;
-			}
-			auto p = staging->Map();
-			memcpy(p, data.data(), data.size());
-			staging->Unmap();
+				Buffer* staging = new Buffer();
 
-			creationDesc.heap = BufferHeap::Default;
-			if (!buff.Initialize(pDev, creationDesc))
-			{
-				return false;
+				BufferDesc creationDesc{};
+				creationDesc.size = data.size();
+				creationDesc.stride = stride;
+				creationDesc.usage = usage;
+				creationDesc.heap = BufferHeap::Dynamic;
+				if (!staging->Initialize(pDev, creationDesc))
+				{
+					return false;
+				}
+				auto p = staging->Map();
+				memcpy(p, data.data(), data.size());
+				staging->Unmap();
+
+				creationDesc.heap = BufferHeap::Default;
+				if (!buff->Initialize(pDev, creationDesc))
+				{
+					return false;
+				}
+				
+				BufferInitRenderCommand* command = new BufferInitRenderCommand();
+				command->pDevice = pDev;
+				command->pSrcBuffer = staging;
+				command->pDstBuffer = buff;
+				command->initState = (usage & ResourceUsage::VertexBuffer
+					? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+					: D3D12_RESOURCE_STATE_INDEX_BUFFER); 
+
+				pDev->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
 			}
 
 			// for mesh manager.
@@ -117,42 +130,33 @@ namespace sl12
 				}
 			}
 
-			BufferInitRenderCommand* command = new BufferInitRenderCommand();
-			command->pDevice = pDev;
-			command->pSrcBuffer = staging;
-			command->pDstBuffer = &buff;
-			command->initState = (usage & ResourceUsage::VertexBuffer
-				? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
-				: D3D12_RESOURCE_STATE_INDEX_BUFFER); 
-
-			pDev->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
 			return true;
 		};
-		if (!CreateBuffer(ret->positionVB_, &ret->hPosition_, mesh_bin.GetVBPosition(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(nullptr/*ret->positionVB_*/, &ret->hPosition_, mesh_bin.GetVBPosition(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->normalVB_, &ret->hNormal_, mesh_bin.GetVBNormal(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(nullptr/*ret->normalVB_*/, &ret->hNormal_, mesh_bin.GetVBNormal(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->tangentVB_, &ret->hTangent_, mesh_bin.GetVBTangent(), sizeof(DirectX::XMFLOAT4), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(nullptr/*ret->tangentVB_*/, &ret->hTangent_, mesh_bin.GetVBTangent(), sizeof(DirectX::XMFLOAT4), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->texcoordVB_, &ret->hTexcoord_, mesh_bin.GetVBTexcoord(), sizeof(DirectX::XMFLOAT2), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(nullptr/*ret->texcoordVB_*/, &ret->hTexcoord_, mesh_bin.GetVBTexcoord(), sizeof(DirectX::XMFLOAT2), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->indexBuffer_, &ret->hIndex_, mesh_bin.GetIndexBuffer(), sizeof(u32), ResourceUsage::IndexBuffer))
+		if (!CreateBuffer(nullptr/*ret->indexBuffer_*/, &ret->hIndex_, mesh_bin.GetIndexBuffer(), sizeof(u32), ResourceUsage::IndexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->meshletPackedPrimitive_, nullptr, mesh_bin.GetMeshletPackedPrimitive(), sizeof(u32), ResourceUsage::ShaderResource, true))
+		if (!CreateBuffer(&ret->meshletPackedPrimitive_, nullptr, mesh_bin.GetMeshletPackedPrimitive(), sizeof(u32), ResourceUsage::ShaderResource, true))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(ret->meshletVertexIndex_, nullptr, mesh_bin.GetMeshletVertexIndex(), sizeof(u32), ResourceUsage::ShaderResource, true))
+		if (!CreateBuffer(&ret->meshletVertexIndex_, nullptr, mesh_bin.GetMeshletVertexIndex(), sizeof(u32), ResourceUsage::ShaderResource, true))
 		{
 			return nullptr;
 		}
@@ -213,17 +217,17 @@ namespace sl12
 			dst.texcoordOffsetBytes = ResourceItemMesh::GetTexcoordStride() * src.GetVertexOffset();
 			dst.indexOffsetBytes = ResourceItemMesh::GetIndexStride() * src.GetIndexOffset();
 
-			dst.positionVBV.Initialize(pDev, &ret->positionVB_, dst.positionOffsetBytes, dst.positionSizeBytes);
-			dst.normalVBV.Initialize(pDev, &ret->normalVB_, dst.normalOffsetBytes, dst.normalSizeBytes);
-			dst.tangentVBV.Initialize(pDev, &ret->tangentVB_, dst.tangentOffsetBytes, dst.tangentSizeBytes);
-			dst.texcoordVBV.Initialize(pDev, &ret->texcoordVB_, dst.texcoordOffsetBytes, dst.texcoordSizeBytes);
-			dst.indexBV.Initialize(pDev, &ret->indexBuffer_, dst.indexOffsetBytes, dst.indexSizeBytes);
-
-			dst.positionView.Initialize(pDev, &ret->positionVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetPositionStride());
-			dst.normalView.Initialize(pDev, &ret->normalVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetNormalStride());
-			dst.tangentView.Initialize(pDev, &ret->tangentVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetTangentStride());
-			dst.texcoordView.Initialize(pDev, &ret->texcoordVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetTexcoordStride());
-			dst.indexView.Initialize(pDev, &ret->indexBuffer_, src.GetIndexOffset(), src.GetIndexCount(), (u32)ResourceItemMesh::GetIndexStride());
+			// dst.positionVBV.Initialize(pDev, &ret->positionVB_, dst.positionOffsetBytes, dst.positionSizeBytes);
+			// dst.normalVBV.Initialize(pDev, &ret->normalVB_, dst.normalOffsetBytes, dst.normalSizeBytes);
+			// dst.tangentVBV.Initialize(pDev, &ret->tangentVB_, dst.tangentOffsetBytes, dst.tangentSizeBytes);
+			// dst.texcoordVBV.Initialize(pDev, &ret->texcoordVB_, dst.texcoordOffsetBytes, dst.texcoordSizeBytes);
+			// dst.indexBV.Initialize(pDev, &ret->indexBuffer_, dst.indexOffsetBytes, dst.indexSizeBytes);
+			//
+			// dst.positionView.Initialize(pDev, &ret->positionVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetPositionStride());
+			// dst.normalView.Initialize(pDev, &ret->normalVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetNormalStride());
+			// dst.tangentView.Initialize(pDev, &ret->tangentVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetTangentStride());
+			// dst.texcoordView.Initialize(pDev, &ret->texcoordVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetTexcoordStride());
+			// dst.indexView.Initialize(pDev, &ret->indexBuffer_, src.GetIndexOffset(), src.GetIndexCount(), (u32)ResourceItemMesh::GetIndexStride());
 			dst.packedPrimitiveView.Initialize(pDev, &ret->meshletPackedPrimitive_, src.GetMeshletPrimitiveOffset(), src.GetMeshletPrimitiveCount(), sizeof(u32));
 			dst.vertexIndexView.Initialize(pDev, &ret->meshletVertexIndex_, src.GetMeshletVertexIndexOffset(), src.GetMeshletVertexIndexCount(), sizeof(u32));
 

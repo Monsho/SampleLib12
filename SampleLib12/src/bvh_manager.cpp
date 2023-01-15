@@ -192,8 +192,10 @@ namespace sl12
 		auto res_nc = const_cast<ResourceItemMesh*>(pRes);
 		auto&& submeshes = res_nc->GetSubmeshes();
 		auto&& materials = res_nc->GetMaterials();
-		auto&& vb = res_nc->GetPositionVB();
-		auto&& ib = res_nc->GetIndexBuffer();
+		auto hPos = res_nc->GetPositionHandle();
+		auto hIndex = res_nc->GetIndexHandle();
+		// auto&& vb = res_nc->GetPositionVB();
+		// auto&& ib = res_nc->GetIndexBuffer();
 
 		geomDescs_.resize(submeshes.size());
 		for (int i = 0; i < submeshes.size(); i++)
@@ -202,16 +204,19 @@ namespace sl12
 			auto&& desc = geomDescs_[i];
 			auto&& material = materials[submesh.materialIndex];
 
+			auto vbv = MeshManager::CreateVertexView(hPos, submesh.positionOffsetBytes, submesh.positionSizeBytes, ResourceItemMesh::GetPositionStride());
+			auto ibv = MeshManager::CreateIndexView(hIndex, submesh.indexOffsetBytes, submesh.indexSizeBytes, ResourceItemMesh::GetIndexStride());
+			
 			auto flags = material.isOpaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 			desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 			desc.Flags = flags;
-			desc.Triangles.VertexBuffer.StartAddress = vb.GetResourceDep()->GetGPUVirtualAddress() + submesh.positionVBV.GetBufferOffset();
-			desc.Triangles.VertexBuffer.StrideInBytes = vb.GetBufferDesc().stride;
+			desc.Triangles.VertexBuffer.StartAddress = vbv.BufferLocation;// vb.GetResourceDep()->GetGPUVirtualAddress() + submesh.positionVBV.GetBufferOffset();
+			desc.Triangles.VertexBuffer.StrideInBytes = vbv.StrideInBytes;// vb.GetBufferDesc().stride;
 			desc.Triangles.VertexCount = submesh.vertexCount;
 			desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-			desc.Triangles.IndexBuffer = ib.GetResourceDep()->GetGPUVirtualAddress() + submesh.indexBV.GetBufferOffset();
+			desc.Triangles.IndexBuffer = ibv.BufferLocation;// ib.GetResourceDep()->GetGPUVirtualAddress() + submesh.indexBV.GetBufferOffset();
 			desc.Triangles.IndexCount = submesh.indexCount;
-			desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+			desc.Triangles.IndexFormat = ibv.Format;// DXGI_FORMAT_R32_UINT;
 			desc.Triangles.Transform3x4 = 0;
 		}
 

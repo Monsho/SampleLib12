@@ -72,9 +72,14 @@ SampleApplication::~SampleApplication()
 
 bool SampleApplication::Initialize()
 {
+	// initialize mesh manager.
+	const size_t kVertexBufferSize = 512 * 1024 * 1024;		// 512MB
+	const size_t kIndexBufferSize = 64 * 1024 * 1024;		// 64MB
+	meshMan_ = sl12::MakeUnique<sl12::MeshManager>(&device_, &device_, kVertexBufferSize, kIndexBufferSize);
+	
 	// initialize resource loader.
 	resLoader_ = sl12::MakeUnique<sl12::ResourceLoader>(nullptr);
-	if (!resLoader_->Initialize(&device_, sl12::JoinPath(homeDir_, kResourceDir)))
+	if (!resLoader_->Initialize(&device_, &meshMan_, sl12::JoinPath(homeDir_, kResourceDir)))
 	{
 		sl12::ConsolePrint("Error: failed to init resource loader.");
 		return false;
@@ -334,6 +339,7 @@ bool SampleApplication::Execute()
 	device_.SyncKillObjects();
 
 	device_.LoadRenderCommands(pCmdList);
+	meshMan_->BeginNewFrame(pCmdList);
 	cbvMan_->BeginNewFrame();
 	renderGraph_->BeginNewFrame();
 
@@ -488,14 +494,14 @@ bool SampleApplication::Execute()
 			pCmdList->SetGraphicsRootSignatureAndDescriptorSet(&rsVsPs_, &descSet);
 
 			const D3D12_VERTEX_BUFFER_VIEW vbvs[] = {
-				submesh.positionVBV.GetView(),
-				submesh.normalVBV.GetView(),
-				submesh.tangentVBV.GetView(),
-				submesh.texcoordVBV.GetView(),
+				sl12::MeshManager::CreateVertexView(meshRes->GetPositionHandle(), submesh.positionOffsetBytes, submesh.positionSizeBytes, sl12::ResourceItemMesh::GetPositionStride()),
+				sl12::MeshManager::CreateVertexView(meshRes->GetNormalHandle(), submesh.normalOffsetBytes, submesh.normalSizeBytes, sl12::ResourceItemMesh::GetNormalStride()),
+				sl12::MeshManager::CreateVertexView(meshRes->GetTangentHandle(), submesh.tangentOffsetBytes, submesh.tangentSizeBytes, sl12::ResourceItemMesh::GetTangentStride()),
+				sl12::MeshManager::CreateVertexView(meshRes->GetTexcoordHandle(), submesh.texcoordOffsetBytes, submesh.texcoordSizeBytes, sl12::ResourceItemMesh::GetTexcoordStride()),
 			};
 			pCmdList->GetLatestCommandList()->IASetVertexBuffers(0, ARRAYSIZE(vbvs), vbvs);
 
-			auto&& ibv = submesh.indexBV.GetView();
+			auto ibv = sl12::MeshManager::CreateIndexView(meshRes->GetIndexHandle(), submesh.indexOffsetBytes, submesh.indexSizeBytes, sl12::ResourceItemMesh::GetIndexStride());
 			pCmdList->GetLatestCommandList()->IASetIndexBuffer(&ibv);
 
 			pCmdList->GetLatestCommandList()->DrawIndexedInstanced(submesh.indexCount, 1, 0, 0, 0);

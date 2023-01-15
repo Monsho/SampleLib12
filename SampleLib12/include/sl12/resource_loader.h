@@ -9,6 +9,8 @@
 #include <condition_variable>
 #include <thread>
 
+#include "mesh_manager.h"
+
 
 namespace sl12
 {
@@ -100,7 +102,7 @@ namespace sl12
 		{}
 		~ResourceLoader();
 
-		bool Initialize(Device* pDevice, const std::string& basePath);
+		bool Initialize(Device* pDevice, MeshManager* pMeshMan, const std::string& basePath);
 		void Destroy();
 
 		std::string MakeFullPath(const std::string& filePath);
@@ -118,10 +120,6 @@ namespace sl12
 			return pDevice_;
 		}
 
-		void SetMeshManager(MeshManager* p)
-		{
-			pMeshManager_ = p;
-		}
 		MeshManager* GetMeshManager()
 		{
 			return pMeshManager_;

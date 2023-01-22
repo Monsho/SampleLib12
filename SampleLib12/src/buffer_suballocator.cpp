@@ -90,6 +90,7 @@ namespace sl12
 			{
 				unusedChunks_.insert(it, Chunk(block_head, block_count));
 				is_inserted = true;
+				break;
 			}
 		}
 		if (!is_inserted)

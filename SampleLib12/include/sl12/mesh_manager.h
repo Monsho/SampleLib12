@@ -2,6 +2,7 @@
 
 #include <sl12/util.h>
 #include <sl12/buffer.h>
+#include <sl12/buffer_view.h>
 #include <vector>
 #include <list>
 #include <memory>
@@ -65,8 +66,10 @@ namespace sl12
 		Device*			pParentDevice_ = nullptr;
 		Buffer*			pBuffer_ = nullptr;
 		Buffer*			pNextBuffer_ = nullptr;
+		BufferView*		pBufferSrv_ = nullptr;
 		size_t			initSize_ = 0;
 		size_t			alignment_ = 0;
+		u32				usage_;
 
 		std::list<Block>	memoryBlocks_;
 	};	// class BufferHeapAllocator
@@ -94,6 +97,15 @@ namespace sl12
 
 		void ReleaseVertexBuffer(Handle handle);
 		void ReleaseIndexBuffer(Handle handle);
+
+		BufferView* GetVertexBufferSRV()
+		{
+			return pVertexHeap_->pBufferSrv_;
+		}
+		BufferView* GetIndexBufferSRV()
+		{
+			return pIndexHeap_->pBufferSrv_;
+		}
 
 		static D3D12_VERTEX_BUFFER_VIEW CreateVertexView(const Handle& handle, size_t additionalOffset, size_t size, size_t stride)
 		{

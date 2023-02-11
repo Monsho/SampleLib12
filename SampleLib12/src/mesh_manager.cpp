@@ -12,15 +12,20 @@ namespace sl12
 		: pParentDevice_(pDev)
 		, initSize_(initSize)
 		, alignment_(align)
+		, usage_(usage)
 	{
 		pBuffer_ = new Buffer();
+		pBufferSrv_ = new BufferView();
 
 		BufferDesc creationDesc{};
 		creationDesc.size = initSize;
-		creationDesc.usage = usage;
+		creationDesc.usage = usage | ResourceUsage::ShaderResource;
 		bool bSuccess = pBuffer_->Initialize(pDev, creationDesc);
 		assert(bSuccess);
 
+		bSuccess = pBufferSrv_->Initialize(pDev, pBuffer_, 0, 0, 0);
+		assert(bSuccess);
+		
 		Block block;
 		block.size = initSize;
 		memoryBlocks_.push_back(block);
@@ -29,9 +34,17 @@ namespace sl12
 	//----
 	BufferHeapAllocator::~BufferHeapAllocator()
 	{
+		if (pBufferSrv_)
+		{
+			pParentDevice_->KillObject(pBufferSrv_);
+		}
 		if (pBuffer_)
 		{
 			pParentDevice_->KillObject(pBuffer_);
+		}
+		if (pNextBuffer_)
+		{
+			pParentDevice_->KillObject(pNextBuffer_);
 		}
 	}
 
@@ -147,7 +160,7 @@ namespace sl12
 
 		BufferDesc creationDesc = pBuffer_->GetBufferDesc();
 		creationDesc.size = newSize;
-		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		creationDesc.usage = usage_ | ResourceUsage::ShaderResource;
 		bool bSuccess = pNextBuffer_->Initialize(pParentDevice_, creationDesc);
 		if (!bSuccess)
 		{
@@ -177,9 +190,13 @@ namespace sl12
 			pCmdList->TransitionBarrier(pNextBuffer_, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
 			pCmdList->GetLatestCommandList()->CopyBufferRegion(pNextBuffer_->GetResourceDep(), 0, pBuffer_->GetResourceDep(), 0, copySize);
 
+			pParentDevice_->KillObject(pBufferSrv_);
 			pParentDevice_->KillObject(pBuffer_);
+
 			pBuffer_ = pNextBuffer_;
 			pNextBuffer_ = nullptr;
+
+			pBufferSrv_->Initialize(pParentDevice_, pBuffer_, 0, 0, 0);
 		}
 	}
 

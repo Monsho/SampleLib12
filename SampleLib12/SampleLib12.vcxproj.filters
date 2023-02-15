@@ -120,9 +120,6 @@
     <ClInclude Include="include\sl12\crc.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\sl12\render_resource_manager.h">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="include\sl12\application.h">
       <Filter>include</Filter>
     </ClInclude>
@@ -150,9 +147,6 @@
     <ClInclude Include="include\sl12\string_util.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\sl12\constant_buffer_cache.h">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="include\sl12\shader_manager.h">
       <Filter>include</Filter>
     </ClInclude>
@@ -178,6 +172,18 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\sl12\unique_handle.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\buffer_suballocator.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\cbv_manager.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\indirect_executer.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\render_graph.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -234,9 +240,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\root_signature_manager.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\render_resource_manager.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\application.cpp">
@@ -304,6 +307,18 @@
     </ClCompile>
     <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\ddgi\gfx\DDGIVolume_D3D12.cpp">
       <Filter>src\RTXGI\ddgi\gfx</Filter>
+    </ClCompile>
+    <ClCompile Include="src\buffer_suballocator.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cbv_manager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\indirect_executer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_graph.cpp">
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

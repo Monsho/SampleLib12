@@ -162,14 +162,20 @@ namespace sl12
 			sl12::CpuTimer time = sl12::CpuTimer::CurrentTime();
 
 			// Process any messages in the queue.
+			bool bQuit = false;
 			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 			{
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 
 				if (msg.message == WM_QUIT)
+				{
+					bQuit = true;
 					break;
+				}
 			}
+			if (bQuit)
+				break;
 
 			Execute();
 

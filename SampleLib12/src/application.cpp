@@ -162,7 +162,7 @@ namespace sl12
 			sl12::CpuTimer time = sl12::CpuTimer::CurrentTime();
 
 			// Process any messages in the queue.
-			if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 			{
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
@@ -185,3 +185,4 @@ namespace sl12
 }	// namespace sl12
 
 //	EOF
+	

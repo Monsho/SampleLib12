@@ -172,6 +172,7 @@ namespace sl12
 		RenderGraphTarget* GetTarget(RenderGraphTargetID TargetID);
 
 		bool BeginPass(CommandList* pCmdList, u32 PassIndex, bool UseInputBarrier = true);
+		bool NextPass(CommandList* pCmdList, bool UseInputBarrier = true);
 		void EndPass();
 		void BarrierInput(CommandList* pCmdList, RenderGraphTargetID TargetID);
 		void BarrierInputsAll(CommandList* pCmdList);
@@ -192,6 +193,7 @@ namespace sl12
 		std::vector<BarrierMap>											outputBarriers_;
 
 		u32		currentPassIndex_;
+		u32		prevPassIndex_;
 	};	// class RenderGraph
 	
 }	// namespace sl12

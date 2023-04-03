@@ -328,6 +328,8 @@ namespace sl12
 			index++;
 		}
 
+		currentPassIndex_ = prevPassIndex_ = kInvalidPassIndex;
+
 		return true;
 	}
 
@@ -370,9 +372,16 @@ namespace sl12
 	}
 
 	//----
+	bool RenderGraph::NextPass(CommandList* pCmdList, bool UseInputBarrier)
+	{
+		return BeginPass(pCmdList, prevPassIndex_ == kInvalidPassIndex ? 0 : prevPassIndex_ + 1, UseInputBarrier);
+	}
+	
+	//----
 	void RenderGraph::EndPass()
 	{
 		assert(currentPassIndex_ != kInvalidPassIndex);
+		prevPassIndex_ = currentPassIndex_;
 		currentPassIndex_ = kInvalidPassIndex;
 	}
 

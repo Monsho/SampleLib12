@@ -1,7 +1,8 @@
 #ifndef MATH_HLSLI
 #define MATH_HLSLI
 
-#define PI	3.1415926
+#define PI			3.1415926
+#define Epsilon		1e-4
 
 float ToLinearDepth(float perspDepth, float n, float f)
 {

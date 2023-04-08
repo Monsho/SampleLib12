@@ -69,6 +69,7 @@ namespace sl12
 				tex_desc.usage = pTarget->desc.usage;
 				tex_desc.dimension = kDimensions[pTarget->desc.type];
 				tex_desc.initialState = pTarget->currentState = D3D12_RESOURCE_STATE_GENERIC_READ;
+				tex_desc.clearDepth = 0.0f;
 				if (pTarget->desc.type == RenderGraphTargetType::TextureCube)
 				{
 					tex_desc.depth *= 6;

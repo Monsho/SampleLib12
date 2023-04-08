@@ -397,6 +397,28 @@ namespace sl12
 		return DirectX::XMLoadFloat4x4(&m);
 	}
 
+	// inverse z ortho matrix.
+	inline DirectX::XMMATRIX MatrixOrthoInverseFovRH(float w, float h, float Zn, float Zf)
+	{
+		float DivZ = 1.0f / (Zf - Zn);
+		DirectX::XMFLOAT4X4 m(
+			2.0f / w, 0.0f, 0.0f, 0.0f,
+			0.0f, 2.0f / h, 0.0f, 0.0f,
+			0.0f, 0.0f, DivZ, 0.0f,
+			0.0f, 0.0f, Zf * DivZ, 1.0f);
+		return DirectX::XMLoadFloat4x4(&m);
+	}
+	inline DirectX::XMMATRIX MatrixOrthoInverseFovLH(float w, float h, float Zn, float Zf)
+	{
+		float DivZ = 1.0f / (Zf - Zn);
+		DirectX::XMFLOAT4X4 m(
+			2.0f / w, 0.0f, 0.0f, 0.0f,
+			0.0f, 2.0f / h, 0.0f, 0.0f,
+			0.0f, 0.0f, -DivZ, 1.0f,
+			0.0f, 0.0f, Zf * DivZ, 0.0f);
+		return DirectX::XMLoadFloat4x4(&m);
+	}
+	
 	// View Z from perspective matrix.
 	inline float ViewZFromPerspective(const DirectX::XMMATRIX& Persp, float DeviceZ)
 	{

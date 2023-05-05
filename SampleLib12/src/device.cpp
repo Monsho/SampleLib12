@@ -61,7 +61,7 @@ namespace sl12
 			SafeRelease(pDevice);
 			SafeRelease(pDxrDevice);
 
-			hr = pFactory_->EnumAdapters1(adapterIndex++, &pAdapter);
+			hr = pFactory_->EnumAdapterByGpuPreference(adapterIndex++, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter));
 			if (FAILED(hr))
 				break;
 
@@ -115,10 +115,12 @@ namespace sl12
 		pLatestDevice_ = pLatestDevice;
 
 		// ディスプレイを列挙する
+		// NOTE: 複数GPUが存在する場合、0番アダプターでのみOutputが取得できるらしい
 		IDXGIOutput* pOutput{ nullptr };
 		int OutputIndex = 0;
 		bool enableHDR = csType != ColorSpaceType::Rec709;
-		while (pAdapter_->EnumOutputs(OutputIndex, &pOutput) != DXGI_ERROR_NOT_FOUND)
+		pFactory_->EnumAdapters1(0, &pAdapter);
+		while (pAdapter->EnumOutputs(OutputIndex, &pOutput) != DXGI_ERROR_NOT_FOUND)
 		{
 			hr = pOutput->QueryInterface(IID_PPV_ARGS(&pOutput_));
 			SafeRelease(pOutput);
@@ -177,6 +179,7 @@ namespace sl12
 			maxFullFrameLuminance_ = OutDesc.MaxFullFrameLuminance;
 			colorSpaceType_ = ColorSpaceType::Rec709;
 		}
+		SafeRelease(pAdapter);
 
 #ifdef _DEBUG
 		// COPY_DESCRIPTORS_INVALID_RANGESエラーを回避

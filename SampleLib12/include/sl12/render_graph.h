@@ -19,6 +19,8 @@ namespace sl12
 	
 	typedef u64 RenderGraphTargetID;
 
+	static const u64 kInvalidTargetID = 0xffffffffffffffff;
+
 	//----------------
 	struct RenderGraphTargetType
 	{

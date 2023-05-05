@@ -51,14 +51,17 @@ namespace sl12
 		pMeshletBoundsB_->Initialize(pDevice, creationDesc);
 
 		creationDesc.heap = BufferHeap::Dynamic;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		pBoundsStaging_->Initialize(pDevice, creationDesc);
 
 		creationDesc.size = sizeof(MeshletDrawInfo) * submesh.meshlets.size();
 		creationDesc.stride = sizeof(MeshletDrawInfo);
 		creationDesc.heap = BufferHeap::Default;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 		pMeshletDrawInfoB_->Initialize(pDevice, creationDesc);
 
 		creationDesc.heap = BufferHeap::Dynamic;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		pDrawInfoStaging_->Initialize(pDevice, creationDesc);
 
 		pMeshletBoundsBV_->Initialize(pDevice, pMeshletBoundsB_, 0, 0, sizeof(MeshletBound));

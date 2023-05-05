@@ -37,11 +37,6 @@ namespace sl12
 	//---------------
 	ResourceItemMesh::~ResourceItemMesh()
 	{
-		// positionVB_.Destroy();
-		// normalVB_.Destroy();
-		// tangentVB_.Destroy();
-		// texcoordVB_.Destroy();
-		// indexBuffer_.Destroy();
 		meshletPackedPrimitive_.Destroy();
 		meshletVertexIndex_.Destroy();
 	}
@@ -92,6 +87,7 @@ namespace sl12
 				creationDesc.stride = stride;
 				creationDesc.usage = usage;
 				creationDesc.heap = BufferHeap::Dynamic;
+				creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 				if (!staging->Initialize(pDev, creationDesc))
 				{
 					return false;
@@ -101,6 +97,7 @@ namespace sl12
 				staging->Unmap();
 
 				creationDesc.heap = BufferHeap::Default;
+				creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 				if (!buff->Initialize(pDev, creationDesc))
 				{
 					return false;
@@ -217,17 +214,6 @@ namespace sl12
 			dst.texcoordOffsetBytes = ResourceItemMesh::GetTexcoordStride() * src.GetVertexOffset();
 			dst.indexOffsetBytes = ResourceItemMesh::GetIndexStride() * src.GetIndexOffset();
 
-			// dst.positionVBV.Initialize(pDev, &ret->positionVB_, dst.positionOffsetBytes, dst.positionSizeBytes);
-			// dst.normalVBV.Initialize(pDev, &ret->normalVB_, dst.normalOffsetBytes, dst.normalSizeBytes);
-			// dst.tangentVBV.Initialize(pDev, &ret->tangentVB_, dst.tangentOffsetBytes, dst.tangentSizeBytes);
-			// dst.texcoordVBV.Initialize(pDev, &ret->texcoordVB_, dst.texcoordOffsetBytes, dst.texcoordSizeBytes);
-			// dst.indexBV.Initialize(pDev, &ret->indexBuffer_, dst.indexOffsetBytes, dst.indexSizeBytes);
-			//
-			// dst.positionView.Initialize(pDev, &ret->positionVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetPositionStride());
-			// dst.normalView.Initialize(pDev, &ret->normalVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetNormalStride());
-			// dst.tangentView.Initialize(pDev, &ret->tangentVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetTangentStride());
-			// dst.texcoordView.Initialize(pDev, &ret->texcoordVB_, src.GetVertexOffset(), src.GetVertexCount(), (u32)ResourceItemMesh::GetTexcoordStride());
-			// dst.indexView.Initialize(pDev, &ret->indexBuffer_, src.GetIndexOffset(), src.GetIndexCount(), (u32)ResourceItemMesh::GetIndexStride());
 			dst.packedPrimitiveView.Initialize(pDev, &ret->meshletPackedPrimitive_, src.GetMeshletPrimitiveOffset(), src.GetMeshletPrimitiveCount(), sizeof(u32));
 			dst.vertexIndexView.Initialize(pDev, &ret->meshletVertexIndex_, src.GetMeshletVertexIndexOffset(), src.GetMeshletVertexIndexCount(), sizeof(u32));
 

@@ -249,6 +249,7 @@ namespace sl12
 				creationDesc.size = totalSize;
 				creationDesc.usage = ResourceUsage::VertexBuffer;
 				creationDesc.heap = BufferHeap::Dynamic;
+				creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 				pSrcBuffer->Initialize(pParentDevice_, creationDesc);
 				{
 					u8* p = (u8*)pSrcBuffer->Map();

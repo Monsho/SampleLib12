@@ -227,17 +227,20 @@ namespace sl12
 		{
 			for (auto id : pass.input)
 			{
-				lifetime[id] = time;
+				if (id != kInvalidTargetID)
+					lifetime[id] = time;
 			}
 			for (auto id : pass.output)
 			{
-				lifetime[id] = time;
+				if (id != kInvalidTargetID)
+					lifetime[id] = time;
 			}
 			time++;
 		}
 		for (auto&& id : CurrHistories)
 		{
-			lifetime[id] = kInvalidPassIndex;
+			if (id != kInvalidTargetID)
+				lifetime[id] = kInvalidPassIndex;
 		}
 
 		// iterate passes.

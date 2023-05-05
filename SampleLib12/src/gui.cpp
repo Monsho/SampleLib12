@@ -271,6 +271,7 @@ namespace sl12
 		creationDesc.size = sizeof(VertexUniform);
 		creationDesc.usage = ResourceUsage::ConstantBuffer;
 		creationDesc.heap = BufferHeap::Dynamic;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		for (u32 i = 0; i < kMaxFrameCount; i++)
 		{
 			if (!pConstantBuffers_[i].Initialize(pDevice, creationDesc))
@@ -403,6 +404,7 @@ namespace sl12
 			creationDesc.stride = sizeof(ImDrawVert);
 			creationDesc.usage = ResourceUsage::VertexBuffer;
 			creationDesc.heap = BufferHeap::Dynamic;
+			creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 
 			vbuffer.Destroy();
 			vbuffer.Initialize(pDevice, creationDesc);
@@ -422,6 +424,7 @@ namespace sl12
 			creationDesc.stride = sizeof(ImDrawIdx);
 			creationDesc.usage = ResourceUsage::IndexBuffer;
 			creationDesc.heap = BufferHeap::Dynamic;
+			creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 
 			ibuffer.Destroy();
 			ibuffer.Initialize(pDevice, creationDesc);

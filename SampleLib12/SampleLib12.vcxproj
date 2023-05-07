@@ -80,15 +80,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\External\imgui\imconfig.h" />
-    <ClInclude Include="..\External\imgui\imgui.h" />
-    <ClInclude Include="..\External\imgui\imgui_internal.h" />
-    <ClInclude Include="..\External\imgui\stb_rect_pack.h" />
-    <ClInclude Include="..\External\imgui\stb_textedit.h" />
-    <ClInclude Include="..\External\imgui\stb_truetype.h" />
+    <ClInclude Include="..\ThirdParty\imgui\imconfig.h" />
+    <ClInclude Include="..\ThirdParty\imgui\imgui.h" />
+    <ClInclude Include="..\ThirdParty\imgui\imgui_internal.h" />
+    <ClInclude Include="..\ThirdParty\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\ThirdParty\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\ThirdParty\imgui\imstb_truetype.h" />
     <ClInclude Include="include\sl12\acceleration_structure.h" />
     <ClInclude Include="include\sl12\application.h" />
     <ClInclude Include="include\sl12\buffer.h" />

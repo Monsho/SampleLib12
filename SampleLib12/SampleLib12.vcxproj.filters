@@ -33,9 +33,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="include\sl12\swapchain.h">
       <Filter>include</Filter>
     </ClInclude>
@@ -74,24 +71,6 @@
     </ClInclude>
     <ClInclude Include="include\sl12\buffer_view.h">
       <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\External\imgui\imconfig.h">
-      <Filter>include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\External\imgui\imgui.h">
-      <Filter>include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\External\imgui\imgui_internal.h">
-      <Filter>include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\External\imgui\stb_rect_pack.h">
-      <Filter>include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\External\imgui\stb_textedit.h">
-      <Filter>include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\External\imgui\stb_truetype.h">
-      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="include\sl12\gui.h">
       <Filter>include</Filter>
@@ -185,6 +164,24 @@
     </ClInclude>
     <ClInclude Include="include\sl12\render_graph.h">
       <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ThirdParty\imgui\imconfig.h">
+      <Filter>include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ThirdParty\imgui\imgui.h">
+      <Filter>include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ThirdParty\imgui\imgui_internal.h">
+      <Filter>include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ThirdParty\imgui\imstb_rectpack.h">
+      <Filter>include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ThirdParty\imgui\imstb_textedit.h">
+      <Filter>include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ThirdParty\imgui\imstb_truetype.h">
+      <Filter>include\imgui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

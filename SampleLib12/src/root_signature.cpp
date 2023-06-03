@@ -739,6 +739,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 				r.NumDescriptors = globalCount.cbv;
 				r.BaseShaderRegister = 0;
+				r.RegisterSpace = 0;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (globalCount.srv > 0)
@@ -753,6 +754,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 				r.NumDescriptors = globalCount.srv;
 				r.BaseShaderRegister = asCount;
+				r.RegisterSpace = 0;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (globalCount.uav > 0)
@@ -767,6 +769,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 				r.NumDescriptors = globalCount.uav;
 				r.BaseShaderRegister = 0;
+				r.RegisterSpace = 0;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (globalCount.sampler > 0)
@@ -781,6 +784,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 				r.NumDescriptors = globalCount.sampler;
 				r.BaseShaderRegister = 0;
+				r.RegisterSpace = 0;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 
@@ -813,7 +817,8 @@ namespace sl12
 				auto&& r = ranges[range_cnt++];
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 				r.NumDescriptors = localCount.cbv;
-				r.BaseShaderRegister = globalCount.cbv;
+				r.BaseShaderRegister = 0;
+				r.RegisterSpace = 1;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (localCount.srv > 0)
@@ -821,7 +826,8 @@ namespace sl12
 				auto&& r = ranges[range_cnt++];
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 				r.NumDescriptors = localCount.srv;
-				r.BaseShaderRegister = globalCount.srv + asCount;
+				r.BaseShaderRegister = 0;
+				r.RegisterSpace = 1;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (localCount.uav > 0)
@@ -829,7 +835,8 @@ namespace sl12
 				auto&& r = ranges[range_cnt++];
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 				r.NumDescriptors = localCount.uav;
-				r.BaseShaderRegister = globalCount.uav;
+				r.BaseShaderRegister = 0;
+				r.RegisterSpace = 1;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (localCount.sampler > 0)
@@ -837,7 +844,8 @@ namespace sl12
 				auto&& r = ranges[range_cnt++];
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 				r.NumDescriptors = localCount.sampler;
-				r.BaseShaderRegister = globalCount.sampler;
+				r.BaseShaderRegister = 0;
+				r.RegisterSpace = 1;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 

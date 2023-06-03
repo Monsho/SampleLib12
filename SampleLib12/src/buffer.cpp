@@ -50,6 +50,12 @@ namespace sl12
 			heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 		}
 
+		D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
+		if (desc.deviceShared)
+		{
+			flags = D3D12_HEAP_FLAG_SHARED;
+		}
+		
 		D3D12_RESOURCE_DESC resDesc{};
 		resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 		resDesc.Alignment = 0;
@@ -63,7 +69,7 @@ namespace sl12
 		resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		resDesc.Flags = (desc.usage & ResourceUsage::UnorderedAccess) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
-		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, desc.initialState, nullptr, IID_PPV_ARGS(&pResource_));
+		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&heapProp, flags, &resDesc, desc.initialState, nullptr, IID_PPV_ARGS(&pResource_));
 		if (FAILED(hr))
 		{
 			return false;

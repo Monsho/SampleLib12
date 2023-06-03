@@ -28,6 +28,7 @@ namespace sl12
 		BufferHeap::Type		heap = BufferHeap::Default;
 		D3D12_RESOURCE_STATES	initialState = D3D12_RESOURCE_STATE_COMMON;
 		bool					forceSysRam = false;
+		bool					deviceShared = false;
 	};	// struct BufferDesc
 
 	class Buffer

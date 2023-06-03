@@ -428,16 +428,6 @@ namespace sl12
 			size_t				tangentOffsetBytes;
 			size_t				texcoordOffsetBytes;
 			size_t				indexOffsetBytes;
-			// VertexBufferView	positionVBV;
-			// VertexBufferView	normalVBV;
-			// VertexBufferView	tangentVBV;
-			// VertexBufferView	texcoordVBV;
-			// IndexBufferView		indexBV;
-			// BufferView			positionView;
-			// BufferView			normalView;
-			// BufferView			tangentView;
-			// BufferView			texcoordView;
-			// BufferView			indexView;
 			BufferView			packedPrimitiveView;
 			BufferView			vertexIndexView;
 			Bounding			boundingInfo;
@@ -462,26 +452,6 @@ namespace sl12
 		{
 			return boundingInfo_;
 		}
-		// const Buffer& GetPositionVB() const
-		// {
-		// 	return positionVB_;
-		// }
-		// const Buffer& GetNormalVB() const
-		// {
-		// 	return normalVB_;
-		// }
-		// const Buffer& GetTangentVB() const
-		// {
-		// 	return tangentVB_;
-		// }
-		// const Buffer& GetTexcoordVB() const
-		// {
-		// 	return texcoordVB_;
-		// }
-		// const Buffer& GetIndexBuffer() const
-		// {
-		// 	return indexBuffer_;
-		// }
 		const Buffer& GetMeshletPackedPrimitive() const
 		{
 			return meshletPackedPrimitive_;
@@ -491,26 +461,6 @@ namespace sl12
 			return meshletVertexIndex_;
 		}
 
-		// Buffer& GetPositionVB()
-		// {
-		// 	return positionVB_;
-		// }
-		// Buffer& GetNormalVB()
-		// {
-		// 	return normalVB_;
-		// }
-		// Buffer& GetTangentVB()
-		// {
-		// 	return tangentVB_;
-		// }
-		// Buffer& GetTexcoordVB()
-		// {
-		// 	return texcoordVB_;
-		// }
-		// Buffer& GetIndexBuffer()
-		// {
-		// 	return indexBuffer_;
-		// }
 		Buffer& GetMeshletPackedPrimitive()
 		{
 			return meshletPackedPrimitive_;
@@ -574,11 +524,6 @@ namespace sl12
 		std::vector<Submesh>	Submeshes_;
 		Bounding				boundingInfo_;
 
-		// Buffer		positionVB_;
-		// Buffer		normalVB_;
-		// Buffer		tangentVB_;
-		// Buffer		texcoordVB_;
-		// Buffer		indexBuffer_;
 		Buffer		meshletPackedPrimitive_;
 		Buffer		meshletVertexIndex_;
 

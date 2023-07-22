@@ -117,6 +117,8 @@ namespace sl12
 		bool InitializeWithBindless(Device* pDev, Shader* vs, Shader* ps, Shader* gs, Shader* hs, Shader* ds, const RootBindlessInfo* bindlessInfos, u32 bindlessCount);
 		bool InitializeWithBindless(Device* pDev, Shader* as, Shader* ms, Shader* ps, const RootBindlessInfo* bindlessInfos, u32 bindlessCount);
 		bool InitializeWithBindless(Device* pDev, Shader* cs, const RootBindlessInfo* bindlessInfos, u32 bindlessCount);
+		bool InitializeWithDynamicResource(Device* pDev, u32 vsIndices, u32 psIndices, u32 gsIndices, u32 hsIndices, u32 dsIndices);
+		bool InitializeWithDynamicResource(Device* pDev, u32 csIndices);
 		void Destroy();
 
 		// getter

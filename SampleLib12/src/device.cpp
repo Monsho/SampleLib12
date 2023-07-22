@@ -24,11 +24,12 @@ namespace sl12
 	}
 
 	//----
-	bool Device::Initialize(HWND hWnd, u32 screenWidth, u32 screenHeight, const std::array<u32, D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES>& numDescs, ColorSpaceType csType)
+	bool Device::Initialize(const DeviceDesc& devDesc)
 	{
 		uint32_t factoryFlags = 0;
 #ifdef _DEBUG
-		// デバッグレイヤーの有効化
+		// enable d3d debug layer.
+		if (devDesc.enableDebugLayer)
 		{
 			ID3D12Debug* debugController;
 			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
@@ -37,18 +38,15 @@ namespace sl12
 				debugController->Release();
 			}
 		}
-
-		// ファクトリをデバッグモードで作成する
-		//factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
-		// ファクトリの生成
+		// create factory.
 		auto hr = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&pFactory_));
 		if (FAILED(hr))
 		{
 			return false;
 		}
 
-		// アダプタを取得する
+		// enumerate adapters.
 		bool isWarp = false;
 		IDXGIAdapter1* pAdapter = nullptr;
 		ID3D12Device* pDevice = nullptr;
@@ -68,7 +66,7 @@ namespace sl12
 			DXGI_ADAPTER_DESC ad;
 			pAdapter->GetDesc(&ad);
 
-			hr = D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&pDevice));
+			hr = D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_12_2, IID_PPV_ARGS(&pDevice));
 			if (FAILED(hr))
 				continue;
 
@@ -114,11 +112,11 @@ namespace sl12
 		pDxrDevice_ = pDxrDevice;
 		pLatestDevice_ = pLatestDevice;
 
-		// ディスプレイを列挙する
-		// NOTE: 複数GPUが存在する場合、0番アダプターでのみOutputが取得できるらしい
+		// enumerate displays.
+		// NOTE: if multi GPU exists, only get Output from 0 index adapter.
 		IDXGIOutput* pOutput{ nullptr };
 		int OutputIndex = 0;
-		bool enableHDR = csType != ColorSpaceType::Rec709;
+		bool enableHDR = devDesc.colorSpace != ColorSpaceType::Rec709;
 		pFactory_->EnumAdapters1(0, &pAdapter);
 		while (pAdapter->EnumOutputs(OutputIndex, &pOutput) != DXGI_ERROR_NOT_FOUND)
 		{
@@ -182,12 +180,12 @@ namespace sl12
 		SafeRelease(pAdapter);
 
 #ifdef _DEBUG
-		// COPY_DESCRIPTORS_INVALID_RANGESエラーを回避
+		// avoid COPY_DESCRIPTORS_INVALID_RANGES error.
 		ID3D12InfoQueue* pD3DInfoQueue;
 		if (SUCCEEDED(pDevice_->QueryInterface(__uuidof(ID3D12InfoQueue), reinterpret_cast<void**>(&pD3DInfoQueue))))
 		{
 #if 1
-			// エラー等が出たときに止めたい場合は有効にする
+			// if break from error, enable this #if.
 			pD3DInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
 			pD3DInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 			pD3DInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
@@ -203,7 +201,7 @@ namespace sl12
 		}
 #endif
 
-		// Queueの作成
+		// create queues.
 		pGraphicsQueue_ = new CommandQueue();
 		pComputeQueue_ = new CommandQueue();
 		pCopyQueue_ = new CommandQueue();
@@ -224,7 +222,22 @@ namespace sl12
 			return false;
 		}
 
-		// DescriptorHeapの作成
+		// check dynamic resource support.
+		isDynamicResourceSupported_ = false;
+		if (devDesc.enableDynamicResource)
+		{
+			D3D12_FEATURE_DATA_D3D12_OPTIONS featureOptions{};
+			D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
+			shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
+			if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureOptions, sizeof(featureOptions)))
+				&& SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel))))
+			{
+				bool isTier3 = featureOptions.ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3;
+				isDynamicResourceSupported_ = isTier3;
+			}
+		}
+
+		// create DescriptorHeaps
 		{
 			D3D12_DESCRIPTOR_HEAP_DESC desc{};
 			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -237,25 +250,43 @@ namespace sl12
 				return false;
 			}
 
-			desc.NumDescriptors = numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
+			desc.NumDescriptors = devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			pViewDescHeap_ = new DescriptorAllocator();
 			if (!pViewDescHeap_->Initialize(this, desc))
 			{
 				return false;
 			}
+			if (isDynamicResourceSupported_)
+			{
+				desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+				pDynamicViewDescHeap_ = new DescriptorAllocator();
+				if (!pDynamicViewDescHeap_->Initialize(this, desc))
+				{
+					return false;
+				}
+			}
 
 			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-			desc.NumDescriptors = numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER];
+			desc.NumDescriptors = devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER];
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			pSamplerDescHeap_ = new DescriptorAllocator();
 			if (!pSamplerDescHeap_->Initialize(this, desc))
 			{
 				return false;
 			}
+			if (isDynamicResourceSupported_)
+			{
+				desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+				pDynamicSamplerDescHeap_ = new DescriptorAllocator();
+				if (!pDynamicSamplerDescHeap_->Initialize(this, desc))
+				{
+					return false;
+				}
+			}
 
 			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-			desc.NumDescriptors = numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
+			desc.NumDescriptors = devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			pRtvDescHeap_ = new DescriptorAllocator();
 			if (!pRtvDescHeap_->Initialize(this, desc))
@@ -264,7 +295,7 @@ namespace sl12
 			}
 
 			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-			desc.NumDescriptors = numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_DSV];
+			desc.NumDescriptors = devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_DSV];
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			pDsvDescHeap_ = new DescriptorAllocator();
 			if (!pDsvDescHeap_->Initialize(this, desc))
@@ -276,18 +307,18 @@ namespace sl12
 			defaultSamplerDescInfo_ = pSamplerDescHeap_->Allocate();
 		}
 
-		// Swapchainの作成
+		// create swapchain.
 		pSwapchain_ = new Swapchain();
 		if (!pSwapchain_)
 		{
 			return false;
 		}
-		if (!pSwapchain_->Initialize(this, pGraphicsQueue_, hWnd, screenWidth, screenHeight))
+		if (!pSwapchain_->Initialize(this, pGraphicsQueue_, devDesc.hWnd, devDesc.screenWidth, devDesc.screenHeight))
 		{
 			return false;
 		}
 
-		// Fenceの作成
+		// create fence.
 		hr = pDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence_));
 		if (FAILED(hr))
 		{
@@ -329,7 +360,9 @@ namespace sl12
 
 		SafeDelete(pDsvDescHeap_);
 		SafeDelete(pRtvDescHeap_);
+		SafeDelete(pDynamicSamplerDescHeap_);
 		SafeDelete(pSamplerDescHeap_);
+		SafeDelete(pDynamicViewDescHeap_);
 		SafeDelete(pViewDescHeap_);
 		SafeDelete(pGlobalViewDescHeap_);
 

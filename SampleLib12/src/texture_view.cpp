@@ -118,6 +118,16 @@ namespace sl12
 
 		pDev->GetDeviceDep()->CreateShaderResourceView(pTex->GetResourceDep(), &viewDesc, descInfo_.cpuHandle);
 
+		auto pDynamicHeap = pDev->GetDynamicViewDescriptorHeap();
+		if (pDynamicHeap)
+		{
+			dynamicDescInfo_ = pDynamicHeap->Allocate();
+			if (dynamicDescInfo_.IsValid())
+			{
+				pDev->GetDeviceDep()->CreateShaderResourceView(pTex->GetResourceDep(), &viewDesc, dynamicDescInfo_.cpuHandle);
+			}
+		}
+
 		return true;
 	}
 
@@ -125,6 +135,7 @@ namespace sl12
 	void TextureView::Destroy()
 	{
 		descInfo_.Free();
+		dynamicDescInfo_.Free();
 	}
 
 
@@ -352,6 +363,16 @@ namespace sl12
 
 		pDev->GetDeviceDep()->CreateUnorderedAccessView(pTex->GetResourceDep(), nullptr, &viewDesc, descInfo_.cpuHandle);
 
+		auto pDynamicHeap = pDev->GetDynamicViewDescriptorHeap();
+		if (pDynamicHeap)
+		{
+			dynamicDescInfo_ = pDynamicHeap->Allocate();
+			if (dynamicDescInfo_.IsValid())
+			{
+				pDev->GetDeviceDep()->CreateUnorderedAccessView(pTex->GetResourceDep(), nullptr, &viewDesc, dynamicDescInfo_.cpuHandle);
+			}
+		}
+
 		return true;
 	}
 
@@ -388,6 +409,16 @@ namespace sl12
 
 		pDev->GetDeviceDep()->CreateUnorderedAccessView(pBuff->GetResourceDep(), nullptr, &viewDesc, descInfo_.cpuHandle);
 
+		auto pDynamicHeap = pDev->GetDynamicViewDescriptorHeap();
+		if (pDynamicHeap)
+		{
+			dynamicDescInfo_ = pDynamicHeap->Allocate();
+			if (dynamicDescInfo_.IsValid())
+			{
+				pDev->GetDeviceDep()->CreateUnorderedAccessView(pBuff->GetResourceDep(), nullptr, &viewDesc, dynamicDescInfo_.cpuHandle);
+			}
+		}
+
 		return true;
 	}
 
@@ -395,6 +426,7 @@ namespace sl12
 	void UnorderedAccessView::Destroy()
 	{
 		descInfo_.Free();
+		dynamicDescInfo_.Free();
 	}
 
 }	// namespace sl12

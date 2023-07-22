@@ -13,6 +13,8 @@
 #include "sl12/descriptor_set.h"
 #include "sl12/resource_texture.h"
 
+#define ENABLE_DYNAMIC_RESOURCE	0
+
 namespace
 {
 	static const char* kResourceDir = "resources";
@@ -43,6 +45,7 @@ namespace
 
 		desc.name = "Depth";
 		desc.format = DXGI_FORMAT_D32_FLOAT;
+		desc.clearDepth = 1.0f;
 		desc.rtvDescs.clear();
 		desc.dsvDescs.push_back(sl12::RenderGraphDSVDesc(0, 0, 0));
 		desc.usage = sl12::ResourceUsage::ShaderResource | sl12::ResourceUsage::DepthStencil;
@@ -97,21 +100,23 @@ bool SampleApplication::Initialize()
 
 	// compile shaders.
 	const std::string shaderBaseDir = sl12::JoinPath(homeDir_, kShaderDir);
+	std::vector<sl12::ShaderDefine> shaderDefines;
+	shaderDefines.push_back(sl12::ShaderDefine("ENABLE_DYNAMIC_RESOURCE", ENABLE_DYNAMIC_RESOURCE ? "1" : "0"));
 	hMeshVV_ = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "mesh.vv.hlsl"),
-		"main", sl12::ShaderType::Vertex, 6, 5, nullptr, nullptr);
+		"main", sl12::ShaderType::Vertex, 6, 6, nullptr, &shaderDefines);
 	hMeshP_ = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "mesh.p.hlsl"),
-		"main", sl12::ShaderType::Pixel, 6, 5, nullptr, nullptr);
+		"main", sl12::ShaderType::Pixel, 6, 6, nullptr, &shaderDefines);
 	hLightingC_ = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "lighting.c.hlsl"),
-		"main", sl12::ShaderType::Compute, 6, 5, nullptr, nullptr);
+		"main", sl12::ShaderType::Compute, 6, 6, nullptr, &shaderDefines);
 	hFullscreenVV_ = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "fullscreen.vv.hlsl"),
-		"main", sl12::ShaderType::Vertex, 6, 5, nullptr, nullptr);
+		"main", sl12::ShaderType::Vertex, 6, 6, nullptr, &shaderDefines);
 	hTonemapP_ = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "tonemap.p.hlsl"),
-		"main", sl12::ShaderType::Pixel, 6, 5, nullptr, nullptr);
+		"main", sl12::ShaderType::Pixel, 6, 6, nullptr, &shaderDefines);
 	
 	// load request.
 	hSuzanneMesh_ = resLoader_->LoadRequest<sl12::ResourceItemMesh>("mesh/chinese_dragon/chinese_dragon.rmesh");
@@ -200,6 +205,8 @@ bool SampleApplication::Initialize()
 	
 	// init root signature and pipeline state.
 	rsVsPs_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
+	rsMeshDR_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
+	rsTonemapDR_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
 	psoMesh_ = sl12::MakeUnique<sl12::GraphicsPipelineState>(&device_);
 	psoTonemap_ = sl12::MakeUnique<sl12::GraphicsPipelineState>(&device_);
 	rsVsPs_->Initialize(&device_, hMeshVV_.GetShader(), hMeshP_.GetShader(), nullptr, nullptr, nullptr);
@@ -239,11 +246,23 @@ bool SampleApplication::Initialize()
 		desc.dsvFormat = gGBufferDescs[3].format;
 		desc.multisampleCount = 1;
 
+#if !ENABLE_DYNAMIC_RESOURCE
 		if (!psoMesh_->Initialize(&device_, desc))
 		{
 			sl12::ConsolePrint("Error: failed to init mesh pso.");
 			return false;
 		}
+#else
+		// dynamic resource version.
+		rsMeshDR_->InitializeWithDynamicResource(&device_, 2, 5, 0, 0, 0);
+		
+		desc.pRootSignature = &rsMeshDR_;
+		if (!psoMesh_->Initialize(&device_, desc))
+		{
+			sl12::ConsolePrint("Error: failed to init mesh dynamic resource pso.");
+			return false;
+		}
+#endif
 	}
 	{
 		sl12::GraphicsPipelineStateDesc desc{};
@@ -269,26 +288,52 @@ bool SampleApplication::Initialize()
 		desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
 		desc.multisampleCount = 1;
 
+#if !ENABLE_DYNAMIC_RESOURCE
 		if (!psoTonemap_->Initialize(&device_, desc))
 		{
 			sl12::ConsolePrint("Error: failed to init tonemap pso.");
 			return false;
 		}
+#else
+		// dynamic resource version.
+		rsTonemapDR_->InitializeWithDynamicResource(&device_, 0, 1, 0, 0, 0);
+		
+		desc.pRootSignature = &rsTonemapDR_;
+		if (!psoTonemap_->Initialize(&device_, desc))
+		{
+			sl12::ConsolePrint("Error: failed to init tonemap dynamic resource pso.");
+			return false;
+		}
+#endif
 	}
 
 	rsCs_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
+	rsLightingDR_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
 	psoLighting_ = sl12::MakeUnique<sl12::ComputePipelineState>(&device_);
 	rsCs_->Initialize(&device_, hLightingC_.GetShader());
 	{
 		sl12::ComputePipelineStateDesc desc{};
-		desc.pRootSignature = &rsCs_;
 		desc.pCS = hLightingC_.GetShader();
+#if !ENABLE_DYNAMIC_RESOURCE
+		desc.pRootSignature = &rsCs_;
 
 		if (!psoLighting_->Initialize(&device_, desc))
 		{
 			sl12::ConsolePrint("Error: failed to init lighting pso.");
 			return false;
 		}
+#else
+		// dynamic resource version.
+		rsLightingDR_->InitializeWithDynamicResource(&device_, 6);
+
+		desc.pRootSignature = &rsLightingDR_;
+
+		if (!psoLighting_->Initialize(&device_, desc))
+		{
+			sl12::ConsolePrint("Error: failed to init lighting dynamic resource pso.");
+			return false;
+		}
+#endif
 	}
 
 	return true;
@@ -306,6 +351,9 @@ void SampleApplication::Finalize()
 	rsCs_.Reset();
 	psoTonemap_.Reset();
 	psoMesh_.Reset();
+	rsLightingDR_.Reset();
+	rsTonemapDR_.Reset();
+	rsMeshDR_.Reset();
 	rsVsPs_.Reset();
 	depthTex_.Reset();
 	depthDSV_.Reset();
@@ -424,7 +472,7 @@ bool SampleApplication::Execute()
 	}
 
 	// gbuffer pass.
-	renderGraph_->BeginPass(pCmdList, 0);
+	renderGraph_->NextPass(pCmdList);
 	{
 		// output barrier.
 		renderGraph_->BarrierOutputsAll(pCmdList);
@@ -463,58 +511,115 @@ bool SampleApplication::Execute()
 
 		auto hMeshCB = cbvMan_->GetTemporal(&cbMesh, sizeof(cbMesh));
 
-		// set descriptors.
-		sl12::DescriptorSet descSet;
-		descSet.Reset();
-		descSet.SetVsCbv(0, hSceneCB.GetCBV()->GetDescInfo().cpuHandle);
-		descSet.SetVsCbv(1, hMeshCB.GetCBV()->GetDescInfo().cpuHandle);
-		descSet.SetPsCbv(0, hSceneCB.GetCBV()->GetDescInfo().cpuHandle);
-		descSet.SetPsSampler(0, linearSampler_->GetDescInfo().cpuHandle);
-
-		// set pipeline.
-		pCmdList->GetLatestCommandList()->SetPipelineState(psoMesh_->GetPSO());
-		pCmdList->GetLatestCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		auto meshRes = hSuzanneMesh_.GetItem<sl12::ResourceItemMesh>();
-		auto&& submeshes = meshRes->GetSubmeshes();
-		auto submesh_count = submeshes.size();
-		for (int i = 0; i < submesh_count; i++)
+#if !ENABLE_DYNAMIC_RESOURCE
 		{
-			auto&& submesh = submeshes[i];
-			auto&& material = meshRes->GetMaterials()[submesh.materialIndex];
-			auto bc_tex_res = const_cast<sl12::ResourceItemTexture*>(material.baseColorTex.GetItem<sl12::ResourceItemTexture>());
-			auto nm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.normalTex.GetItem<sl12::ResourceItemTexture>());
-			auto orm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.ormTex.GetItem<sl12::ResourceItemTexture>());
-			auto&& base_color_srv = bc_tex_res->GetTextureView();
+			// set descriptors.
+			sl12::DescriptorSet descSet;
+			descSet.Reset();
+			descSet.SetVsCbv(0, hSceneCB.GetCBV()->GetDescInfo().cpuHandle);
+			descSet.SetVsCbv(1, hMeshCB.GetCBV()->GetDescInfo().cpuHandle);
+			descSet.SetPsCbv(0, hSceneCB.GetCBV()->GetDescInfo().cpuHandle);
+			descSet.SetPsSampler(0, linearSampler_->GetDescInfo().cpuHandle);
 
-			descSet.SetPsSrv(0, bc_tex_res->GetTextureView().GetDescInfo().cpuHandle);
-			descSet.SetPsSrv(1, nm_tex_res->GetTextureView().GetDescInfo().cpuHandle);
-			descSet.SetPsSrv(2, orm_tex_res->GetTextureView().GetDescInfo().cpuHandle);
+			// set pipeline.
+			pCmdList->GetLatestCommandList()->SetPipelineState(psoMesh_->GetPSO());
+			pCmdList->GetLatestCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			pCmdList->SetGraphicsRootSignatureAndDescriptorSet(&rsVsPs_, &descSet);
+			auto meshRes = hSuzanneMesh_.GetItem<sl12::ResourceItemMesh>();
+			auto&& submeshes = meshRes->GetSubmeshes();
+			auto submesh_count = submeshes.size();
+			for (int i = 0; i < submesh_count; i++)
+			{
+				auto&& submesh = submeshes[i];
+				auto&& material = meshRes->GetMaterials()[submesh.materialIndex];
+				auto bc_tex_res = const_cast<sl12::ResourceItemTexture*>(material.baseColorTex.GetItem<sl12::ResourceItemTexture>());
+				auto nm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.normalTex.GetItem<sl12::ResourceItemTexture>());
+				auto orm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.ormTex.GetItem<sl12::ResourceItemTexture>());
+				auto&& base_color_srv = bc_tex_res->GetTextureView();
 
-			const D3D12_VERTEX_BUFFER_VIEW vbvs[] = {
-				sl12::MeshManager::CreateVertexView(meshRes->GetPositionHandle(), submesh.positionOffsetBytes, submesh.positionSizeBytes, sl12::ResourceItemMesh::GetPositionStride()),
-				sl12::MeshManager::CreateVertexView(meshRes->GetNormalHandle(), submesh.normalOffsetBytes, submesh.normalSizeBytes, sl12::ResourceItemMesh::GetNormalStride()),
-				sl12::MeshManager::CreateVertexView(meshRes->GetTangentHandle(), submesh.tangentOffsetBytes, submesh.tangentSizeBytes, sl12::ResourceItemMesh::GetTangentStride()),
-				sl12::MeshManager::CreateVertexView(meshRes->GetTexcoordHandle(), submesh.texcoordOffsetBytes, submesh.texcoordSizeBytes, sl12::ResourceItemMesh::GetTexcoordStride()),
-			};
-			pCmdList->GetLatestCommandList()->IASetVertexBuffers(0, ARRAYSIZE(vbvs), vbvs);
+				descSet.SetPsSrv(0, bc_tex_res->GetTextureView().GetDescInfo().cpuHandle);
+				descSet.SetPsSrv(1, nm_tex_res->GetTextureView().GetDescInfo().cpuHandle);
+				descSet.SetPsSrv(2, orm_tex_res->GetTextureView().GetDescInfo().cpuHandle);
 
-			auto ibv = sl12::MeshManager::CreateIndexView(meshRes->GetIndexHandle(), submesh.indexOffsetBytes, submesh.indexSizeBytes, sl12::ResourceItemMesh::GetIndexStride());
-			pCmdList->GetLatestCommandList()->IASetIndexBuffer(&ibv);
+				pCmdList->SetGraphicsRootSignatureAndDescriptorSet(&rsVsPs_, &descSet);
 
-			pCmdList->GetLatestCommandList()->DrawIndexedInstanced(submesh.indexCount, 1, 0, 0, 0);
+				const D3D12_VERTEX_BUFFER_VIEW vbvs[] = {
+					sl12::MeshManager::CreateVertexView(meshRes->GetPositionHandle(), submesh.positionOffsetBytes, submesh.positionSizeBytes, sl12::ResourceItemMesh::GetPositionStride()),
+					sl12::MeshManager::CreateVertexView(meshRes->GetNormalHandle(), submesh.normalOffsetBytes, submesh.normalSizeBytes, sl12::ResourceItemMesh::GetNormalStride()),
+					sl12::MeshManager::CreateVertexView(meshRes->GetTangentHandle(), submesh.tangentOffsetBytes, submesh.tangentSizeBytes, sl12::ResourceItemMesh::GetTangentStride()),
+					sl12::MeshManager::CreateVertexView(meshRes->GetTexcoordHandle(), submesh.texcoordOffsetBytes, submesh.texcoordSizeBytes, sl12::ResourceItemMesh::GetTexcoordStride()),
+				};
+				pCmdList->GetLatestCommandList()->IASetVertexBuffers(0, ARRAYSIZE(vbvs), vbvs);
+
+				auto ibv = sl12::MeshManager::CreateIndexView(meshRes->GetIndexHandle(), submesh.indexOffsetBytes, submesh.indexSizeBytes, sl12::ResourceItemMesh::GetIndexStride());
+				pCmdList->GetLatestCommandList()->IASetIndexBuffer(&ibv);
+
+				pCmdList->GetLatestCommandList()->DrawIndexedInstanced(submesh.indexCount, 1, 0, 0, 0);
+			}
 		}
+#else
+		{
+			std::vector<std::vector<sl12::u32>> resIndices;
+			resIndices.resize(2);
+			resIndices[0].resize(2);
+			resIndices[1].resize(5);
+
+			resIndices[0][0] = resIndices[1][0] = hSceneCB.GetCBV()->GetDynamicDescInfo().index;
+			resIndices[0][1] = hMeshCB.GetCBV()->GetDynamicDescInfo().index;
+			resIndices[1][4] = linearSampler_->GetDynamicDescInfo().index;
+
+			// set pipeline.
+			pCmdList->GetLatestCommandList()->SetPipelineState(psoMesh_->GetPSO());
+			pCmdList->GetLatestCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			auto meshRes = hSuzanneMesh_.GetItem<sl12::ResourceItemMesh>();
+			auto&& submeshes = meshRes->GetSubmeshes();
+			auto submesh_count = submeshes.size();
+			for (int i = 0; i < submesh_count; i++)
+			{
+				auto&& submesh = submeshes[i];
+				auto&& material = meshRes->GetMaterials()[submesh.materialIndex];
+				auto bc_tex_res = const_cast<sl12::ResourceItemTexture*>(material.baseColorTex.GetItem<sl12::ResourceItemTexture>());
+				auto nm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.normalTex.GetItem<sl12::ResourceItemTexture>());
+				auto orm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.ormTex.GetItem<sl12::ResourceItemTexture>());
+				auto&& base_color_srv = bc_tex_res->GetTextureView();
+
+				resIndices[1][1] = bc_tex_res->GetTextureView().GetDynamicDescInfo().index;
+				resIndices[1][2] = nm_tex_res->GetTextureView().GetDynamicDescInfo().index;
+				resIndices[1][3] = orm_tex_res->GetTextureView().GetDynamicDescInfo().index;
+
+				pCmdList->SetGraphicsRootSignatureAndDynamicResource(&rsMeshDR_, resIndices);
+
+				const D3D12_VERTEX_BUFFER_VIEW vbvs[] = {
+					sl12::MeshManager::CreateVertexView(meshRes->GetPositionHandle(), submesh.positionOffsetBytes, submesh.positionSizeBytes, sl12::ResourceItemMesh::GetPositionStride()),
+					sl12::MeshManager::CreateVertexView(meshRes->GetNormalHandle(), submesh.normalOffsetBytes, submesh.normalSizeBytes, sl12::ResourceItemMesh::GetNormalStride()),
+					sl12::MeshManager::CreateVertexView(meshRes->GetTangentHandle(), submesh.tangentOffsetBytes, submesh.tangentSizeBytes, sl12::ResourceItemMesh::GetTangentStride()),
+					sl12::MeshManager::CreateVertexView(meshRes->GetTexcoordHandle(), submesh.texcoordOffsetBytes, submesh.texcoordSizeBytes, sl12::ResourceItemMesh::GetTexcoordStride()),
+				};
+				pCmdList->GetLatestCommandList()->IASetVertexBuffers(0, ARRAYSIZE(vbvs), vbvs);
+
+				auto ibv = sl12::MeshManager::CreateIndexView(meshRes->GetIndexHandle(), submesh.indexOffsetBytes, submesh.indexSizeBytes, sl12::ResourceItemMesh::GetIndexStride());
+				pCmdList->GetLatestCommandList()->IASetIndexBuffer(&ibv);
+
+				pCmdList->GetLatestCommandList()->DrawIndexedInstanced(submesh.indexCount, 1, 0, 0, 0);
+			}
+		}
+#endif
 	}
 	renderGraph_->EndPass();
 
+	pCmdList->SetDescriptorHeapDirty();
+	
 	// lighing pass.
-	renderGraph_->BeginPass(pCmdList, 1);
+	renderGraph_->NextPass(pCmdList);
 	{
 		// output barrier.
 		renderGraph_->BarrierOutputsAll(pCmdList);
 
+		// set pipeline.
+		pCmdList->GetLatestCommandList()->SetPipelineState(psoLighting_->GetPSO());
+
+#if !ENABLE_DYNAMIC_RESOURCE
 		// set descriptors.
 		sl12::DescriptorSet descSet;
 		descSet.Reset();
@@ -525,9 +630,19 @@ bool SampleApplication::Execute()
 		descSet.SetCsSrv(3, renderGraph_->GetTarget(gbufferTargetIDs[3])->textureSrvs[0]->GetDescInfo().cpuHandle);
 		descSet.SetCsUav(0, renderGraph_->GetTarget(accumTargetID)->uavs[0]->GetDescInfo().cpuHandle);
 
-		// set pipeline.
-		pCmdList->GetLatestCommandList()->SetPipelineState(psoLighting_->GetPSO());
 		pCmdList->SetComputeRootSignatureAndDescriptorSet(&rsCs_, &descSet);
+#else
+		std::vector<sl12::u32> resIndices;
+		resIndices.resize(6);
+		resIndices[0] = hSceneCB.GetCBV()->GetDynamicDescInfo().index;
+		resIndices[1] = renderGraph_->GetTarget(gbufferTargetIDs[0])->textureSrvs[0]->GetDynamicDescInfo().index;
+		resIndices[2] = renderGraph_->GetTarget(gbufferTargetIDs[1])->textureSrvs[0]->GetDynamicDescInfo().index;
+		resIndices[3] = renderGraph_->GetTarget(gbufferTargetIDs[2])->textureSrvs[0]->GetDynamicDescInfo().index;
+		resIndices[4] = renderGraph_->GetTarget(gbufferTargetIDs[3])->textureSrvs[0]->GetDynamicDescInfo().index;
+		resIndices[5] = renderGraph_->GetTarget(accumTargetID)->uavs[0]->GetDynamicDescInfo().index;
+
+		pCmdList->SetComputeRootSignatureAndDynamicResource(&rsLightingDR_, resIndices);
+#endif
 
 		// dispatch.
 		UINT x = (displayWidth_ + 7) / 8;
@@ -536,8 +651,10 @@ bool SampleApplication::Execute()
 	}
 	renderGraph_->EndPass();
 
+	pCmdList->SetDescriptorHeapDirty();
+
 	// tonemap pass.
-	renderGraph_->BeginPass(pCmdList, 2);
+	renderGraph_->NextPass(pCmdList);
 	{
 		// output barrier.
 		renderGraph_->BarrierOutputsAll(pCmdList);
@@ -562,15 +679,25 @@ bool SampleApplication::Execute()
 		rect.bottom = displayHeight_;
 		pCmdList->GetLatestCommandList()->RSSetScissorRects(1, &rect);
 
+		// set pipeline.
+		pCmdList->GetLatestCommandList()->SetPipelineState(psoTonemap_->GetPSO());
+		pCmdList->GetLatestCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+#if !ENABLE_DYNAMIC_RESOURCE
 		// set descriptors.
 		sl12::DescriptorSet descSet;
 		descSet.Reset();
 		descSet.SetPsSrv(0, renderGraph_->GetTarget(accumTargetID)->textureSrvs[0]->GetDescInfo().cpuHandle);
 
-		// set pipeline.
-		pCmdList->GetLatestCommandList()->SetPipelineState(psoTonemap_->GetPSO());
-		pCmdList->GetLatestCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		pCmdList->SetGraphicsRootSignatureAndDescriptorSet(&rsVsPs_, &descSet);
+#else
+		std::vector<std::vector<sl12::u32>> resIndices;
+		resIndices.resize(1);
+		resIndices[0].resize(1);
+		resIndices[0][0] = renderGraph_->GetTarget(accumTargetID)->textureSrvs[0]->GetDynamicDescInfo().index;
+
+		pCmdList->SetGraphicsRootSignatureAndDynamicResource(&rsTonemapDR_, resIndices);
+#endif
 
 		// draw fullscreen.
 		pCmdList->GetLatestCommandList()->DrawIndexedInstanced(3, 1, 0, 0, 0);

@@ -16,12 +16,31 @@ struct VSOutput
 	float2	uv			: TEXCOORD;
 };
 
+#if !ENABLE_DYNAMIC_RESOURCE
+
 ConstantBuffer<SceneCB>		cbScene			: register(b0);
 ConstantBuffer<MeshCB>		cbMesh			: register(b1);
+
+#else
+
+struct ResourceIndex
+{
+	uint	SceneCB;
+	uint	MeshCB;
+};
+
+ConstantBuffer<ResourceIndex>	cbResIndex	: register(b0);
+
+#endif
 
 VSOutput main(const VSInput In)
 {
 	VSOutput Out = (VSOutput)0;
+
+#if ENABLE_DYNAMIC_RESOURCE
+	ConstantBuffer<SceneCB> cbScene = ResourceDescriptorHeap[cbResIndex.SceneCB];
+	ConstantBuffer<MeshCB> cbMesh = ResourceDescriptorHeap[cbResIndex.MeshCB];
+#endif
 
 	float4x4 mtxLocalToProj = mul(cbScene.mtxWorldToProj, cbMesh.mtxLocalToWorld);
 

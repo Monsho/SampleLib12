@@ -191,6 +191,7 @@ namespace sl12
 	private:
 		Buffer*			pInstanceBuffer_ = nullptr;
 		DescriptorInfo	descInfo_;
+		DescriptorInfo	dynamicDescInfo_;
 	};	// class TopAccelerationStructure
 
 }	// namespace sl12

@@ -16,6 +16,8 @@ struct PSOutput
 	float4	normal	: SV_TARGET2;
 };
 
+#if !ENABLE_DYNAMIC_RESOURCE
+
 ConstantBuffer<SceneCB>					cbScene			: register(b0);
 
 Texture2D			texColor		: register(t0);
@@ -23,9 +25,32 @@ Texture2D			texNormal		: register(t1);
 Texture2D			texORM			: register(t2);
 SamplerState		samLinearWrap	: register(s0);
 
+#else
+
+struct ResourceIndex
+{
+	uint	SceneCB;
+	uint	texColor;
+	uint	texNormal;
+	uint	texORM;
+	uint	samLinearWrap;
+};
+
+ConstantBuffer<ResourceIndex>	cbResIndex	: register(b0);
+
+#endif
+
 PSOutput main(PSInput In)
 {
 	PSOutput Out = (PSOutput)0;
+
+#if ENABLE_DYNAMIC_RESOURCE
+	ConstantBuffer<SceneCB> cbScene = ResourceDescriptorHeap[cbResIndex.SceneCB];
+	Texture2D texColor = ResourceDescriptorHeap[cbResIndex.texColor];
+	Texture2D texNormal = ResourceDescriptorHeap[cbResIndex.texNormal];
+	Texture2D texORM = ResourceDescriptorHeap[cbResIndex.texORM];
+	SamplerState samLinearWrap = SamplerDescriptorHeap[cbResIndex.samLinearWrap];
+#endif
 
 	float4 baseColor = texColor.Sample(samLinearWrap, In.uv);
 	float3 orm = texORM.Sample(samLinearWrap, In.uv);

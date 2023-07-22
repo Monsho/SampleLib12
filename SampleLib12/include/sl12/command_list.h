@@ -87,6 +87,10 @@ namespace sl12
 		void SetMeshRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
 		void SetComputeRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
 
+		// Set root signature and dynamic resource index.
+		void SetGraphicsRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<std::vector<u32>>& rootIndices);
+		void SetComputeRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<u32>& rootIndices);
+
 		// Raytracing用のGlobal RootSignatureとDescriptorをコマンドに積み込む
 		void SetRaytracingGlobalRootSignatureAndDescriptorSet(
 			RootSignature* pRS,

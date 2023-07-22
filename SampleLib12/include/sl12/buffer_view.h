@@ -27,9 +27,12 @@ namespace sl12
 		// getter
 		DescriptorInfo& GetDescInfo() { return descInfo_; }
 		const DescriptorInfo& GetDescInfo() const { return descInfo_; }
+		DescriptorInfo& GetDynamicDescInfo() { return dynamicDescInfo_; }
+		const DescriptorInfo& GetDynamicDescInfo() const { return dynamicDescInfo_; }
 
 	private:
 		DescriptorInfo	descInfo_;
+		DescriptorInfo	dynamicDescInfo_;
 	};	// class ConstantBufferView
 
 
@@ -101,10 +104,13 @@ namespace sl12
 		const D3D12_SHADER_RESOURCE_VIEW_DESC& GetViewDesc() const { return viewDesc_; }
 		DescriptorInfo& GetDescInfo() { return descInfo_; }
 		const DescriptorInfo& GetDescInfo() const { return descInfo_; }
+		DescriptorInfo& GetDynamicDescInfo() { return dynamicDescInfo_; }
+		const DescriptorInfo& GetDynamicDescInfo() const { return dynamicDescInfo_; }
 
 	private:
 		D3D12_SHADER_RESOURCE_VIEW_DESC	viewDesc_;
 		DescriptorInfo					descInfo_;
+		DescriptorInfo					dynamicDescInfo_;
 	};	// class BufferView
 
 }	// namespace sl12

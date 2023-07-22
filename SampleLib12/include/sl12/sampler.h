@@ -24,10 +24,14 @@ namespace sl12
 		// getter
 		const D3D12_SAMPLER_DESC& GetSamplerDesc() const { return samplerDesc_; }
 		DescriptorInfo& GetDescInfo() { return descInfo_; }
+		const DescriptorInfo& GetDescInfo() const { return descInfo_; }
+		DescriptorInfo& GetDynamicDescInfo() { return dynamicDescInfo_; }
+		const DescriptorInfo& GetDynamicDescInfo() const { return dynamicDescInfo_; }
 
 	private:
 		D3D12_SAMPLER_DESC	samplerDesc_{};
 		DescriptorInfo		descInfo_;
+		DescriptorInfo		dynamicDescInfo_;
 	};	// class Sampler
 
 }	// namespace sl12

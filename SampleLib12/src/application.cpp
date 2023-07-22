@@ -82,7 +82,18 @@ namespace sl12
 		// D3D12デバイスの初期化
 		std::array<uint32_t, D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES> kDescNums
 		{ 65535, 128, 256, 64 };
-		auto isInitDevice = device_.Initialize(hWnd_, screenWidth, screenHeight, kDescNums, csType);
+		DeviceDesc devDesc{};
+		devDesc.hWnd =hWnd_;
+		devDesc.screenWidth = screenWidth;
+		devDesc.screenHeight = screenHeight;
+		devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] = 65535;
+		devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER] = 128;
+		devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] = 256;
+		devDesc.numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_DSV] = 64;
+		devDesc.colorSpace =csType;
+		devDesc.enableDebugLayer = true;
+		devDesc.enableDynamicResource = true;
+		auto isInitDevice = device_.Initialize(devDesc);
 		assert(isInitDevice);
 
 		// replace window at center of desktop.

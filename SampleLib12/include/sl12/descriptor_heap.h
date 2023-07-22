@@ -77,6 +77,11 @@ namespace sl12
 		DescriptorInfo Allocate();
 		void Free(DescriptorInfo info);
 
+		ID3D12DescriptorHeap* GetHeap()
+		{
+			return pHeap_;
+		}
+
 	private:
 		std::mutex					mutex_;
 		ID3D12DescriptorHeap*		pHeap_ = nullptr;

@@ -42,13 +42,24 @@ namespace sl12
 		};
 	};	// struct DummyTex
 
+	struct DeviceDesc
+	{
+		HWND			hWnd = 0;
+		u32				screenWidth = 0;
+		u32				screenHeight = 0;
+		u32				numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {0};
+		ColorSpaceType	colorSpace = ColorSpaceType::Rec709;
+		bool			enableDebugLayer = true;
+		bool			enableDynamicResource = false;
+	};
+
 	class Device
 	{
 	public:
 		Device();
 		~Device();
 
-		bool Initialize(HWND hWnd, u32 screenWidth, u32 screenHeight, const std::array<u32, D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES>& numDescs, ColorSpaceType csType = ColorSpaceType::Rec709);
+		bool Initialize(const DeviceDesc& devDesc);
 		void Destroy();
 
 		void Present(int syncInterval = 1);
@@ -155,9 +166,17 @@ namespace sl12
 		{
 			return *pViewDescHeap_;
 		}
+		DescriptorAllocator* GetDynamicViewDescriptorHeap()
+		{
+			return pDynamicViewDescHeap_;
+		}
 		DescriptorAllocator& GetSamplerDescriptorHeap()
 		{
 			return *pSamplerDescHeap_;
+		}
+		DescriptorAllocator* GetDynamicSamplerDescriptorHeap()
+		{
+			return pDynamicSamplerDescHeap_;
 		}
 		DescriptorAllocator& GetRtvDescriptorHeap()
 		{
@@ -189,6 +208,11 @@ namespace sl12
 			return dummyTextureViews_[type].get();
 		}
 
+		bool IsDynamicResourceSupported() const
+		{
+			return isDynamicResourceSupported_;
+		}
+
 		void CopyToBuffer(CommandList* pCmdList, Buffer* pDstBuffer, u32 dstOffset, const void* pSrcData, u32 srcSize);
 
 	private:
@@ -212,9 +236,12 @@ namespace sl12
 		CommandQueue*	pComputeQueue_{ nullptr };
 		CommandQueue*	pCopyQueue_{ nullptr };
 
+		bool					isDynamicResourceSupported_ = false;
 		GlobalDescriptorHeap*	pGlobalViewDescHeap_ = nullptr;
 		DescriptorAllocator*	pViewDescHeap_ = nullptr;
+		DescriptorAllocator*	pDynamicViewDescHeap_ = nullptr;
 		DescriptorAllocator*	pSamplerDescHeap_ = nullptr;
+		DescriptorAllocator*	pDynamicSamplerDescHeap_ = nullptr;
 		DescriptorAllocator*	pRtvDescHeap_ = nullptr;
 		DescriptorAllocator*	pDsvDescHeap_ = nullptr;
 

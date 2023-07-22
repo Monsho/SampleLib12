@@ -430,6 +430,16 @@ namespace sl12
 		viewDesc.RaytracingAccelerationStructure.Location = GetDxrBuffer().GetResourceDep()->GetGPUVirtualAddress();
 		pDevice->GetDeviceDep()->CreateShaderResourceView(nullptr, &viewDesc, descInfo_.cpuHandle);
 
+		auto pDynamicHeap = pDevice->GetDynamicViewDescriptorHeap();
+		if (pDynamicHeap)
+		{
+			dynamicDescInfo_ = pDynamicHeap->Allocate();
+			if (dynamicDescInfo_.IsValid())
+			{
+				pDevice->GetDeviceDep()->CreateShaderResourceView(nullptr, &viewDesc, dynamicDescInfo_.cpuHandle);
+			}
+		}
+
 		return true;
 	}
 
@@ -507,6 +517,7 @@ namespace sl12
 		AccelerationStructure::Destroy();
 		DestroyInstanceBuffer();
 		descInfo_.Free();
+		dynamicDescInfo_.Free();
 	}
 
 	//-------------------------------------------------------------------

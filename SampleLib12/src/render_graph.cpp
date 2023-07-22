@@ -69,7 +69,8 @@ namespace sl12
 				tex_desc.usage = pTarget->desc.usage;
 				tex_desc.dimension = kDimensions[pTarget->desc.type];
 				tex_desc.initialState = pTarget->currentState = D3D12_RESOURCE_STATE_GENERIC_READ;
-				tex_desc.clearDepth = 0.0f;
+				memcpy(tex_desc.clearColor, pTarget->desc.clearColor, sizeof(tex_desc.clearColor));
+				tex_desc.clearDepth = pTarget->desc.clearDepth;
 				if (pTarget->desc.type == RenderGraphTargetType::TextureCube)
 				{
 					tex_desc.depth *= 6;
@@ -135,6 +136,8 @@ namespace sl12
 		hash = CalcFnv1a64(&mipLevels, sizeof(mipLevels), hash);
 		hash = CalcFnv1a64(&sampleCount, sizeof(sampleCount), hash);
 		hash = CalcFnv1a64(&usage, sizeof(usage), hash);
+		hash = CalcFnv1a64(clearColor, sizeof(clearColor), hash);
+		hash = CalcFnv1a64(&clearDepth, sizeof(clearDepth), hash);
 
 		if (!srvDescs.empty())
 		{

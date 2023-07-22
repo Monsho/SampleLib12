@@ -94,10 +94,13 @@ private:
 
 	UniqueHandle<sl12::RootSignature>			rsVsPs_;
 	UniqueHandle<sl12::RootSignature>			rsCs_;
+	UniqueHandle<sl12::RootSignature>			rsMeshDR_;
+	UniqueHandle<sl12::RootSignature>			rsTonemapDR_;
+	UniqueHandle<sl12::RootSignature>			rsLightingDR_;
 	UniqueHandle<sl12::GraphicsPipelineState>	psoMesh_;
 	UniqueHandle<sl12::GraphicsPipelineState>	psoTonemap_;
 	UniqueHandle<sl12::ComputePipelineState>	psoLighting_;
-
+	
 	UniqueHandle<sl12::Texture>				depthTex_;
 	UniqueHandle<sl12::DepthStencilView>	depthDSV_;
 

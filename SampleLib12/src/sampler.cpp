@@ -19,6 +19,16 @@ namespace sl12
 
 		samplerDesc_ = desc;
 
+		auto pDynamicHeap = pDev->GetDynamicSamplerDescriptorHeap();
+		if (pDynamicHeap)
+		{
+			dynamicDescInfo_ = pDynamicHeap->Allocate();
+			if (dynamicDescInfo_.IsValid())
+			{
+				pDev->GetDeviceDep()->CreateSampler(&desc, dynamicDescInfo_.cpuHandle);
+			}
+		}
+
 		return true;
 	}
 
@@ -26,6 +36,7 @@ namespace sl12
 	void Sampler::Destroy()
 	{
 		descInfo_.Free();
+		dynamicDescInfo_.Free();
 	}
 
 }	// namespace sl12

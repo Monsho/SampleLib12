@@ -9,6 +9,11 @@
 #	define		uint			UINT
 #endif
 
+struct RootIndexCB
+{
+    uint        index;
+};
+
 struct SceneCB
 {
     float4x4	mtxWorldToProj;

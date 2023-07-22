@@ -28,9 +28,12 @@ namespace sl12
 		// getter
 		DescriptorInfo& GetDescInfo() { return descInfo_; }
 		const DescriptorInfo& GetDescInfo() const { return descInfo_; }
+		DescriptorInfo& GetDynamicDescInfo() { return dynamicDescInfo_; }
+		const DescriptorInfo& GetDynamicDescInfo() const { return dynamicDescInfo_; }
 
 	private:
 		DescriptorInfo	descInfo_;
+		DescriptorInfo	dynamicDescInfo_;
 	};	// class TextureView
 
 
@@ -102,9 +105,12 @@ namespace sl12
 		// getter
 		DescriptorInfo& GetDescInfo() { return descInfo_; }
 		const DescriptorInfo& GetDescInfo() const { return descInfo_; }
+		DescriptorInfo& GetDynamicDescInfo() { return dynamicDescInfo_; }
+		const DescriptorInfo& GetDynamicDescInfo() const { return dynamicDescInfo_; }
 
 	private:
 		DescriptorInfo	descInfo_;
+		DescriptorInfo	dynamicDescInfo_;
 	};	// class UnorderdAccessView
 
 }	// namespace sl12

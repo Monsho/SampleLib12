@@ -49,6 +49,16 @@ namespace sl12
 		viewDesc.SizeInBytes = static_cast<u32>(size > 0 ? size : (pBuffer->GetResourceDesc().Width - offset));
 		pDev->GetDeviceDep()->CreateConstantBufferView(&viewDesc, descInfo_.cpuHandle);
 
+		auto pDynamicHeap = pDev->GetDynamicViewDescriptorHeap();
+		if (pDynamicHeap)
+		{
+			dynamicDescInfo_ = pDynamicHeap->Allocate();
+			if (dynamicDescInfo_.IsValid())
+			{
+				pDev->GetDeviceDep()->CreateConstantBufferView(&viewDesc, dynamicDescInfo_.cpuHandle);
+			}
+		}
+
 		return true;
 	}
 
@@ -56,6 +66,7 @@ namespace sl12
 	void ConstantBufferView::Destroy()
 	{
 		descInfo_.Free();
+		dynamicDescInfo_.Free();
 	}
 
 
@@ -195,6 +206,16 @@ namespace sl12
 
 		viewDesc_ = viewDesc;
 
+		auto pDynamicHeap = pDev->GetDynamicViewDescriptorHeap();
+		if (pDynamicHeap)
+		{
+			dynamicDescInfo_ = pDynamicHeap->Allocate();
+			if (dynamicDescInfo_.IsValid())
+			{
+				pDev->GetDeviceDep()->CreateShaderResourceView(pBuffer->GetResourceDep(), &viewDesc, dynamicDescInfo_.cpuHandle);
+			}
+		}
+
 		return true;
 	}
 
@@ -202,6 +223,7 @@ namespace sl12
 	void BufferView::Destroy()
 	{
 		descInfo_.Free();
+		dynamicDescInfo_.Free();
 	}
 
 }	// namespace sl12

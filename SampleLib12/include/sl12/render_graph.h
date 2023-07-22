@@ -111,6 +111,8 @@ namespace sl12
 		u32								mipLevels = 1;
 		u32								sampleCount = 1;
 		u32								usage = ResourceUsage::ShaderResource | ResourceUsage::RenderTarget;
+		float							clearColor[4] = { 0.0f };
+		float							clearDepth = 0.0f;
 
 		std::vector<RenderGraphSRVDesc>	srvDescs;
 		std::vector<RenderGraphRTVDesc>	rtvDescs;

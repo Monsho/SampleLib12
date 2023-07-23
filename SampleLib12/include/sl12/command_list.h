@@ -89,6 +89,7 @@ namespace sl12
 
 		// Set root signature and dynamic resource index.
 		void SetGraphicsRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<std::vector<u32>>& rootIndices);
+		void SetMeshRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<std::vector<u32>>& rootIndices);
 		void SetComputeRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<u32>& rootIndices);
 
 		// Raytracing用のGlobal RootSignatureとDescriptorをコマンドに積み込む

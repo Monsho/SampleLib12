@@ -580,6 +580,45 @@ namespace sl12
 	}
 
 	//----
+	void CommandList::SetMeshRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<std::vector<u32>>& rootIndices)
+	{
+		auto pCmdList = GetCommandList();
+
+		// check current heap.
+		auto viewHeap = pParentDevice_->GetDynamicViewDescriptorHeap()->GetHeap();
+		pCurrentSamplerHeap_ = pParentDevice_->GetDynamicSamplerDescriptorHeap()->GetHeap();
+		if (pCurrentSamplerHeap_ != pPrevSamplerHeap_)
+		{
+			pPrevSamplerHeap_ = pCurrentSamplerHeap_;
+			changeHeap_ = true;
+		}
+
+		// set heap.
+		if (changeHeap_)
+		{
+			ID3D12DescriptorHeap* pDescHeaps[2];
+			int heap_cnt = 0;
+			if (viewHeap)
+				pDescHeaps[heap_cnt++] = viewHeap;
+			if (pCurrentSamplerHeap_)
+				pDescHeaps[heap_cnt++] = pCurrentSamplerHeap_;
+			pCmdList->SetDescriptorHeaps(heap_cnt, pDescHeaps);
+			changeHeap_ = false;
+		}
+
+		// set root signature.
+		pCmdList->SetGraphicsRootSignature(pRS->GetRootSignature());
+
+		// set root constant.
+		auto size = (int)rootIndices.size();
+		for (int n = 0; n < size; n++)
+		{
+			if (!rootIndices[n].empty())
+				pCmdList->SetGraphicsRoot32BitConstants(n, (UINT)rootIndices[n].size(), rootIndices[n].data(), 0);
+		}
+	}
+
+	//----
 	void CommandList::SetComputeRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<u32>& rootIndices)
 	{
 		auto pCmdList = GetCommandList();

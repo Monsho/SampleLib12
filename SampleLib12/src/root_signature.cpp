@@ -753,6 +753,56 @@ namespace sl12
 	}
 
 	//----
+	bool RootSignature::InitializeWithDynamicResource(Device* pDev, u32 asIndices, u32 msIndices, u32 psIndices)
+	{
+		D3D12_ROOT_PARAMETER params[5];
+		int paramCnt = 0;
+		if (asIndices)
+		{
+			params[paramCnt].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[paramCnt].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+			params[paramCnt].Constants.ShaderRegister = 0;
+			params[paramCnt].Constants.RegisterSpace = 0;
+			params[paramCnt].Constants.Num32BitValues = asIndices;
+
+			paramCnt++;
+		}
+		if (msIndices)
+		{
+			params[paramCnt].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[paramCnt].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			params[paramCnt].Constants.ShaderRegister = 0;
+			params[paramCnt].Constants.RegisterSpace = 0;
+			params[paramCnt].Constants.Num32BitValues = msIndices;
+
+			paramCnt++;
+		}
+		if (psIndices)
+		{
+			params[paramCnt].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[paramCnt].ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
+			params[paramCnt].Constants.ShaderRegister = 0;
+			params[paramCnt].Constants.RegisterSpace = 0;
+			params[paramCnt].Constants.Num32BitValues = psIndices;
+
+			paramCnt++;
+		}
+
+		D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+			| D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED
+			| D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
+
+		D3D12_ROOT_SIGNATURE_DESC desc{};
+		desc.NumParameters = paramCnt;
+		desc.pParameters = params;
+		desc.NumStaticSamplers = 0;
+		desc.pStaticSamplers = nullptr;
+		desc.Flags = flags;
+
+		return Initialize(pDev, desc);
+	}
+
+	//----
 	bool RootSignature::InitializeWithDynamicResource(Device* pDev, u32 csIndices)
 	{
 		D3D12_ROOT_PARAMETER params[1];

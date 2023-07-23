@@ -13,7 +13,7 @@
 #include "sl12/descriptor_set.h"
 #include "sl12/resource_texture.h"
 
-#define ENABLE_DYNAMIC_RESOURCE	0
+#define ENABLE_DYNAMIC_RESOURCE	1
 
 namespace
 {
@@ -608,8 +608,6 @@ bool SampleApplication::Execute()
 	}
 	renderGraph_->EndPass();
 
-	pCmdList->SetDescriptorHeapDirty();
-	
 	// lighing pass.
 	renderGraph_->NextPass(pCmdList);
 	{
@@ -650,8 +648,6 @@ bool SampleApplication::Execute()
 		pCmdList->GetLatestCommandList()->Dispatch(x, y, 1);
 	}
 	renderGraph_->EndPass();
-
-	pCmdList->SetDescriptorHeapDirty();
 
 	// tonemap pass.
 	renderGraph_->NextPass(pCmdList);

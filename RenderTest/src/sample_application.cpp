@@ -13,7 +13,7 @@
 #include "sl12/descriptor_set.h"
 #include "sl12/resource_texture.h"
 
-#define ENABLE_DYNAMIC_RESOURCE	1
+#define ENABLE_DYNAMIC_RESOURCE	0
 
 namespace
 {

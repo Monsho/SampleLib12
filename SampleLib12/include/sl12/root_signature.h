@@ -153,6 +153,13 @@ namespace sl12
 		const RaytracingDescriptorCount& localCount,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS);
+	bool CreateRayTracingRootSignatureWithDynamicResource(
+		sl12::Device* pDevice,
+		sl12::u32 asCount,
+		sl12::u32 globalIndices,
+		sl12::u32 localIndices,
+		sl12::RootSignature* pGlobalRS,
+		sl12::RootSignature* pLocalRS);
 
 }	// namespace sl12
 

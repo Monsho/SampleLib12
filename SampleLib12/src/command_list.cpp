@@ -734,6 +734,51 @@ namespace sl12
 	}
 
 	//----
+	void CommandList::SetRaytracingGlobalRootSignatureAndDynamicResource(
+		RootSignature* pRS,
+		D3D12_GPU_VIRTUAL_ADDRESS* asAddress,
+		u32 asAddressCount,
+		const std::vector<u32>& rootIndices)
+	{
+		auto pCmdList = GetCommandList();
+
+		// check current heap.
+		auto viewHeap = pParentDevice_->GetDynamicViewDescriptorHeap()->GetHeap();
+		pCurrentSamplerHeap_ = pParentDevice_->GetDynamicSamplerDescriptorHeap()->GetHeap();
+		if (pCurrentSamplerHeap_ != pPrevSamplerHeap_)
+		{
+			pPrevSamplerHeap_ = pCurrentSamplerHeap_;
+			changeHeap_ = true;
+		}
+
+		// set heap.
+		if (changeHeap_)
+		{
+			ID3D12DescriptorHeap* pDescHeaps[2];
+			int heap_cnt = 0;
+			if (viewHeap)
+				pDescHeaps[heap_cnt++] = viewHeap;
+			if (pCurrentSamplerHeap_)
+				pDescHeaps[heap_cnt++] = pCurrentSamplerHeap_;
+			pCmdList->SetDescriptorHeaps(heap_cnt, pDescHeaps);
+			changeHeap_ = false;
+		}
+
+		// set global root signature.
+		pCmdList->SetComputeRootSignature(pRS->GetRootSignature());
+
+		// set TLAS address.
+		for (u32 i = 0; i < asAddressCount; i++)
+		{
+			pCmdList->SetComputeRootShaderResourceView(i, asAddress[i]);
+		}
+
+		// set root constant.
+		if (!rootIndices.empty())
+			pCmdList->SetComputeRoot32BitConstants(asAddressCount, (UINT)rootIndices.size(), rootIndices.data(), 0);
+	}
+
+	//----
 	void CommandList::PushMarker(u8 colorIndex, char const* format, ...)
 	{
 		assert(pLatestCmdList_ != nullptr);

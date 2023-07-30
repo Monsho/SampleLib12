@@ -1023,6 +1023,72 @@ namespace sl12
 		return true;
 	}
 
+	//----
+	bool CreateRayTracingRootSignatureWithDynamicResource(
+		sl12::Device* pDevice,
+		sl12::u32 asCount,
+		sl12::u32 globalIndices,
+		sl12::u32 localIndices,
+		sl12::RootSignature* pGlobalRS,
+		sl12::RootSignature* pLocalRS)
+	{
+		{
+			D3D12_ROOT_PARAMETER params[16];
+			u32 paramCount = 0;
+			
+			for (sl12::u32 i = 0; i < asCount; i++)
+			{
+				auto&& p = params[paramCount++];
+				p.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+				p.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+				p.Descriptor.ShaderRegister = i;
+				p.Descriptor.RegisterSpace = 0;
+			}
+
+			params[paramCount].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[paramCount].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			params[paramCount].Constants.ShaderRegister = 0;
+			params[paramCount].Constants.RegisterSpace = 0;
+			params[paramCount].Constants.Num32BitValues = globalIndices;
+			paramCount++;
+
+			D3D12_ROOT_SIGNATURE_DESC sigDesc{};
+			sigDesc.NumParameters = paramCount;
+			sigDesc.pParameters = params;
+			sigDesc.NumStaticSamplers = 0;
+			sigDesc.pStaticSamplers = nullptr;
+			sigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED
+				| D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
+
+			if (!pGlobalRS->Initialize(pDevice, sigDesc))
+			{
+				return false;
+			}
+		}
+		{
+			D3D12_ROOT_PARAMETER param;
+			param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			param.Constants.ShaderRegister = 1;
+			param.Constants.RegisterSpace = 0;
+			param.Constants.Num32BitValues = localIndices;
+
+			D3D12_ROOT_SIGNATURE_DESC sigDesc{};
+			sigDesc.NumParameters = 1;
+			sigDesc.pParameters = &param;
+			sigDesc.NumStaticSamplers = 0;
+			sigDesc.pStaticSamplers = nullptr;
+			sigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+
+			if (!pLocalRS->Initialize(pDevice, sigDesc))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 }	// namespace sl12
 
 //	EOF

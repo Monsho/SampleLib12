@@ -4,13 +4,29 @@
 #include <locale>
 #include <sstream>
 #include <Shlwapi.h>
+#include "dxcapi.h"
 #include <sl12/string_util.h>
 
+#include <windows.h>
+#include <system_error>
 
 namespace sl12
 {
 	namespace
 	{
+		std::wstring ToWString(const std::string& str)
+		{
+			int buffSize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, (wchar_t*)NULL, 0);
+			wchar_t* wstr = new wchar_t[buffSize];
+			MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, wstr, buffSize);
+			std::wstring ret(wstr, wstr + buffSize - 1);
+			delete[] wstr;
+			return ret;
+
+			// deprecated from C++17
+			//return std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(str);
+		}
+
 		std::wstring GetTargetProfile(ShaderType::Type type, int majorVersion, int minorVersion)
 		{
 			const wchar_t* kProfileType[] =
@@ -34,8 +50,10 @@ namespace sl12
 			: public IDxcIncludeHandler
 		{
 		public:
-			DefaultIncludeHandler(IDxcLibrary* pLib, const std::vector<std::string>& dirs)
-				: dwRef_(1), pDxcLib_(pLib)
+			// DefaultIncludeHandler(IDxcLibrary* pLib, const std::vector<std::string>& dirs)
+			// 	: dwRef_(1), pDxcLib_(pLib)
+			DefaultIncludeHandler(IDxcUtils* pUtils, const std::vector<std::string>& dirs)
+				: dwRef_(1), pDxcUtils_(pUtils)
 			{
 				for (auto&& s : dirs)
 				{
@@ -44,7 +62,7 @@ namespace sl12
 					{
 						dir += "/";
 					}
-					includeDirs_.push_back(StringToWString(dir));
+					includeDirs_.push_back(ToWString(dir));
 				}
 			}
 			virtual ~DefaultIncludeHandler()
@@ -112,7 +130,7 @@ namespace sl12
 
 				UINT32 codePage = CP_UTF8;
 				IDxcBlobEncoding* pBlob;
-				HRESULT hr = pDxcLib_->CreateBlobFromFile(path.c_str(), &codePage, &pBlob);
+				HRESULT hr = pDxcUtils_->LoadFile(path.c_str(), &codePage, &pBlob);
 				if (FAILED(hr))
 				{
 					*ppIncludeSource = nullptr;
@@ -127,7 +145,7 @@ namespace sl12
 
 		private:
 			u32							dwRef_;
-			IDxcLibrary*				pDxcLib_ = nullptr;
+			IDxcUtils*					pDxcUtils_ = nullptr;
 			std::vector<std::wstring>	includeDirs_;
 
 		public:
@@ -166,7 +184,7 @@ namespace sl12
 		bool Initialize()
 		{
 			HRESULT hr;
-			hr = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&pDxcLib_));
+			hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&pDxcUtils_));
 			if (FAILED(hr))
 			{
 				return false;
@@ -184,21 +202,18 @@ namespace sl12
 		void Destroy()
 		{
 			SafeRelease(pDxcCompiler_);
-			SafeRelease(pDxcLib_);
+			SafeRelease(pDxcUtils_);
 		}
 
 		bool Compile(
 			IDxcBlobEncoding* pSrcBlob,
-			const std::wstring& fileName,
-			const std::wstring& entryPoint,
-			const std::wstring& targetProfile,
 			const std::vector<std::wstring>& args,
-			const std::vector<DxcDefine>& defines,
 			IDxcIncludeHandler* pInclude,
 			IDxcBlob** ppResult,
-			IDxcBlobEncoding** ppError)
+			IDxcBlobEncoding** ppError,
+			IDxcBlob** ppPDB, IDxcBlobUtf16** ppPDBName)
 		{
-			assert(pDxcLib_ != nullptr);
+			assert(pDxcUtils_ != nullptr);
 			assert(pDxcCompiler_ != nullptr);
 
 			HRESULT hr;
@@ -209,19 +224,14 @@ namespace sl12
 			{
 				arg_array.push_back(a.c_str());
 			}
+			
+			DxcBuffer Source;
+			Source.Ptr = pSrcBlob->GetBufferPointer();
+			Source.Size = pSrcBlob->GetBufferSize();
+			Source.Encoding = DXC_CP_ACP;
 
-			IDxcOperationResult* pCompileResult = nullptr;
-			hr = pDxcCompiler_->Compile(
-				pSrcBlob,
-				fileName.c_str(),
-				entryPoint.c_str(),
-				targetProfile.c_str(),
-				arg_array.data(),
-				(UINT32)arg_array.size(),
-				defines.data(),
-				(UINT32)defines.size(),
-				pInclude,
-				&pCompileResult);
+			IDxcResult* pCompileResult = nullptr;
+			hr = pDxcCompiler_->Compile(&Source, arg_array.data(), (UINT32)arg_array.size(), pInclude, IID_PPV_ARGS(&pCompileResult));
 			if (FAILED(hr))
 			{
 				return false;
@@ -235,14 +245,19 @@ namespace sl12
 				return false;
 			}
 
+			if (ppPDB && ppPDBName)
+			{
+				pCompileResult->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(ppPDB), ppPDBName);
+			}
+			
 			pCompileResult->GetResult(ppResult);
 			pCompileResult->Release();
 			return true;
 		}
 
 	private:
-		IDxcLibrary* pDxcLib_ = nullptr;
-		IDxcCompiler2* pDxcCompiler_ = nullptr;
+		IDxcUtils* pDxcUtils_ = nullptr;
+		IDxcCompiler3* pDxcCompiler_ = nullptr;
 	};	// class ShaderCompiler
 
 
@@ -270,7 +285,11 @@ namespace sl12
 	}
 
 
-	bool ShaderManager::Initialize(Device* pDev, const std::vector<std::string>* includeDirs)
+	bool ShaderManager::Initialize(
+		Device* pDev,
+		const std::vector<std::string>* includeDirs,
+		ShaderPDB::Type pdbType,
+		const std::string* pdbDir)
 	{
 		pDevice_ = pDev;
 
@@ -283,6 +302,13 @@ namespace sl12
 		if (includeDirs)
 			includeDirs_ = *includeDirs;
 
+		pdbExportType_ = ShaderPDB::None;
+		if (pdbType != ShaderPDB::None && pdbDir != nullptr)
+		{
+			pdbExportType_ = pdbType;
+			pdbDir_ = *pdbDir;
+		}
+		
 		// create thread.
 		std::thread th([&]
 			{
@@ -432,7 +458,7 @@ namespace sl12
 		IDxcBlobEncoding* pSrcBlob = nullptr;
 		if (!item->srcCode.empty())
 		{
-			hr = pCompiler_->pDxcLib_->CreateBlobWithEncodingFromPinned(item->srcCode.c_str(), (UINT32)item->srcCode.size(), CP_UTF8, &pSrcBlob);
+			hr = pCompiler_->pDxcUtils_->CreateBlobFromPinned(item->srcCode.c_str(), (UINT32)item->srcCode.size(), CP_UTF8, &pSrcBlob);
 			if (FAILED(hr))
 			{
 				return nullptr;
@@ -441,7 +467,7 @@ namespace sl12
 		else
 		{
 			UINT32 codePage = CP_UTF8;
-			hr = pCompiler_->pDxcLib_->CreateBlobFromFile(item->filePath.c_str(), &codePage, &pSrcBlob);
+			hr = pCompiler_->pDxcUtils_->LoadFile(item->filePath.c_str(), &codePage, &pSrcBlob);
 			if (FAILED(hr))
 			{
 				return nullptr;
@@ -449,42 +475,58 @@ namespace sl12
 			includeDirs.push_back(item->fileDir);
 		}
 
-		IDxcIncludeHandler* pInclude = new DefaultIncludeHandler(pCompiler_->pDxcLib_, includeDirs);
+		IDxcIncludeHandler* pInclude = new DefaultIncludeHandler(pCompiler_->pDxcUtils_, includeDirs);
 
-		std::vector<std::wstring> tmp_def_strs;
-		std::vector<DxcDefine> tmp_defs;
-		tmp_def_strs.reserve(item->defines.size() * 2);
-		tmp_defs.reserve(item->defines.size());
-		for (auto&& s : item->defines)
+		bool bOutputPDB = false;
+		std::wstring cso_name;
+		std::vector<std::wstring> tmp_args;
+		tmp_args.push_back(item->fileName);
+		tmp_args.push_back(L"-E"); tmp_args.push_back(item->entryPoint);
+		tmp_args.push_back(L"-T"); tmp_args.push_back(item->targetProfile);
+		if (pdbExportType_ != ShaderPDB::None)
 		{
-			DxcDefine def;
-
-			tmp_def_strs.push_back(StringToWString(s.name));
-			def.Name = tmp_def_strs[tmp_def_strs.size() - 1].c_str();
-			if (s.value.empty())
+			bOutputPDB = true;
+			cso_name = item->fileName + L"_" + item->entryPoint + L".cso";
+			tmp_args.push_back(L"-Fo"); tmp_args.push_back(cso_name);
+			tmp_args.push_back(L"-Fd"); tmp_args.push_back(item->fileName + L"_" + item->entryPoint + L".pdb");
+			if (pdbExportType_ == ShaderPDB::Full)
 			{
-				def.Value = nullptr;
+				tmp_args.push_back(L"-Zi");
 			}
 			else
 			{
-				tmp_def_strs.push_back(StringToWString(s.value));
-				def.Value = tmp_def_strs[tmp_def_strs.size() - 1].c_str();
+				tmp_args.push_back(L"-Zs");
 			}
-			tmp_defs.push_back(def);
+		}
+		tmp_args.insert(tmp_args.end(), item->args.begin(), item->args.end());
+		for (auto&& s : item->defines)
+		{
+			tmp_args.push_back(L"-D");
+			if (s.value.empty())
+			{
+				tmp_args.push_back(ToWString(s.name));
+			}
+			else
+			{
+				std::wstring str = ToWString(s.name);
+				str += L"=";
+				str += ToWString(s.value);
+				tmp_args.push_back(str);
+			}
 		}
 
-		IDxcBlob* pResult;
-		IDxcBlobEncoding* pError;
+		IDxcBlob* pResult = nullptr;
+		IDxcBlobEncoding* pError = nullptr;
+		IDxcBlob* pPDB = nullptr;
+		IDxcBlobUtf16* pPDBName = nullptr;
 		bool bSuccess = pCompiler_->Compile(
 			pSrcBlob,
-			item->fileName,
-			item->entryPoint,
-			item->targetProfile,
-			item->args,
-			tmp_defs,
+			tmp_args,
 			pInclude,
 			&pResult,
-			&pError);
+			&pError,
+			bOutputPDB ? &pPDB : nullptr,
+			bOutputPDB ? &pPDBName : nullptr);
 		pInclude->Release();
 		if (!bSuccess)
 		{
@@ -494,10 +536,32 @@ namespace sl12
 			return nullptr;
 		}
 
+		if (bOutputPDB)
+		{
+			if (pPDB && pPDBName)
+			{
+				std::wstring pdbfile = ToWString(pdbDir_) + pPDBName->GetStringPointer();
+				FILE* fp = nullptr;
+				_wfopen_s(&fp, pdbfile.c_str(), L"wb");
+				fwrite(pPDB->GetBufferPointer(), pPDB->GetBufferSize(), 1, fp);
+				fclose(fp);
+			}
+			if (pResult)
+			{
+				std::wstring pdbfile = ToWString(pdbDir_) + cso_name;
+				FILE* fp = nullptr;
+				_wfopen_s(&fp, pdbfile.c_str(), L"wb");
+				fwrite(pResult->GetBufferPointer(), pResult->GetBufferSize(), 1, fp);
+				fclose(fp);
+			}
+		}
+
 		ShaderItem* shader = new ShaderItem();
 		shader->binary.resize(pResult->GetBufferSize());
 		memcpy(shader->binary.data(), pResult->GetBufferPointer(), pResult->GetBufferSize());
 		shader->shader.Initialize(pDevice_, item->type, shader->binary.data(), shader->binary.size());
+		SafeRelease(pResult);
+		SafeRelease(pError);
 		return shader;
 	}
 

@@ -15,6 +15,16 @@
 
 namespace sl12
 {
+	struct ShaderPDB
+	{
+		enum Type
+		{
+			None,
+			Full,
+			Slim,
+		};
+	};
+	
 	inline ShaderType::Type GetShaderTypeFromFileName(const std::string& filePath)
 	{
 		auto tmp = filePath;
@@ -101,7 +111,11 @@ namespace sl12
 			Destroy();
 		}
 
-		bool Initialize(Device* pDev, const std::vector<std::string>* includeDirs);
+		bool Initialize(
+			Device* pDev,
+			const std::vector<std::string>* includeDirs,
+			ShaderPDB::Type pdbType = ShaderPDB::None,
+			const std::string* pdbDir = nullptr);
 		void Destroy();
 
 		bool IsCompiling() const
@@ -157,6 +171,8 @@ namespace sl12
 		Device*						pDevice_ = nullptr;
 		class ShaderCompiler*		pCompiler_ = nullptr;
 		std::vector<std::string>	includeDirs_;
+		ShaderPDB::Type				pdbExportType_ = ShaderPDB::None;
+		std::string					pdbDir_;
 
 		std::atomic<u64>			handleID_ = 0;
 

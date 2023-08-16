@@ -82,7 +82,7 @@ namespace sl12
 		{
 			changeHeap_ = true;
 		}
-		// RootSignatureとDescriptorをコマンドリストに積み込む
+		// Set root signature and descriptor set (NOT dynamic resource).
 		void SetGraphicsRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
 		void SetMeshRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
 		void SetComputeRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
@@ -92,13 +92,20 @@ namespace sl12
 		void SetMeshRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<std::vector<u32>>& rootIndices);
 		void SetComputeRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<u32>& rootIndices);
 
-		// Raytracing用のGlobal RootSignatureとDescriptorをコマンドに積み込む
+		// Set raytracing global root signature and descriptor set (NOT dynamic resource).
 		void SetRaytracingGlobalRootSignatureAndDescriptorSet(
 			RootSignature* pRS,
 			DescriptorSet* pDSet,
 			RaytracingDescriptorManager* pRtDescMan,
 			D3D12_GPU_VIRTUAL_ADDRESS* asAddress,
 			u32 asAddressCount);
+
+		// Set raytracing global root signature and dynamic resource index.
+		void SetRaytracingGlobalRootSignatureAndDynamicResource(
+			RootSignature* pRS,
+			D3D12_GPU_VIRTUAL_ADDRESS* asAddress,
+			u32 asAddressCount,
+			const std::vector<u32>& rootIndices);
 
 		// GPU events
 		void PushMarker(u8 colorIndex, char const* format, ...);

@@ -13,12 +13,7 @@ namespace sl12
 		auto pTexSet = pParentStreamer_->GetTextureSetFromID(id_);
 		if (!pTexSet)
 			return false;
-		for (auto handle : pTexSet->handles)
-		{
-			if (handle.IsValid())
-				return true;
-		}
-		return false;
+		return true;
 	}
 
 	//--------
@@ -120,7 +115,18 @@ namespace sl12
 	StreamTextureSetHandle TextureStreamer::RegisterTextureSet(const std::vector<ResourceHandle>& textures)
 	{
 		auto pNewSet = std::make_unique<StreamTextureSet>();
-		pNewSet->handles = textures;
+		for (auto&& tex : textures)
+		{
+			auto base = tex.GetItem<ResourceItemTextureBase>();
+			if (base && base->IsSameSubType(ResourceItemStreamingTexture::kSubType))
+			{
+				pNewSet->handles.push_back(tex);
+			}
+		}
+		if (pNewSet->handles.empty())
+		{
+			return StreamTextureSetHandle();
+		}
 		
 		u64 id;
 		{

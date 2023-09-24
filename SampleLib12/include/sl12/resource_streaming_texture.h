@@ -16,6 +16,8 @@ namespace sl12
 		: public ResourceItemTextureBase
 	{
 	public:
+		static const u32 kSubType = TYPE_FOURCC("STEX");
+
 		~ResourceItemStreamingTexture();
 
 		Texture& GetTexture() override
@@ -45,7 +47,7 @@ namespace sl12
 
 	private:
 		ResourceItemStreamingTexture()
-			: ResourceItemTextureBase()
+			: ResourceItemTextureBase(kSubType)
 		{}
 
 		u32 CalcMipLevel(u32 nextWidth);

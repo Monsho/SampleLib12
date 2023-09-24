@@ -14,6 +14,8 @@ namespace sl12
 		: public ResourceItemTextureBase
 	{
 	public:
+		static const u32 kSubType = TYPE_FOURCC("RTEX");
+
 		~ResourceItemTexture();
 
 		Texture& GetTexture() override
@@ -38,7 +40,7 @@ namespace sl12
 
 	private:
 		ResourceItemTexture()
-			: ResourceItemTextureBase()
+			: ResourceItemTextureBase(kSubType)
 		{}
 
 	private:

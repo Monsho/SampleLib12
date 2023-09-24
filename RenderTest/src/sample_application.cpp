@@ -214,11 +214,12 @@ bool SampleApplication::Initialize()
 		for (auto&& mat : resMesh->GetMaterials())
 		{
 			std::vector<sl12::ResourceHandle> texsets;
-			if (mat.baseColorTex.IsValid()) texsets.push_back(mat.baseColorTex);
-			if (mat.normalTex.IsValid()) texsets.push_back(mat.normalTex);
-			if (mat.ormTex.IsValid()) texsets.push_back(mat.ormTex);
-			if (!texsets.empty())
-				streamingTexSets_.push_back(texStreamer_->RegisterTextureSet(texsets));
+			texsets.push_back(mat.baseColorTex);
+			texsets.push_back(mat.normalTex);
+			texsets.push_back(mat.ormTex);
+			auto handle = texStreamer_->RegisterTextureSet(texsets);
+			if (handle.IsValid())
+				streamingTexSets_.push_back(handle);
 		}
 	}
 	

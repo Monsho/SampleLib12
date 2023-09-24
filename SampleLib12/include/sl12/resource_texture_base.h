@@ -23,10 +23,18 @@ namespace sl12
 		virtual TextureView& GetTextureView() = 0;
 		virtual const TextureView& GetTextureView() const = 0;
 
+		bool IsSameSubType(u32 subID) const
+		{
+			return subTypeID_ == subID;
+		}
+
 	protected:
-		ResourceItemTextureBase()
+		ResourceItemTextureBase(u32 subID)
 			: ResourceItemBase(ResourceItemTextureBase::kType)
+			, subTypeID_(subID)
 		{}
+
+		u32	subTypeID_;
 	};	// class ResourceItemTextureBase
 
 }	// namespace sl12

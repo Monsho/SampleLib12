@@ -112,7 +112,9 @@
     <ClInclude Include="include\sl12\render_graph.h" />
     <ClInclude Include="include\sl12\resource_loader.h" />
     <ClInclude Include="include\sl12\resource_mesh.h" />
+    <ClInclude Include="include\sl12\resource_streaming_texture.h" />
     <ClInclude Include="include\sl12\resource_texture.h" />
+    <ClInclude Include="include\sl12\resource_texture_base.h" />
     <ClInclude Include="include\sl12\ring_buffer.h" />
     <ClInclude Include="include\sl12\root_signature.h" />
     <ClInclude Include="include\sl12\root_signature_manager.h" />
@@ -122,9 +124,11 @@
     <ClInclude Include="include\sl12\scene_root.h" />
     <ClInclude Include="include\sl12\shader.h" />
     <ClInclude Include="include\sl12\shader_manager.h" />
+    <ClInclude Include="include\sl12\streaming_texture_format.h" />
     <ClInclude Include="include\sl12\string_util.h" />
     <ClInclude Include="include\sl12\swapchain.h" />
     <ClInclude Include="include\sl12\texture.h" />
+    <ClInclude Include="include\sl12\texture_streamer.h" />
     <ClInclude Include="include\sl12\texture_view.h" />
     <ClInclude Include="include\sl12\timestamp.h" />
     <ClInclude Include="include\sl12\types.h" />
@@ -162,6 +166,7 @@
     <ClCompile Include="src\render_graph.cpp" />
     <ClCompile Include="src\resource_loader.cpp" />
     <ClCompile Include="src\resource_mesh.cpp" />
+    <ClCompile Include="src\resource_streaming_texture.cpp" />
     <ClCompile Include="src\resource_texture.cpp" />
     <ClCompile Include="src\ring_buffer.cpp" />
     <ClCompile Include="src\root_signature.cpp" />
@@ -174,6 +179,7 @@
     <ClCompile Include="src\shader_manager.cpp" />
     <ClCompile Include="src\swapchain.cpp" />
     <ClCompile Include="src\texture.cpp" />
+    <ClCompile Include="src\texture_streamer.cpp" />
     <ClCompile Include="src\texture_view.cpp" />
     <ClCompile Include="src\timestamp.cpp" />
   </ItemGroup>

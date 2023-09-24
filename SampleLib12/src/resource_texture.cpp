@@ -44,7 +44,7 @@ namespace sl12
 	}
 
 	//----------------
-	ResourceItemBase* ResourceItemTexture::LoadFunction(ResourceLoader* pLoader, const std::string& filepath)
+	ResourceItemBase* ResourceItemTexture::LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath)
 	{
 		auto device = pLoader->GetDevice();
 

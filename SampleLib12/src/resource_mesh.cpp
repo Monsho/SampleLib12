@@ -1,6 +1,7 @@
 ﻿#include "sl12/resource_mesh.h"
 #include "sl12/string_util.h"
 #include "sl12/resource_texture.h"
+#include "sl12/resource_streaming_texture.h"
 #include "sl12/device.h"
 #include "sl12/command_list.h"
 
@@ -32,6 +33,12 @@ namespace sl12
 				pCmdlist->TransitionBarrier(pDstBuffer, D3D12_RESOURCE_STATE_COPY_DEST, initState);
 			}
 		};	// struct BufferInitRenderCommand
+
+		bool IsStreamingTexture(const std::string& path)
+		{
+			auto n = path.rfind(".stex");
+			return n == (path.size() - 5);
+		}
 	}
 
 	//---------------
@@ -42,7 +49,7 @@ namespace sl12
 	}
 
 	//---------------
-	ResourceItemBase* ResourceItemMesh::LoadFunction(ResourceLoader* pLoader, const std::string& filepath)
+	ResourceItemBase* ResourceItemMesh::LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath)
 	{
 		ResourceMesh mesh_bin;
 		std::fstream ifs(pLoader->MakeFullPath(filepath), std::ios::in | std::ios::binary);
@@ -170,17 +177,17 @@ namespace sl12
 			if (!src_materials[i].GetTextureNames()[0].empty())
 			{
 				std::string f = path + src_materials[i].GetTextureNames()[0];
-				ret->mateirals_[i].baseColorTex = pLoader->LoadRequest<ResourceItemTexture>(f);
+				ret->mateirals_[i].baseColorTex = IsStreamingTexture(f) ? pLoader->LoadRequest<ResourceItemStreamingTexture>(f) : pLoader->LoadRequest<ResourceItemTexture>(f);
 			}
 			if (!src_materials[i].GetTextureNames()[1].empty())
 			{
 				std::string f = path + src_materials[i].GetTextureNames()[1];
-				ret->mateirals_[i].normalTex = pLoader->LoadRequest<ResourceItemTexture>(f);
+				ret->mateirals_[i].normalTex = IsStreamingTexture(f) ? pLoader->LoadRequest<ResourceItemStreamingTexture>(f) : pLoader->LoadRequest<ResourceItemTexture>(f);
 			}
 			if (!src_materials[i].GetTextureNames()[2].empty())
 			{
 				std::string f = path + src_materials[i].GetTextureNames()[2];
-				ret->mateirals_[i].ormTex = pLoader->LoadRequest<ResourceItemTexture>(f);
+				ret->mateirals_[i].ormTex = IsStreamingTexture(f) ? pLoader->LoadRequest<ResourceItemStreamingTexture>(f) : pLoader->LoadRequest<ResourceItemTexture>(f);
 			}
 			ret->mateirals_[i].baseColor = src_materials[i].GetBaseColor();
 			ret->mateirals_[i].emissiveColor = src_materials[i].GetEmissiveColor();

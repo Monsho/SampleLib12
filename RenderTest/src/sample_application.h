@@ -8,6 +8,7 @@
 #include "sl12/unique_handle.h"
 #include "sl12/cbv_manager.h"
 #include "sl12/render_graph.h"
+#include "sl12/texture_streamer.h"
 
 
 class SampleApplication
@@ -91,6 +92,7 @@ private:
 	UniqueHandle<CommandLists>			mainCmdList_;
 	UniqueHandle<sl12::CbvManager>		cbvMan_;
 	UniqueHandle<sl12::RenderGraph>		renderGraph_;
+	UniqueHandle<sl12::TextureStreamer>	texStreamer_;
 
 	UniqueHandle<sl12::RootSignature>			rsVsPs_;
 	UniqueHandle<sl12::RootSignature>			rsCs_;
@@ -115,6 +117,8 @@ private:
 	sl12::ShaderHandle		hLightingC_;
 	sl12::ShaderHandle		hFullscreenVV_;
 	sl12::ShaderHandle		hTonemapP_;
+
+	std::vector<sl12::StreamTextureSetHandle>	streamingTexSets_;
 
 	int	displayWidth_, displayHeight_;
 };	// class SampleApplication

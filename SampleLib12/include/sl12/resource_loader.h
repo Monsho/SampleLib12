@@ -48,6 +48,7 @@ namespace sl12
 	protected:
 		ResourceLoader* pParentLoader_ = nullptr;
 		std::string		filePath_;
+		std::string		fullPath_;
 		u32				typeID_;
 	};	// class ResourceItemBase
 
@@ -82,6 +83,15 @@ namespace sl12
 			return static_cast<const T*>(ret);
 		}
 
+		bool operator==(const ResourceHandle& rhs) const
+		{
+			return (pParentLoader_ == rhs.pParentLoader_) && (id_ == rhs.id_);
+		}
+		bool operator!=(const ResourceHandle& rhs) const
+		{
+			return !operator==(rhs);
+		}
+
 	private:
 		ResourceHandle(ResourceLoader* loader, u64 id)
 			: pParentLoader_(loader), id_(id)
@@ -96,7 +106,7 @@ namespace sl12
 		friend class ResourceHandle;
 
 	public:
-		typedef ResourceItemBase*	(*LoadFunc)(ResourceLoader*, const std::string&);
+		typedef ResourceItemBase*	(*LoadFunc)(ResourceLoader*, ResourceHandle, const std::string&);
 
 		ResourceLoader()
 		{}
@@ -131,6 +141,7 @@ namespace sl12
 		}
 
 	private:
+		bool ThreadBody();
 		const ResourceItemBase* GetItemBaseFromID(u64 id) const;
 
 	private:
@@ -139,6 +150,7 @@ namespace sl12
 			u64				id;
 			std::string		filePath;
 			LoadFunc		funcLoad;
+			ResourceHandle	handle;
 		};	// struct RequestItem
 
 		Device*				pDevice_ = nullptr;

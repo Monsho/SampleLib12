@@ -84,6 +84,7 @@
     <ClCompile Include="..\ThirdParty\mikktspace\mikktspace.c" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mesh_work.cpp" />
+    <ClCompile Include="src\texture_convert.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -92,6 +93,8 @@
     <ClInclude Include="..\..\D3D12Samples\SampleLib12\include\sl12\resource_mesh.h" />
     <ClInclude Include="..\ThirdParty\mikktspace\mikktspace.h" />
     <ClInclude Include="src\mesh_work.h" />
+    <ClInclude Include="src\texture_convert.h" />
+    <ClInclude Include="src\utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

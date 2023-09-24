@@ -202,6 +202,25 @@ bool SampleApplication::Initialize()
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+
+	// setup texture streamer.
+	texStreamer_ = sl12::MakeUnique<sl12::TextureStreamer>(&device_);
+	if (!texStreamer_->Initialize(&device_))
+	{
+		return false;
+	}
+	{
+		auto resMesh = const_cast<sl12::ResourceItemMesh*>(hSuzanneMesh_.GetItem<sl12::ResourceItemMesh>());
+		for (auto&& mat : resMesh->GetMaterials())
+		{
+			std::vector<sl12::ResourceHandle> texsets;
+			if (mat.baseColorTex.IsValid()) texsets.push_back(mat.baseColorTex);
+			if (mat.normalTex.IsValid()) texsets.push_back(mat.normalTex);
+			if (mat.ormTex.IsValid()) texsets.push_back(mat.ormTex);
+			if (!texsets.empty())
+				streamingTexSets_.push_back(texStreamer_->RegisterTextureSet(texsets));
+		}
+	}
 	
 	// init root signature and pipeline state.
 	rsVsPs_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
@@ -355,6 +374,7 @@ void SampleApplication::Finalize()
 	rsTonemapDR_.Reset();
 	rsMeshDR_.Reset();
 	rsVsPs_.Reset();
+	texStreamer_.Reset();
 	depthTex_.Reset();
 	depthDSV_.Reset();
 	renderGraph_.Reset();
@@ -371,11 +391,25 @@ bool SampleApplication::Execute()
 	auto prevFrameIndex = (device_.GetSwapchain().GetFrameIndex() + sl12::Swapchain::kMaxBuffer - 2) % sl12::Swapchain::kMaxBuffer;
 	auto pCmdList = &mainCmdList_->Reset();
 
+	bool bStream = false;
+	static sl12::u32 texTargetWidth = 256;
+	
 	gui_->BeginNewFrame(pCmdList, displayWidth_, displayHeight_, inputData_);
 	inputData_.Reset();
 	{
 		ImGui::Text("Deer imgui.");
-		ImGui::Button("Push Me!");
+		if (ImGui::Button("Miplevel Down"))
+		{
+			bStream = true;
+			texTargetWidth <<= 1;
+			texTargetWidth = std::min(texTargetWidth, 4096u);
+		}
+		if (ImGui::Button("Miplevel Up"))
+		{
+			bStream = true;
+			texTargetWidth >>= 1;
+			texTargetWidth = std::max(texTargetWidth, 32u);
+		}
 		static float sV = 0.0f;
 		ImGui::DragFloat("My Float", &sV, 1.0f, 0.0f, 100.0f);
 		static char sT[256]{};
@@ -391,6 +425,15 @@ bool SampleApplication::Execute()
 	cbvMan_->BeginNewFrame();
 	renderGraph_->BeginNewFrame();
 
+	// texture streaming request.
+	if (bStream)
+	{
+		for (auto&& handle : streamingTexSets_)
+		{
+			texStreamer_->RequestStreaming(handle, texTargetWidth);
+		}
+	}
+	
 	// create targets.
 	std::vector<sl12::RenderGraphTargetID> gbufferTargetIDs;
 	sl12::RenderGraphTargetID accumTargetID;
@@ -532,9 +575,9 @@ bool SampleApplication::Execute()
 			{
 				auto&& submesh = submeshes[i];
 				auto&& material = meshRes->GetMaterials()[submesh.materialIndex];
-				auto bc_tex_res = const_cast<sl12::ResourceItemTexture*>(material.baseColorTex.GetItem<sl12::ResourceItemTexture>());
-				auto nm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.normalTex.GetItem<sl12::ResourceItemTexture>());
-				auto orm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.ormTex.GetItem<sl12::ResourceItemTexture>());
+				auto bc_tex_res = const_cast<sl12::ResourceItemTextureBase*>(material.baseColorTex.GetItem<sl12::ResourceItemTextureBase>());
+				auto nm_tex_res = const_cast<sl12::ResourceItemTextureBase*>(material.normalTex.GetItem<sl12::ResourceItemTextureBase>());
+				auto orm_tex_res = const_cast<sl12::ResourceItemTextureBase*>(material.ormTex.GetItem<sl12::ResourceItemTextureBase>());
 				auto&& base_color_srv = bc_tex_res->GetTextureView();
 
 				descSet.SetPsSrv(0, bc_tex_res->GetTextureView().GetDescInfo().cpuHandle);
@@ -579,9 +622,9 @@ bool SampleApplication::Execute()
 			{
 				auto&& submesh = submeshes[i];
 				auto&& material = meshRes->GetMaterials()[submesh.materialIndex];
-				auto bc_tex_res = const_cast<sl12::ResourceItemTexture*>(material.baseColorTex.GetItem<sl12::ResourceItemTexture>());
-				auto nm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.normalTex.GetItem<sl12::ResourceItemTexture>());
-				auto orm_tex_res = const_cast<sl12::ResourceItemTexture*>(material.ormTex.GetItem<sl12::ResourceItemTexture>());
+				auto bc_tex_res = const_cast<sl12::ResourceItemTextureBase*>(material.baseColorTex.GetItem<sl12::ResourceItemTextureBase>());
+				auto nm_tex_res = const_cast<sl12::ResourceItemTextureBase*>(material.normalTex.GetItem<sl12::ResourceItemTextureBase>());
+				auto orm_tex_res = const_cast<sl12::ResourceItemTextureBase*>(material.ormTex.GetItem<sl12::ResourceItemTextureBase>());
 				auto&& base_color_srv = bc_tex_res->GetTextureView();
 
 				resIndices[1][1] = bc_tex_res->GetTextureView().GetDynamicDescInfo().index;

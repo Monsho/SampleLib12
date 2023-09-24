@@ -59,34 +59,46 @@ namespace sl12
 					break;
 				}
 
-				isLoading_ = true;
-
-				std::list<RequestItem> items;
+				if (!ThreadBody())
 				{
-					std::lock_guard<std::mutex> lock(listMutex_);
-					items.swap(requestList_);
+					break;
 				}
-
-				for (auto&& item : items)
-				{
-					ResourceItemBase* base = item.funcLoad(this, item.filePath);
-					if (base)
-					{
-						base->pParentLoader_ = this;
-						base->filePath_ = item.filePath;
-						resourceMap_[item.id].reset(base);
-					}
-
-					if (!isAlive_)
-					{
-						break;
-					}
-				}
-
-				isLoading_ = false;
 			}
 		});
 		loadingThread_ = std::move(th);
+
+		return true;
+	}
+
+	//--------
+	bool ResourceLoader::ThreadBody()
+	{
+		isLoading_ = true;
+
+		std::list<RequestItem> items;
+		{
+			std::lock_guard<std::mutex> lock(listMutex_);
+			items.swap(requestList_);
+		}
+
+		for (auto&& item : items)
+		{
+			ResourceItemBase* base = item.funcLoad(this, item.handle, item.filePath);
+			if (base)
+			{
+				base->pParentLoader_ = this;
+				base->filePath_ = item.filePath;
+				base->fullPath_ = MakeFullPath(item.filePath);
+				resourceMap_[item.id].reset(base);
+			}
+
+			if (!isAlive_)
+			{
+				return false;
+			}
+		}
+
+		isLoading_ = false;
 
 		return true;
 	}
@@ -127,6 +139,7 @@ namespace sl12
 				item.id = handleID_.fetch_add(1);
 				it = resourceMap_.find(item.id);
 			} while (it != resourceMap_.end());
+			item.handle = ResourceHandle(this, item.id);
 			resourceMap_[item.id].reset();
 			requestList_.push_back(item);
 		}
@@ -134,7 +147,7 @@ namespace sl12
 		std::lock_guard<std::mutex> lock(requestMutex_);
 		requestCV_.notify_one();
 
-		return ResourceHandle(this, item.id);
+		return item.handle;
 	}
 
 	//--------

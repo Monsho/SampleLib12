@@ -491,7 +491,7 @@ namespace sl12
 			return hIndex_;
 		}
 
-		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, const std::string& filepath);
+		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath);
 
 		static size_t GetPositionStride()
 		{

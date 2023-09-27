@@ -100,7 +100,7 @@ namespace sl12
 		}
 		if (!ret->texture_.InitializeFromDXImage(device, *image, isSrgb))
 		{
-			return false;
+			return nullptr;
 		}
 
 		ret->textureView_.Initialize(device, &ret->texture_);

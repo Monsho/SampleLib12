@@ -2,10 +2,18 @@
 
 #include <sl12/device.h>
 
+#include "sl12/root_signature.h"
+
 namespace sl12
 {
 	//----
 	bool IndirectExecuter::Initialize(Device* pDev, IndirectType::Type type, u32 stride)
+	{
+		return InitializeWithConstants(pDev, type, stride, nullptr);
+	}
+
+	//----
+	bool IndirectExecuter::InitializeWithConstants(Device* pDev, IndirectType::Type type, u32 stride, RootSignature* pRootSig)
 	{
 		static const D3D12_INDIRECT_ARGUMENT_TYPE kTypes[] = {
 			D3D12_INDIRECT_ARGUMENT_TYPE_DRAW,
@@ -30,15 +38,32 @@ namespace sl12
 		}
 		assert(stride >= kDefaultStrides[type]);
 		
-		D3D12_INDIRECT_ARGUMENT_DESC args[1]{};
-		args[0].Type = kTypes[type];
+		D3D12_INDIRECT_ARGUMENT_DESC args[2]{};
+		int argCnt = 0;
+		ID3D12RootSignature* pRootSigDep = nullptr;
+		if (pRootSig)
+		{
+			auto rootConstIndex = pRootSig->GetRootConstantIndex();
+			auto numConstants = pRootSig->GetNumRootConstant();
+			if (numConstants > 0)
+			{
+				args[argCnt].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+				args[argCnt].Constant.RootParameterIndex = rootConstIndex;
+				args[argCnt].Constant.DestOffsetIn32BitValues = 0;
+				args[argCnt].Constant.Num32BitValuesToSet = numConstants;
+				argCnt++;
+
+				pRootSigDep = pRootSig->GetRootSignature();
+			}
+		}
+		args[argCnt++].Type = kTypes[type];
 		D3D12_COMMAND_SIGNATURE_DESC desc{};
 		desc.ByteStride = stride;
-		desc.NumArgumentDescs = 1;
+		desc.NumArgumentDescs = argCnt;
 		desc.pArgumentDescs = args;
 		desc.NodeMask = 1;
 
-		auto hr = pDev->GetDeviceDep()->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&pCommandSig_));
+		auto hr = pDev->GetDeviceDep()->CreateCommandSignature(&desc, pRootSigDep, IID_PPV_ARGS(&pCommandSig_));
 		if (FAILED(hr))
 		{
 			return false;

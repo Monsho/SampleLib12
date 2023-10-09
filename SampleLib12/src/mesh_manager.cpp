@@ -145,7 +145,7 @@ namespace sl12
 	bool BufferHeapAllocator::CreateNewBuffer(size_t alignedSize)
 	{
 		auto incSize = initSize_;
-		while (incSize > alignedSize)
+		while (incSize < alignedSize)
 		{
 			incSize += initSize_;
 		}
@@ -196,6 +196,7 @@ namespace sl12
 			pBuffer_ = pNextBuffer_;
 			pNextBuffer_ = nullptr;
 
+			pBufferSrv_ = new BufferView();
 			pBufferSrv_->Initialize(pParentDevice_, pBuffer_, 0, 0, 0);
 		}
 	}

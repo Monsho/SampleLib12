@@ -111,9 +111,9 @@ namespace sl12
 		bool Initialize(Device* pDev, const RootSignatureDesc& desc);
 		bool Initialize(Device* pDev, const D3D12_ROOT_SIGNATURE_DESC& desc);
 		bool Initialize(Device* pDev, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
-		bool Initialize(Device* pDev, Shader* vs, Shader* ps, Shader* gs, Shader* hs, Shader* ds);
-		bool Initialize(Device* pDev, Shader* as, Shader* ms, Shader* ps);
-		bool Initialize(Device* pDev, Shader* cs);
+		bool Initialize(Device* pDev, Shader* vs, Shader* ps, Shader* gs, Shader* hs, Shader* ds, u32 numRootConst = 0);
+		bool Initialize(Device* pDev, Shader* as, Shader* ms, Shader* ps, u32 numRootConst = 0);
+		bool Initialize(Device* pDev, Shader* cs, u32 numRootConst = 0);
 		bool InitializeWithBindless(Device* pDev, Shader* vs, Shader* ps, Shader* gs, Shader* hs, Shader* ds, const RootBindlessInfo* bindlessInfos, u32 bindlessCount);
 		bool InitializeWithBindless(Device* pDev, Shader* as, Shader* ms, Shader* ps, const RootBindlessInfo* bindlessInfos, u32 bindlessCount);
 		bool InitializeWithBindless(Device* pDev, Shader* cs, const RootBindlessInfo* bindlessInfos, u32 bindlessCount);
@@ -125,11 +125,15 @@ namespace sl12
 		// getter
 		ID3D12RootSignature* GetRootSignature() { return pRootSignature_; }
 		const InputIndex& GetInputIndex() const { return inputIndex_; }
+		u32 GetNumRootConstant() const { return numRootConstant_; }
+		u32 GetRootConstantIndex() const { return rootConstantIndex_; }
 		const std::vector<RootBindlessInfo>& GetBindlessInfos() { return bindlessInfos_; }
 
 	private:
 		ID3D12RootSignature*			pRootSignature_{ nullptr };
 		InputIndex						inputIndex_;
+		u32								numRootConstant_ = 0;
+		u32								rootConstantIndex_ = 0;
 		std::vector<RootBindlessInfo>	bindlessInfos_;
 	};	// class RootSignature
 

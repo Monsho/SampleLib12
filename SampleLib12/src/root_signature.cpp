@@ -135,7 +135,7 @@ namespace sl12
 	}
 
 	//----
-	bool RootSignature::Initialize(Device* pDev, Shader* vs, Shader* ps, Shader* gs, Shader* hs, Shader* ds)
+	bool RootSignature::Initialize(Device* pDev, Shader* vs, Shader* ps, Shader* gs, Shader* hs, Shader* ds, u32 numRootConst)
 	{
 		/*
 		D3D12_DESCRIPTOR_RANGE_TYPE RangeType;
@@ -236,6 +236,19 @@ namespace sl12
 			flags &= ~D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
 		}
 
+		numRootConstant_ = 0;
+		if (numRootConst)
+		{
+			numRootConstant_ = numRootConst;
+			rootConstantIndex_ = rangeCnt;
+			params[rangeCnt].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[rangeCnt].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			params[rangeCnt].Constants.ShaderRegister = 0;
+			params[rangeCnt].Constants.RegisterSpace = 1;
+			params[rangeCnt].Constants.Num32BitValues = numRootConst;
+			rangeCnt++;
+		}
+
 		D3D12_ROOT_SIGNATURE_DESC desc{};
 		desc.NumParameters = rangeCnt;
 		desc.pParameters = params;
@@ -247,7 +260,7 @@ namespace sl12
 	}
 
 	//----
-	bool RootSignature::Initialize(Device* pDev, Shader* as, Shader* ms, Shader* ps)
+	bool RootSignature::Initialize(Device* pDev, Shader* as, Shader* ms, Shader* ps, u32 numRootConst)
 	{
 		D3D12_DESCRIPTOR_RANGE_FLAGS range_flags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
 		const D3D12_DESCRIPTOR_RANGE1 kDefaultRange[] = {
@@ -313,6 +326,19 @@ namespace sl12
 			flags &= ~D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 		}
 
+		numRootConstant_ = 0;
+		if (numRootConst)
+		{
+			numRootConstant_ = numRootConst;
+			rootConstantIndex_ = rangeCnt;
+			params[rangeCnt].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[rangeCnt].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			params[rangeCnt].Constants.ShaderRegister = 0;
+			params[rangeCnt].Constants.RegisterSpace = 1;
+			params[rangeCnt].Constants.Num32BitValues = numRootConst;
+			rangeCnt++;
+		}
+
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC desc{};
 		desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 		desc.Desc_1_1.NumParameters = rangeCnt;
@@ -325,7 +351,7 @@ namespace sl12
 	}
 
 	//----
-	bool RootSignature::Initialize(Device* pDev, Shader* cs)
+	bool RootSignature::Initialize(Device* pDev, Shader* cs, u32 numRootConst)
 	{
 		/*
 		D3D12_DESCRIPTOR_RANGE_TYPE RangeType;
@@ -341,7 +367,7 @@ namespace sl12
 			{ D3D12_DESCRIPTOR_RANGE_TYPE_UAV,     16, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
 		};
 		D3D12_DESCRIPTOR_RANGE ranges[4];
-		D3D12_ROOT_PARAMETER params[4];
+		D3D12_ROOT_PARAMETER params[5];
 		int rangeCnt = 0;
 		auto SetParam = [&](D3D12_SHADER_VISIBILITY vis)
 		{
@@ -362,6 +388,19 @@ namespace sl12
 		inputIndex_.csUavIndex_ = rangeCnt;
 		SetParam(D3D12_SHADER_VISIBILITY_ALL);
 		ranges[rangeCnt++] = kDefaultRange[3];
+
+		numRootConstant_ = 0;
+		if (numRootConst)
+		{
+			numRootConstant_ = numRootConst;
+			rootConstantIndex_ = rangeCnt;
+			params[rangeCnt].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[rangeCnt].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			params[rangeCnt].Constants.ShaderRegister = 0;
+			params[rangeCnt].Constants.RegisterSpace = 1;
+			params[rangeCnt].Constants.Num32BitValues = numRootConst;
+			rangeCnt++;
+		}
 
 		D3D12_ROOT_SIGNATURE_DESC desc{};
 		desc.NumParameters = rangeCnt;

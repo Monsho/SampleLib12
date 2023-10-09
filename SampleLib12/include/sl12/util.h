@@ -428,6 +428,56 @@ namespace sl12
 		return -b / (a - c * DeviceZ);
 	}
 
+	// frustum from view-projection matrix.
+	inline int CalcFrustumPlanes(const DirectX::XMMATRIX& mtxViewProj, bool bInverse, bool bInfinite, DirectX::XMFLOAT4 outFrustumPlanes[6])
+	{
+		const float kNearDeviceZ = bInverse ? 1.0f : 0.0f;
+		const float kFarDeviceZ = 0.5f;
+
+		DirectX::XMMATRIX mtxProjView = DirectX::XMMatrixInverse(nullptr, mtxViewProj);
+		DirectX::XMFLOAT4 BasePoints[8] = {
+			DirectX::XMFLOAT4(-1.0f,  1.0f, kNearDeviceZ, 1.0f),
+			DirectX::XMFLOAT4( 1.0f,  1.0f, kNearDeviceZ, 1.0f),
+			DirectX::XMFLOAT4(-1.0f, -1.0f, kNearDeviceZ, 1.0f),
+			DirectX::XMFLOAT4( 1.0f, -1.0f, kNearDeviceZ, 1.0f),
+			DirectX::XMFLOAT4(-1.0f,  1.0f, kFarDeviceZ, 1.0f),
+			DirectX::XMFLOAT4( 1.0f,  1.0f, kFarDeviceZ, 1.0f),
+			DirectX::XMFLOAT4(-1.0f, -1.0f, kFarDeviceZ, 1.0f),
+			DirectX::XMFLOAT4( 1.0f, -1.0f, kFarDeviceZ, 1.0f),
+		};
+		DirectX::XMVECTOR FrustumPoints[8];
+		for (int i = 0; i < 8; i++)
+		{
+			FrustumPoints[i] = DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat4(&BasePoints[i]), mtxProjView);
+		}
+
+		auto CalcPlane = [FrustumPoints](int v0, int v1, int v2)
+		{
+			auto ab = DirectX::XMVectorSubtract(FrustumPoints[v1], FrustumPoints[v0]);
+			auto ac = DirectX::XMVectorSubtract(FrustumPoints[v2], FrustumPoints[v0]);
+			auto normal = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(ab, ac));
+			auto d = DirectX::XMVector3Dot(normal, FrustumPoints[v0]);
+			DirectX::XMFLOAT4 r;
+			DirectX::XMStoreFloat4(&r, normal);
+			r.w = -d.m128_f32[0];
+			return r;
+		};
+
+		outFrustumPlanes[0] = CalcPlane(0, 2, 4);
+		outFrustumPlanes[1] = CalcPlane(1, 5, 3);
+		outFrustumPlanes[2] = CalcPlane(0, 4, 1);
+		outFrustumPlanes[3] = CalcPlane(2, 3, 6);
+		outFrustumPlanes[4] = CalcPlane(0, 1, 2);
+		if (bInfinite)
+		{
+			outFrustumPlanes[5] = CalcPlane(0, 1, 2);
+			return 5;
+		}
+
+		outFrustumPlanes[5] = CalcPlane(4, 6, 5);
+		return 6;
+	}
+
 
 	extern Random GlobalRandom;
 }	// namespace sl12

@@ -5,6 +5,11 @@
 
 namespace sl12
 {
+	class RootSignature;
+}
+
+namespace sl12
+{
 	class Device;
 
 	struct IndirectType
@@ -32,6 +37,7 @@ namespace sl12
 		}
 
 		bool Initialize(Device* pDev, IndirectType::Type type, u32 stride);
+		bool InitializeWithConstants(Device* pDev, IndirectType::Type type, u32 stride, RootSignature* pRootSig);
 		void Destroy();
 
 		// getter

@@ -111,7 +111,7 @@ namespace sl12
 		{
 			D3D12_VERTEX_BUFFER_VIEW ret;
 			ret.BufferLocation = handle.heap->pBuffer_->GetResourceDep()->GetGPUVirtualAddress() + handle.offset + additionalOffset;
-			ret.SizeInBytes = (UINT)size;
+			ret.SizeInBytes = size == 0 ? (UINT)handle.size : (UINT)size;
 			ret.StrideInBytes = (UINT)stride;
 			return ret;
 		}
@@ -119,7 +119,7 @@ namespace sl12
 		{
 			D3D12_INDEX_BUFFER_VIEW ret;
 			ret.BufferLocation = handle.heap->pBuffer_->GetResourceDep()->GetGPUVirtualAddress() + handle.offset + additionalOffset;
-			ret.SizeInBytes = (UINT)size;
+			ret.SizeInBytes = size == 0 ? (UINT)handle.size : (UINT)size;
 			ret.Format = (stride == 4) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 			return ret;
 		}

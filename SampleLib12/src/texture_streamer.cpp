@@ -157,6 +157,11 @@ namespace sl12
 	//--------
 	void TextureStreamer::RequestStreaming(StreamTextureSetHandle handle, u32 targetWidth)
 	{
+		if (!handle.IsValid())
+		{
+			return;
+		}
+		
 		RequestItem item;
 		item.handle = handle;
 		item.targetWidth = targetWidth;

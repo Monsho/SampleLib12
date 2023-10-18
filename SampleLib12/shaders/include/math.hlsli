@@ -207,5 +207,13 @@ uint2 MortonDecode2D(uint code)
 	return uint2(MortonCodeInv2(code >> 0), MortonCodeInv2(code >> 1));
 }
 
+float ComputeMiplevelPS(float2 uv, float TexSize)
+{
+	float2 dx = ddx(uv) * TexSize;
+	float2 dy = ddy(uv) * TexSize;
+	float v = max(dot(dx, dx), dot(dy, dy));
+	return max(log2(sqrt(v)), 0);
+}
+
 
 #endif

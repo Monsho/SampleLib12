@@ -9,7 +9,7 @@
 namespace sl12
 {
 
-	namespace
+	namespace detail
 	{
 		struct TailMipInitRenderCommand
 			: public IRenderCommand
@@ -121,8 +121,9 @@ namespace sl12
 		struct MiplevelUpRenderCommand
 			: public IRenderCommand
 		{
-			Texture*	pPrevTexture;
-			Texture*	pNextTexture;
+			ResourceItemStreamingTexture*	pResource;
+			// Texture*	pPrevTexture;
+			// Texture*	pNextTexture;
 			u32			prevMiplevel;
 			u32			nextMiplevel;
 
@@ -132,6 +133,9 @@ namespace sl12
 
 			void LoadCommand(CommandList* pCmdlist) override
 			{
+				Texture* pPrevTexture = &pResource->currTexture_;
+				Texture* pNextTexture = &pResource->nextTexture_;
+				
 				// get texture desc.
 				auto prevDesc = pPrevTexture->GetResourceDesc();
 				auto nextDesc = pNextTexture->GetResourceDesc();
@@ -154,6 +158,10 @@ namespace sl12
 				}
 
 				pCmdlist->TransitionBarrier(pNextTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+				// swap texture and view.
+				pResource->currTexture_ = std::move(pResource->nextTexture_);
+				pResource->currTextureView_ = std::move(pResource->nextTextureView_);
 			}
 		};	// struct MiplevelUpRenderCommand
 
@@ -161,9 +169,10 @@ namespace sl12
 			: public IRenderCommand
 		{
 			std::vector<std::unique_ptr<File>>	texBins;
+			ResourceItemStreamingTexture*	pResource;
 			Device*		pDevice;
-			Texture*	pPrevTexture;
-			Texture*	pNextTexture;
+			// Texture*	pPrevTexture;
+			// Texture*	pNextTexture;
 			u32			prevMiplevel;
 			u32			nextMiplevel;
 
@@ -173,6 +182,9 @@ namespace sl12
 
 			void LoadCommand(CommandList* pCmdlist) override
 			{
+				Texture* pPrevTexture = &pResource->currTexture_;
+				Texture* pNextTexture = &pResource->nextTexture_;
+				
 				// get texture footprint.
 				auto resDesc = pNextTexture->GetResourceDesc();
 				u32 numSubresources = resDesc.DepthOrArraySize * (prevMiplevel - nextMiplevel);
@@ -275,6 +287,10 @@ namespace sl12
 				pDevice->PendingKill(new ReleaseObjectItem<ID3D12Resource>(pSrcImage));
 
 				pCmdlist->TransitionBarrier(pNextTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+				// swap texture and view.
+				pResource->currTexture_ = std::move(pResource->nextTexture_);
+				pResource->currTextureView_ = std::move(pResource->nextTextureView_);
 			}
 		};	// struct MiplevelDownRenderCommand
 	}
@@ -336,7 +352,7 @@ namespace sl12
 		// init texture view.
 		ret->currTextureView_->Initialize(device, &ret->currTexture_);
 		
-		TailMipInitRenderCommand* command = new TailMipInitRenderCommand();
+		detail::TailMipInitRenderCommand* command = new detail::TailMipInitRenderCommand();
 		command->texBin = std::move(texBin);
 		command->pDevice = device;
 		command->pTexture = &ret->currTexture_;
@@ -369,6 +385,11 @@ namespace sl12
 			// no change mips.
 			return true;
 		}
+		if (pSTex->currMiplevel_ < nextMiplevel)
+		{
+			// if miplevel is upword, +1 miplevel only.
+			nextMiplevel = pSTex->currMiplevel_ + 1;
+		}
 
 		// create next texture desc.
 		TextureDesc desc = pSTex->currTexture_->GetTextureDesc();
@@ -391,13 +412,17 @@ namespace sl12
 		}
 		nextTexView->Initialize(pDevice, &nextTex);
 
+		u32 prevMiplevel = pSTex->currMiplevel_;
+		pSTex->nextTexture_ = std::move(nextTex);
+		pSTex->nextTextureView_ = std::move(nextTexView);
+		pSTex->currMiplevel_ = nextMiplevel;
+
 		// miplevel up.
-		if (pSTex->currMiplevel_ < nextMiplevel)
+		if (prevMiplevel < nextMiplevel)
 		{
-			MiplevelUpRenderCommand* command = new MiplevelUpRenderCommand();
-			command->pPrevTexture = &pSTex->currTexture_;
-			command->pNextTexture = &nextTex;
-			command->prevMiplevel = pSTex->currMiplevel_;
+			detail::MiplevelUpRenderCommand* command = new detail::MiplevelUpRenderCommand();
+			command->pResource = pSTex;
+			command->prevMiplevel = prevMiplevel;
 			command->nextMiplevel = nextMiplevel;
 		
 			pDevice->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
@@ -405,12 +430,11 @@ namespace sl12
 		// miplevel down.
 		else
 		{
-			MiplevelDownRenderCommand* command = new MiplevelDownRenderCommand();
+			detail::MiplevelDownRenderCommand* command = new detail::MiplevelDownRenderCommand();
+			command->pResource = pSTex;
 			command->pDevice = pDevice;
-			command->texBins.resize(pSTex->currMiplevel_ - nextMiplevel);
-			command->pPrevTexture = &pSTex->currTexture_;
-			command->pNextTexture = &nextTex;
-			command->prevMiplevel = pSTex->currMiplevel_;
+			command->texBins.resize(prevMiplevel - nextMiplevel);
+			command->prevMiplevel = prevMiplevel;
 			command->nextMiplevel = nextMiplevel;
 			auto cmd = std::unique_ptr<IRenderCommand>(command);
 
@@ -432,10 +456,6 @@ namespace sl12
 		
 			pDevice->AddRenderCommand(cmd);
 		}
-
-		pSTex->currTexture_ = std::move(nextTex);
-		pSTex->currTextureView_ = std::move(nextTexView);
-		pSTex->currMiplevel_ = nextMiplevel;
 
 		return true;
 	}

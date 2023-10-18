@@ -11,10 +11,18 @@
 
 namespace sl12
 {
+	namespace detail
+	{
+		struct MiplevelUpRenderCommand;
+		struct MiplevelDownRenderCommand;
+	}
 
 	class ResourceItemStreamingTexture
 		: public ResourceItemTextureBase
 	{
+		friend detail::MiplevelUpRenderCommand;
+		friend detail::MiplevelDownRenderCommand;
+		
 	public:
 		static const u32 kSubType = TYPE_FOURCC("STEX");
 
@@ -41,6 +49,11 @@ namespace sl12
 			return *(&currTextureView_);
 		}
 
+		u32 GetCurrMipLevel() const
+		{
+			return currMiplevel_;
+		}
+
 
 		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath);
 		static bool ChangeMiplevel(Device* pDevice, ResourceItemStreamingTexture* pSTex, u32 nextWidth);
@@ -57,6 +70,9 @@ namespace sl12
 		UniqueHandle<Texture>		currTexture_;
 		UniqueHandle<TextureView>	currTextureView_;
 		u32							currMiplevel_;
+
+		UniqueHandle<Texture>		nextTexture_;
+		UniqueHandle<TextureView>	nextTextureView_;
 	};	// class ResourceItemStreamingTexture
 
 }	// namespace sl12

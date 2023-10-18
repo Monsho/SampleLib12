@@ -215,5 +215,13 @@ float ComputeMiplevelPS(float2 uv, float TexSize)
 	return max(log2(sqrt(v)), 0);
 }
 
+float ComputeMiplevelCS(float2 uv, float2 dFx, float2 dFy, float TexSize)
+{
+	float2 dx = dFx * TexSize;
+	float2 dy = dFy * TexSize;
+	float v = max(dot(dx, dx), dot(dy, dy));
+	return max(log2(sqrt(v)), 0);
+}
+
 
 #endif

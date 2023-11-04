@@ -505,7 +505,7 @@ namespace sl12
 			bin.resize(64 * 4);
 			for (auto&& pix : bin)
 			{
-				pix = 0xFF7F7FFF;
+				pix = 0xFFFF7F7F;
 			}
 
 			dummyTextures_[DummyTex::FlatNormal] = std::make_unique<Texture>();

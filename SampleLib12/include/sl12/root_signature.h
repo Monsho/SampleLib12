@@ -98,6 +98,7 @@ namespace sl12
 			u8		asCbvIndex_ = 0;
 			u8		asSrvIndex_ = 0;
 			u8		asSamplerIndex_ = 0;
+			u8		asUavIndex_ = 0;
 		};	// struct InputIndex
 
 	public:

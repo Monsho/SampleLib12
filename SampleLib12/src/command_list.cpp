@@ -415,6 +415,7 @@ namespace sl12
 		};
 		SetViewDesc(pDSet->GetAsCbv().maxCount, pDSet->GetAsCbv().cpuHandles, input_index.asCbvIndex_);
 		SetViewDesc(pDSet->GetAsSrv().maxCount, pDSet->GetAsSrv().cpuHandles, input_index.asSrvIndex_);
+		SetViewDesc(pDSet->GetAsUav().maxCount, pDSet->GetAsUav().cpuHandles, input_index.asUavIndex_);
 		SetViewDesc(pDSet->GetMsCbv().maxCount, pDSet->GetMsCbv().cpuHandles, input_index.msCbvIndex_);
 		SetViewDesc(pDSet->GetMsSrv().maxCount, pDSet->GetMsSrv().cpuHandles, input_index.msSrvIndex_);
 		SetViewDesc(pDSet->GetPsCbv().maxCount, pDSet->GetPsCbv().cpuHandles, input_index.psCbvIndex_);

@@ -294,6 +294,9 @@ namespace sl12
 			inputIndex_.asSamplerIndex_ = rangeCnt;
 			SetParam(D3D12_SHADER_VISIBILITY_AMPLIFICATION);
 			ranges[rangeCnt++] = kDefaultRange[2];
+			inputIndex_.asUavIndex_ = rangeCnt;
+			SetParam(D3D12_SHADER_VISIBILITY_AMPLIFICATION);
+			ranges[rangeCnt++] = kDefaultRange[3];
 			flags &= ~D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
 		}
 		if (ms)

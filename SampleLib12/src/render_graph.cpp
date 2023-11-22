@@ -221,7 +221,7 @@ namespace sl12
 	}
 
 	//----
-	bool RenderGraph::CreateRenderPasses(Device* pDev, const std::vector<RenderPass>& Passes, const std::vector<RenderGraphTargetID>& CurrHistories)
+	bool RenderGraph::CreateRenderPasses(Device* pDev, const std::vector<RenderPass>& Passes, const std::vector<RenderGraphTargetID>& CurrHistories, const std::vector<RenderGraphTargetID>& ReturnHistories)
 	{
 		// get target lifetime.
 		std::map<RenderGraphTargetID, u32>	lifetime;
@@ -333,6 +333,16 @@ namespace sl12
 			}
 			
 			index++;
+		}
+
+		// return histories.
+		for (auto id : ReturnHistories)
+		{
+			if (id != kInvalidTargetID && usedTargets_.find(id) != usedTargets_.end())
+			{
+				unusedTargets_.push_back(std::move(usedTargets_[id]));
+				usedTargets_.erase(id);
+			}
 		}
 
 		currentPassIndex_ = prevPassIndex_ = kInvalidPassIndex;

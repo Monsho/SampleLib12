@@ -44,8 +44,6 @@ namespace sl12
 	//---------------
 	ResourceItemMesh::~ResourceItemMesh()
 	{
-		meshletPackedPrimitive_.Destroy();
-		meshletVertexIndex_.Destroy();
 	}
 
 	//---------------
@@ -78,89 +76,56 @@ namespace sl12
 		// create buffers.
 		auto pDev = pLoader->GetDevice();
 		auto pMeshMan = pLoader->GetMeshManager();
-		auto CreateBuffer = [&](Buffer* buff, MeshManager::Handle* pHandle, const std::vector<u8>& data, size_t stride, u32 usage, bool isEmpyOk = false)
+		assert(pDev != nullptr && pMeshMan != nullptr);
+		auto CreateBuffer = [&](MeshManager::Handle* pHandle, const std::vector<u8>& data, size_t stride, u32 usage, bool isEmpyOk = false)
 		{
 			if (data.empty())
 			{
 				return isEmpyOk;
 			}
 
-			if (buff)
+			if (!pHandle)
 			{
-				Buffer* staging = new Buffer();
-
-				BufferDesc creationDesc{};
-				creationDesc.size = data.size();
-				creationDesc.stride = stride;
-				creationDesc.usage = usage;
-				creationDesc.heap = BufferHeap::Dynamic;
-				creationDesc.initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
-				if (!staging->Initialize(pDev, creationDesc))
-				{
-					return false;
-				}
-				auto p = staging->Map();
-				memcpy(p, data.data(), data.size());
-				staging->Unmap();
-
-				creationDesc.heap = BufferHeap::Default;
-				creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
-				if (!buff->Initialize(pDev, creationDesc))
-				{
-					return false;
-				}
-				
-				BufferInitRenderCommand* command = new BufferInitRenderCommand();
-				command->pDevice = pDev;
-				command->pSrcBuffer = staging;
-				command->pDstBuffer = buff;
-				command->initState = (usage & ResourceUsage::VertexBuffer
-					? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
-					: D3D12_RESOURCE_STATE_INDEX_BUFFER); 
-
-				pDev->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
+				return false;
 			}
 
-			// for mesh manager.
-			if (pHandle && pMeshMan)
+			// deploy to mesh manager.
+			if (usage & ResourceUsage::VertexBuffer)
 			{
-				if (usage & ResourceUsage::VertexBuffer)
-				{
-					*pHandle = pMeshMan->DeployVertexBuffer(data.data(), data.size());
-				}
-				else if (usage & ResourceUsage::IndexBuffer)
-				{
-					*pHandle = pMeshMan->DeployIndexBuffer(data.data(), data.size());
-				}
+				*pHandle = pMeshMan->DeployVertexBuffer(data.data(), data.size());
+			}
+			else if (usage & ResourceUsage::IndexBuffer)
+			{
+				*pHandle = pMeshMan->DeployIndexBuffer(data.data(), data.size());
 			}
 
 			return true;
 		};
-		if (!CreateBuffer(nullptr/*ret->positionVB_*/, &ret->hPosition_, mesh_bin.GetVBPosition(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(&ret->hPosition_, mesh_bin.GetVBPosition(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(nullptr/*ret->normalVB_*/, &ret->hNormal_, mesh_bin.GetVBNormal(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(&ret->hNormal_, mesh_bin.GetVBNormal(), sizeof(DirectX::XMFLOAT3), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(nullptr/*ret->tangentVB_*/, &ret->hTangent_, mesh_bin.GetVBTangent(), sizeof(DirectX::XMFLOAT4), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(&ret->hTangent_, mesh_bin.GetVBTangent(), sizeof(DirectX::XMFLOAT4), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(nullptr/*ret->texcoordVB_*/, &ret->hTexcoord_, mesh_bin.GetVBTexcoord(), sizeof(DirectX::XMFLOAT2), ResourceUsage::VertexBuffer))
+		if (!CreateBuffer(&ret->hTexcoord_, mesh_bin.GetVBTexcoord(), sizeof(DirectX::XMFLOAT2), ResourceUsage::VertexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(nullptr/*ret->indexBuffer_*/, &ret->hIndex_, mesh_bin.GetIndexBuffer(), sizeof(u32), ResourceUsage::IndexBuffer))
+		if (!CreateBuffer(&ret->hIndex_, mesh_bin.GetIndexBuffer(), sizeof(u32), ResourceUsage::IndexBuffer))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(&ret->meshletPackedPrimitive_, nullptr, mesh_bin.GetMeshletPackedPrimitive(), sizeof(u32), ResourceUsage::ShaderResource, true))
+		if (!CreateBuffer(&ret->hMeshletPackedPrim_, mesh_bin.GetMeshletPackedPrimitive(), sizeof(u32), ResourceUsage::IndexBuffer, true))
 		{
 			return nullptr;
 		}
-		if (!CreateBuffer(&ret->meshletVertexIndex_, nullptr, mesh_bin.GetMeshletVertexIndex(), sizeof(u32), ResourceUsage::ShaderResource, true))
+		if (!CreateBuffer(&ret->hMeshletVertexIndex_, mesh_bin.GetMeshletVertexIndex(), sizeof(u32), ResourceUsage::IndexBuffer, true))
 		{
 			return nullptr;
 		}
@@ -214,15 +179,16 @@ namespace sl12
 			dst.tangentSizeBytes = ResourceItemMesh::GetTangentStride() * src.GetVertexCount();
 			dst.texcoordSizeBytes = ResourceItemMesh::GetTexcoordStride() * src.GetVertexCount();
 			dst.indexSizeBytes = ResourceItemMesh::GetIndexStride() * src.GetIndexCount();
+			dst.meshletPackedPrimSizeBytes = sizeof(u32) * src.GetMeshletPrimitiveCount();
+			dst.meshletVertexIndexSizeBytes = ResourceItemMesh::GetIndexStride() * src.GetMeshletVertexIndexCount();
 
 			dst.positionOffsetBytes = ResourceItemMesh::GetPositionStride() * src.GetVertexOffset();
 			dst.normalOffsetBytes = ResourceItemMesh::GetNormalStride() * src.GetVertexOffset();
 			dst.tangentOffsetBytes = ResourceItemMesh::GetTangentStride() * src.GetVertexOffset();
 			dst.texcoordOffsetBytes = ResourceItemMesh::GetTexcoordStride() * src.GetVertexOffset();
 			dst.indexOffsetBytes = ResourceItemMesh::GetIndexStride() * src.GetIndexOffset();
-
-			dst.packedPrimitiveView.Initialize(pDev, &ret->meshletPackedPrimitive_, src.GetMeshletPrimitiveOffset(), src.GetMeshletPrimitiveCount(), sizeof(u32));
-			dst.vertexIndexView.Initialize(pDev, &ret->meshletVertexIndex_, src.GetMeshletVertexIndexOffset(), src.GetMeshletVertexIndexCount(), sizeof(u32));
+			dst.meshletPackedPrimOffsetBytes = sizeof(u32) * src.GetMeshletPrimitiveOffset();
+			dst.meshletVertexIndexOffsetBytes = ResourceItemMesh::GetIndexStride() * src.GetMeshletVertexIndexOffset();
 
 			dst.boundingInfo.sphere.center.x = src.GetBoundingSphere().centerX;
 			dst.boundingInfo.sphere.center.y = src.GetBoundingSphere().centerY;

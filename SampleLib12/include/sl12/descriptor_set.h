@@ -69,6 +69,7 @@ namespace sl12
 		inline void SetAsCbv(u32 index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle);
 		inline void SetAsSrv(u32 index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle);
 		inline void SetAsSampler(u32 index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle);
+		inline void SetAsUav(u32 index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle);
 
 		// getter
 		const Handles<kCbvMax>& GetVsCbv() const { return vsCbv_; }
@@ -97,6 +98,7 @@ namespace sl12
 		const Handles<kCbvMax>& GetAsCbv() const { return asCbv_; }
 		const Handles<kSrvMax>& GetAsSrv() const { return asSrv_; }
 		const Handles<kSamplerMax>& GetAsSampler() const { return asSampler_; }
+		const Handles<kUavMax>& GetAsUav() const { return asUav_; }
 
 	private:
 		Handles<kCbvMax>		vsCbv_;
@@ -125,6 +127,7 @@ namespace sl12
 		Handles<kCbvMax>		asCbv_;
 		Handles<kSrvMax>		asSrv_;
 		Handles<kSamplerMax>	asSampler_;
+		Handles<kUavMax>		asUav_;
 	};	// class DescriptorSet
 
 	inline void DescriptorSet::Reset()
@@ -155,6 +158,7 @@ namespace sl12
 		asCbv_.Reset();
 		asSrv_.Reset();
 		asSampler_.Reset();
+		asUav_.Reset();
 	}
 
 	inline void DescriptorSet::SetVsCbv(u32 index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle)
@@ -260,6 +264,10 @@ namespace sl12
 	inline void DescriptorSet::SetAsSampler(u32 index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle)
 	{
 		asSampler_.SetHandle(index, handle);
+	}
+	inline void DescriptorSet::SetAsUav(u32 index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle)
+	{
+		asUav_.SetHandle(index, handle);
 	}
 
 }	// namespace sl12

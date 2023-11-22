@@ -171,7 +171,7 @@ namespace sl12
 
 		RenderGraphTargetID AddTarget(const RenderGraphTargetDesc& Desc);
 
-		bool CreateRenderPasses(Device* pDev, const std::vector<RenderPass>& Passes, const std::vector<RenderGraphTargetID>& CurrHistories);
+		bool CreateRenderPasses(Device* pDev, const std::vector<RenderPass>& Passes, const std::vector<RenderGraphTargetID>& CurrHistories, const std::vector<RenderGraphTargetID>& ReturnHistories);
 
 		RenderGraphTarget* GetTarget(RenderGraphTargetID TargetID);
 

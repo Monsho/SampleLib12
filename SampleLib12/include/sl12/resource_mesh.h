@@ -418,18 +418,23 @@ namespace sl12
 			int					materialIndex;
 			u32					vertexCount;
 			u32					indexCount;
+
 			size_t				positionSizeBytes;
 			size_t				normalSizeBytes;
 			size_t				tangentSizeBytes;
 			size_t				texcoordSizeBytes;
 			size_t				indexSizeBytes;
+			size_t				meshletPackedPrimSizeBytes;
+			size_t				meshletVertexIndexSizeBytes;
+
 			size_t				positionOffsetBytes;
 			size_t				normalOffsetBytes;
 			size_t				tangentOffsetBytes;
 			size_t				texcoordOffsetBytes;
 			size_t				indexOffsetBytes;
-			BufferView			packedPrimitiveView;
-			BufferView			vertexIndexView;
+			size_t				meshletPackedPrimOffsetBytes;
+			size_t				meshletVertexIndexOffsetBytes;
+
 			Bounding			boundingInfo;
 
 			std::vector<Meshlet>	meshlets;
@@ -452,23 +457,6 @@ namespace sl12
 		{
 			return boundingInfo_;
 		}
-		const Buffer& GetMeshletPackedPrimitive() const
-		{
-			return meshletPackedPrimitive_;
-		}
-		const Buffer& GetMeshletVertexIndex() const
-		{
-			return meshletVertexIndex_;
-		}
-
-		Buffer& GetMeshletPackedPrimitive()
-		{
-			return meshletPackedPrimitive_;
-		}
-		Buffer& GetMeshletVertexIndex()
-		{
-			return meshletVertexIndex_;
-		}
 
 		const MeshManager::Handle& GetPositionHandle() const
 		{
@@ -489,6 +477,14 @@ namespace sl12
 		const MeshManager::Handle& GetIndexHandle() const
 		{
 			return hIndex_;
+		}
+		const MeshManager::Handle& GetMeshletPackedPrimHandle() const
+		{
+			return hMeshletPackedPrim_;
+		}
+		const MeshManager::Handle& GetMeshletVertexIndexHandle() const
+		{
+			return hMeshletVertexIndex_;
 		}
 
 		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath);
@@ -524,14 +520,13 @@ namespace sl12
 		std::vector<Submesh>	Submeshes_;
 		Bounding				boundingInfo_;
 
-		Buffer		meshletPackedPrimitive_;
-		Buffer		meshletVertexIndex_;
-
 		MeshManager::Handle	hPosition_;
 		MeshManager::Handle	hNormal_;
 		MeshManager::Handle	hTangent_;
 		MeshManager::Handle	hTexcoord_;
 		MeshManager::Handle	hIndex_;
+		MeshManager::Handle	hMeshletPackedPrim_;
+		MeshManager::Handle	hMeshletVertexIndex_;
 	};	// class ResourceItemMesh
 
 }	// namespace sl12

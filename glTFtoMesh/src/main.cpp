@@ -339,6 +339,14 @@ int main(int argv, char* argc[])
 		return ret;
 	};
 
+	DirectX::XMVECTOR aabbMin = DirectX::XMLoadFloat3(&mesh_work->GetBoundingBox().aabbMin);
+	DirectX::XMVECTOR aabbMax = DirectX::XMLoadFloat3(&mesh_work->GetBoundingBox().aabbMax);
+	DirectX::XMVECTOR aabbSize = DirectX::XMVectorSubtract(aabbMax, aabbMin);
+	DirectX::XMVECTOR boxCenter = DirectX::XMVectorScale(DirectX::XMVectorAdd(aabbMax, aabbMin), 0.5f);
+	DirectX::XMMATRIX boxLocalMatrix = DirectX::XMMatrixMultiply(
+		DirectX::XMMatrixTranslation(-boxCenter.m128_f32[0], -boxCenter.m128_f32[1], -boxCenter.m128_f32[2]),
+		DirectX::XMMatrixScaling(1.0f / aabbSize.m128_f32[0], 1.0f / aabbSize.m128_f32[1], 1.0f / aabbSize.m128_f32[2]));
+
 	// output binary.
 	fprintf(stdout, "output rmesh binary.\n");
 	auto out_resource = std::make_unique<sl12::ResourceMesh>();
@@ -400,17 +408,46 @@ int main(int argv, char* argc[])
 		auto&& src_ib = submesh->GetIndexBuffer();
 		auto&& src_pb = submesh->GetPackedPrimitive();
 		auto&& src_vib = submesh->GetVertexIndexBuffer();
-		std::vector<float> vbp, vbn, vbt, vbu;
-		vbp.resize(3 * src_vb.size());
-		vbn.resize(3 * src_vb.size());
-		vbt.resize(4 * src_vb.size());
-		vbu.resize(2 * src_vb.size());
+		std::vector<unsigned short> vbpos;
+		std::vector<char> vbnorm, vbtan;
+		std::vector<unsigned short> vbuv;
+		vbpos.resize(4 * src_vb.size());
+		vbnorm.resize(4 * src_vb.size());
+		vbtan.resize(4 * src_vb.size());
+		vbuv.resize(2 * src_vb.size());
 		for (size_t i = 0; i < src_vb.size(); i++)
 		{
-			memcpy(&vbp[i * 3], &src_vb[i].pos, sizeof(float) * 3);
-			memcpy(&vbn[i * 3], &src_vb[i].normal, sizeof(float) * 3);
-			memcpy(&vbt[i * 4], &src_vb[i].tangent, sizeof(float) * 4);
-			memcpy(&vbu[i * 2], &src_vb[i].uv, sizeof(float) * 2);
+			DirectX::XMVECTOR vPos = DirectX::XMLoadFloat3(&src_vb[i].pos);
+			vPos = DirectX::XMVector3Transform(vPos, boxLocalMatrix);
+			unsigned short pos[4] = {
+				(unsigned short)meshopt_quantizeSnorm(vPos.m128_f32[0], 16),
+				(unsigned short)meshopt_quantizeSnorm(vPos.m128_f32[1], 16),
+				(unsigned short)meshopt_quantizeSnorm(vPos.m128_f32[2], 16),
+				(unsigned short)meshopt_quantizeSnorm(1.0f, 16)
+			};
+			memcpy(&vbpos[i * 4], pos, sizeof(pos));
+
+			char norm[4] = {
+				(char)meshopt_quantizeSnorm(src_vb[i].normal.x, 8),
+				(char)meshopt_quantizeSnorm(src_vb[i].normal.y, 8),
+				(char)meshopt_quantizeSnorm(src_vb[i].normal.z, 8),
+				(char)meshopt_quantizeSnorm(0.0f, 8)
+			};
+			memcpy(&vbnorm[i * 4], norm, sizeof(norm));
+
+			char tan[4] = {
+				(char)meshopt_quantizeSnorm(src_vb[i].tangent.x, 8),
+				(char)meshopt_quantizeSnorm(src_vb[i].tangent.y, 8),
+				(char)meshopt_quantizeSnorm(src_vb[i].tangent.z, 8),
+				(char)meshopt_quantizeSnorm(src_vb[i].tangent.w, 8)
+			};
+			memcpy(&vbtan[i * 4], tan, sizeof(tan));
+
+			unsigned short uv[2] = {
+				meshopt_quantizeHalf(src_vb[i].uv.x),
+				meshopt_quantizeHalf(src_vb[i].uv.y)
+			};
+			memcpy(&vbuv[i * 2], uv, sizeof(uv));
 		}
 
 		auto CopyBuffer = [](std::vector<sl12::u8>& dst, const void* pData, size_t dataSize)
@@ -419,10 +456,10 @@ int main(int argv, char* argc[])
 			dst.resize(cs + dataSize);
 			memcpy(dst.data() + cs, pData, dataSize);
 		};
-		CopyBuffer(out_resource->vbPosition_,  vbp.data(), sizeof(float) * vbp.size());
-		CopyBuffer(out_resource->vbNormal_,    vbn.data(), sizeof(float) * vbn.size());
-		CopyBuffer(out_resource->vbTangent_,   vbt.data(), sizeof(float) * vbt.size());
-		CopyBuffer(out_resource->vbTexcoord_,  vbu.data(), sizeof(float) * vbu.size());
+		CopyBuffer(out_resource->vbPosition_,  vbpos.data(), sizeof(vbpos.data()[0]) * vbpos.size());
+		CopyBuffer(out_resource->vbNormal_,    vbnorm.data(), sizeof(vbnorm.data()[0]) * vbnorm.size());
+		CopyBuffer(out_resource->vbTangent_,   vbtan.data(), sizeof(vbtan.data()[0]) * vbtan.size());
+		CopyBuffer(out_resource->vbTexcoord_,  vbuv.data(), sizeof(vbuv.data()[0]) * vbuv.size());
 		CopyBuffer(out_resource->indexBuffer_, src_ib.data(), sizeof(uint32_t)* src_ib.size());
 		CopyBuffer(out_resource->meshletPackedPrimitive_, src_pb.data(), sizeof(uint32_t)* src_pb.size());
 		CopyBuffer(out_resource->meshletVertexIndex_, src_vib.data(), sizeof(float) * src_vib.size());

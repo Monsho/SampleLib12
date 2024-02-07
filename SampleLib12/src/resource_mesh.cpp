@@ -237,6 +237,16 @@ namespace sl12
 			}
 		}
 
+		// create box to local transform.
+		DirectX::XMVECTOR aabbMin = DirectX::XMLoadFloat3(&ret->boundingInfo_.box.aabbMin);
+		DirectX::XMVECTOR aabbMax = DirectX::XMLoadFloat3(&ret->boundingInfo_.box.aabbMax);
+		DirectX::XMVECTOR boxSize = DirectX::XMVectorSubtract(aabbMax, aabbMin);
+		DirectX::XMVECTOR boxCenter = DirectX::XMVectorScale(DirectX::XMVectorAdd(aabbMax, aabbMin), 0.5f);
+		DirectX::XMMATRIX mbox = DirectX::XMMatrixMultiply(
+			DirectX::XMMatrixScaling(boxSize.m128_f32[0], boxSize.m128_f32[1], boxSize.m128_f32[2]),
+			DirectX::XMMatrixTranslation(boxCenter.m128_f32[0], boxCenter.m128_f32[1], boxCenter.m128_f32[2]));
+		DirectX::XMStoreFloat4x4(&ret->mtxBoxToLocal_, mbox);
+
 		return ret.release();
 	}
 

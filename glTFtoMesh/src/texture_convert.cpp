@@ -210,10 +210,10 @@ bool ConvertToSTEX(TextureWork* pTex, const std::string& outputFilePath, bool is
 	sl12::StreamingTextureHeader fileHeader{};
 	fileHeader.dimension = sl12::StreamingTextureDimension::Texture2D;
 	fileHeader.format = image->GetMetadata().format;
-	fileHeader.width = image->GetMetadata().width;
-	fileHeader.height = image->GetMetadata().height;
+	fileHeader.width = (sl12::u32)image->GetMetadata().width;
+	fileHeader.height = (sl12::u32)image->GetMetadata().height;
 	fileHeader.depth = 1;
-	fileHeader.mipLevels = image->GetMetadata().mipLevels;
+	fileHeader.mipLevels = (sl12::u32)image->GetMetadata().mipLevels;
 	fileHeader.topMipCount = 0;
 	fileHeader.tailMipCount = fileHeader.mipLevels;
 	for (sl12::u32 i = 0; i < fileHeader.mipLevels; i++)

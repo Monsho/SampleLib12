@@ -119,7 +119,7 @@ bool SampleApplication::Initialize()
 		"main", sl12::ShaderType::Pixel, 6, 6, nullptr, &shaderDefines);
 	
 	// load request.
-	hSuzanneMesh_ = resLoader_->LoadRequest<sl12::ResourceItemMesh>("mesh/chinese_dragon/chinese_dragon.rmesh");
+	hResMesh_ = resLoader_->LoadRequest<sl12::ResourceItemMesh>("mesh/chinese_dragon/chinese_dragon.rmesh");
 
 	// init command list.
 	mainCmdList_ = sl12::MakeUnique<CommandLists>(nullptr);
@@ -210,7 +210,7 @@ bool SampleApplication::Initialize()
 		return false;
 	}
 	{
-		auto resMesh = const_cast<sl12::ResourceItemMesh*>(hSuzanneMesh_.GetItem<sl12::ResourceItemMesh>());
+		auto resMesh = const_cast<sl12::ResourceItemMesh*>(hResMesh_.GetItem<sl12::ResourceItemMesh>());
 		for (auto&& mat : resMesh->GetMaterials())
 		{
 			std::vector<sl12::ResourceHandle> texsets;
@@ -250,10 +250,10 @@ bool SampleApplication::Initialize()
 		desc.depthStencil.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
 		D3D12_INPUT_ELEMENT_DESC input_elems[] = {
-			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 2, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       3, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"POSITION", 0, sl12::ResourceItemMesh::GetPositionFormat(), 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"NORMAL",   0, sl12::ResourceItemMesh::GetNormalFormat(),   1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TANGENT",  0, sl12::ResourceItemMesh::GetTangentFormat(),  2, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD", 0, sl12::ResourceItemMesh::GetTexcoordFormat(), 3, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		};
 		desc.inputLayout.numElements = ARRAYSIZE(input_elems);
 		desc.inputLayout.pElements = input_elems;
@@ -448,6 +448,7 @@ bool SampleApplication::Execute()
 	{
 		std::vector<sl12::RenderPass> passes;
 		std::vector<sl12::RenderGraphTargetID> histories;
+		std::vector<sl12::RenderGraphTargetID> return_histories;
 		
 		sl12::RenderPass gbufferPass{};
 		gbufferPass.output.push_back(gbufferTargetIDs[0]);
@@ -478,7 +479,7 @@ bool SampleApplication::Execute()
 		tonemapPass.inputStates.push_back(D3D12_RESOURCE_STATE_GENERIC_READ);
 		passes.push_back(tonemapPass);
 
-		renderGraph_->CreateRenderPasses(&device_, passes, histories);
+		renderGraph_->CreateRenderPasses(&device_, passes, histories, return_histories);
 	}
 
 	// create scene constant buffer.
@@ -551,8 +552,10 @@ bool SampleApplication::Execute()
 
 		// create constant buffer.
 		MeshCB cbMesh;
-		DirectX::XMStoreFloat4x4(&cbMesh.mtxLocalToWorld, DirectX::XMMatrixIdentity());
-
+		{
+			auto meshRes = hResMesh_.GetItem<sl12::ResourceItemMesh>();
+			cbMesh.mtxLocalToWorld = meshRes->GetMtxBoxToLocal();
+		}
 		auto hMeshCB = cbvMan_->GetTemporal(&cbMesh, sizeof(cbMesh));
 
 #if !ENABLE_DYNAMIC_RESOURCE
@@ -569,7 +572,7 @@ bool SampleApplication::Execute()
 			pCmdList->GetLatestCommandList()->SetPipelineState(psoMesh_->GetPSO());
 			pCmdList->GetLatestCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			auto meshRes = hSuzanneMesh_.GetItem<sl12::ResourceItemMesh>();
+			auto meshRes = hResMesh_.GetItem<sl12::ResourceItemMesh>();
 			auto&& submeshes = meshRes->GetSubmeshes();
 			auto submesh_count = submeshes.size();
 			for (int i = 0; i < submesh_count; i++)

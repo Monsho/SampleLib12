@@ -486,28 +486,52 @@ namespace sl12
 		{
 			return hMeshletVertexIndex_;
 		}
+		const DirectX::XMFLOAT4X4& GetMtxBoxToLocal() const
+		{
+			return mtxBoxToLocal_;
+		}
 
 		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath);
 
 		static size_t GetPositionStride()
 		{
-			return sizeof(DirectX::XMFLOAT3);
+			return sizeof(u16) * 4;
+		}
+		static DXGI_FORMAT GetPositionFormat()
+		{
+			return DXGI_FORMAT_R16G16B16A16_SNORM;
 		}
 		static size_t GetNormalStride()
 		{
-			return sizeof(DirectX::XMFLOAT3);
+			return sizeof(u32);
+		}
+		static DXGI_FORMAT GetNormalFormat()
+		{
+			return DXGI_FORMAT_R8G8B8A8_SNORM;
 		}
 		static size_t GetTangentStride()
 		{
-			return sizeof(DirectX::XMFLOAT4);
+			return sizeof(u32);
+		}
+		static DXGI_FORMAT GetTangentFormat()
+		{
+			return DXGI_FORMAT_R8G8B8A8_SNORM;
 		}
 		static size_t GetTexcoordStride()
 		{
-			return sizeof(DirectX::XMFLOAT2);
+			return sizeof(u16) * 2;
+		}
+		static DXGI_FORMAT GetTexcoordFormat()
+		{
+			return DXGI_FORMAT_R16G16_FLOAT;
 		}
 		static size_t GetIndexStride()
 		{
 			return sizeof(u32);
+		}
+		static DXGI_FORMAT GetIndexFormat()
+		{
+			return DXGI_FORMAT_R32_UINT;
 		}
 
 	private:
@@ -527,6 +551,8 @@ namespace sl12
 		MeshManager::Handle	hIndex_;
 		MeshManager::Handle	hMeshletPackedPrim_;
 		MeshManager::Handle	hMeshletVertexIndex_;
+
+		DirectX::XMFLOAT4X4 mtxBoxToLocal_;
 	};	// class ResourceItemMesh
 
 }	// namespace sl12

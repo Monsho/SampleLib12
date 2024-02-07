@@ -111,7 +111,7 @@ private:
 	UniqueHandle<sl12::Gui>		gui_;
 	sl12::InputData				inputData_{};
 
-	sl12::ResourceHandle	hSuzanneMesh_;
+	sl12::ResourceHandle	hResMesh_;
 	sl12::ShaderHandle		hMeshVV_;
 	sl12::ShaderHandle		hMeshP_;
 	sl12::ShaderHandle		hLightingC_;

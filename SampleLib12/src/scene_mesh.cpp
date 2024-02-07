@@ -229,6 +229,8 @@ namespace sl12
 			submesh_offset++;
 			meshlets_offset += meshlets_count;
 		}
+
+		mtxPrevLocalToWorld_ = mtxLocalToWorld_;
 	}
 
 	//----

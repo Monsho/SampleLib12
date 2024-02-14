@@ -194,8 +194,6 @@ namespace sl12
 		auto&& materials = res_nc->GetMaterials();
 		auto hPos = res_nc->GetPositionHandle();
 		auto hIndex = res_nc->GetIndexHandle();
-		// auto&& vb = res_nc->GetPositionVB();
-		// auto&& ib = res_nc->GetIndexBuffer();
 
 		geomDescs_.resize(submeshes.size());
 		for (int i = 0; i < submeshes.size(); i++)
@@ -210,13 +208,13 @@ namespace sl12
 			auto flags = material.isOpaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 			desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 			desc.Flags = flags;
-			desc.Triangles.VertexBuffer.StartAddress = vbv.BufferLocation;// vb.GetResourceDep()->GetGPUVirtualAddress() + submesh.positionVBV.GetBufferOffset();
-			desc.Triangles.VertexBuffer.StrideInBytes = vbv.StrideInBytes;// vb.GetBufferDesc().stride;
+			desc.Triangles.VertexBuffer.StartAddress = vbv.BufferLocation;
+			desc.Triangles.VertexBuffer.StrideInBytes = vbv.StrideInBytes;
 			desc.Triangles.VertexCount = submesh.vertexCount;
-			desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-			desc.Triangles.IndexBuffer = ibv.BufferLocation;// ib.GetResourceDep()->GetGPUVirtualAddress() + submesh.indexBV.GetBufferOffset();
+			desc.Triangles.VertexFormat = ResourceItemMesh::GetPositionFormat();
+			desc.Triangles.IndexBuffer = ibv.BufferLocation;
 			desc.Triangles.IndexCount = submesh.indexCount;
-			desc.Triangles.IndexFormat = ibv.Format;// DXGI_FORMAT_R32_UINT;
+			desc.Triangles.IndexFormat = ibv.Format;
 			desc.Triangles.Transform3x4 = 0;
 		}
 
@@ -519,7 +517,11 @@ namespace sl12
 				auto geom = AddGeometry(mcmd).lock();
 				if (geom && geom->IsValid())
 				{
-					auto&& mtx = mcmd->GetParentMesh()->GetMtxLocalToWorld();
+					DirectX::XMMATRIX mtxLocalToWorld = DirectX::XMLoadFloat4x4(&mcmd->GetParentMesh()->GetMtxLocalToWorld());
+					DirectX::XMMATRIX mtxBoxToLocal = DirectX::XMLoadFloat4x4(&mcmd->GetParentMesh()->GetParentResource()->GetMtxBoxToLocal());
+					DirectX::XMMATRIX mtxBoxToWorld = mtxBoxToLocal * mtxLocalToWorld;
+					DirectX::XMFLOAT4X4 mtx;
+					DirectX::XMStoreFloat4x4(&mtx, mtxBoxToWorld);
 					D3D12_RAYTRACING_INSTANCE_DESC desc{};
 
 					desc.Transform[0][0] = mtx._11;

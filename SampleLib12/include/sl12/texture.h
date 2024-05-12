@@ -27,6 +27,7 @@ namespace sl12
 	// テクスチャ生成時の記述情報
 	struct TextureDesc
 	{
+		ResourceHeapAllocation	allocation				= ResourceHeapAllocation::Committed;
 		TextureDimension::Type	dimension				= TextureDimension::Texture2D;
 		u32						width = 1, height = 1, depth = 1;
 		u32						mipLevels				= 1;

@@ -3,6 +3,7 @@
 #include "sl12/file.h"
 #include "sl12/string_util.h"
 #include "sl12/command_list.h"
+#include "sl12/command_queue.h"
 #include <cctype>
 
 
@@ -11,12 +12,47 @@ namespace sl12
 
 	namespace detail
 	{
+		struct UpdateTileQueueCommand
+		{
+			Texture*										pTexture = nullptr;
+			ID3D12Heap*										pHeap = nullptr;
+			UINT											updatedRegions = 0;
+			std::vector<D3D12_TILED_RESOURCE_COORDINATE>	startCoordinates;
+			std::vector<D3D12_TILE_REGION_SIZE>				regionSizes;
+			std::vector<D3D12_TILE_RANGE_FLAGS>				rangeFlags;
+			std::vector<UINT>								heapRangeStartOffsets;
+			std::vector<UINT>								rangeTileCounts;
+
+			~UpdateTileQueueCommand()
+			{
+			}
+
+			void ExecuteCommand(Device* pDevice)
+			{
+				ID3D12CommandQueue* pGraphicsQueue = pDevice->GetGraphicsQueue().GetQueueDep();
+				pGraphicsQueue->UpdateTileMappings(
+					pTexture->GetResourceDep(),
+					updatedRegions,
+					&startCoordinates[0],
+					&regionSizes[0],
+					pHeap,
+					updatedRegions,
+					&rangeFlags[0],
+					&heapRangeStartOffsets[0],
+					&rangeTileCounts[0],
+					D3D12_TILE_MAPPING_FLAG_NONE
+					);
+			}
+		};
+		
 		struct TailMipInitRenderCommand
 			: public IRenderCommand
 		{
 			std::unique_ptr<File>	texBin;
 			Device*					pDevice;
 			Texture*				pTexture;
+			u32						firstMipLevel;
+			u32						numMiplevels;
 
 			~TailMipInitRenderCommand()
 			{
@@ -26,12 +62,13 @@ namespace sl12
 			{
 				// get texture footprint.
 				auto resDesc = pTexture->GetResourceDesc();
-				u32 numSubresources = resDesc.DepthOrArraySize * resDesc.MipLevels;
+				u32 firstSubresource = resDesc.DepthOrArraySize * firstMipLevel;
+				u32 numSubresources = resDesc.DepthOrArraySize * numMiplevels;
 				std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprint(numSubresources);
 				std::vector<u32> numRows(numSubresources);
 				std::vector<u64> rowSize(numSubresources);
 				u64 totalSize;
-				pDevice->GetDeviceDep()->GetCopyableFootprints(&resDesc, 0, numSubresources, 0, footprint.data(), numRows.data(), rowSize.data(), &totalSize);
+				pDevice->GetDeviceDep()->GetCopyableFootprints(&resDesc, firstSubresource, numSubresources, 0, footprint.data(), numRows.data(), rowSize.data(), &totalSize);
 
 				// create upload buffer.
 				D3D12_HEAP_PROPERTIES heapProp = {};
@@ -76,9 +113,9 @@ namespace sl12
 
 				for (u32 d = 0; d < resDesc.DepthOrArraySize; d++)
 				{
-					for (u32 m = 0; m < resDesc.MipLevels; m++)
+					for (u32 m = 0; m < numMiplevels; m++)
 					{
-						size_t i = d * resDesc.MipLevels + m;
+						size_t i = d * numMiplevels + m;
 						assert(rowSize[i] < (SIZE_T)-1);
 						D3D12_MEMCPY_DEST dstData = { pData + footprint[i].Offset, footprint[i].Footprint.RowPitch, footprint[i].Footprint.RowPitch * numRows[i] };
 						const u8* pImage = texPtr + pSubHeader[i].offsetFromFileHead;
@@ -109,7 +146,7 @@ namespace sl12
 					src.PlacedFootprint = footprint[i];
 					dst.pResource = pTexture->GetResourceDep();
 					dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-					dst.SubresourceIndex = i;
+					dst.SubresourceIndex = firstSubresource + i;
 					pCmdlist->GetLatestCommandList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 				}
 				pDevice->PendingKill(new ReleaseObjectItem<ID3D12Resource>(pSrcImage));
@@ -122,8 +159,6 @@ namespace sl12
 			: public IRenderCommand
 		{
 			ResourceItemStreamingTexture*	pResource;
-			// Texture*	pPrevTexture;
-			// Texture*	pNextTexture;
 			u32			prevMiplevel;
 			u32			nextMiplevel;
 
@@ -133,34 +168,7 @@ namespace sl12
 
 			void LoadCommand(CommandList* pCmdlist) override
 			{
-				Texture* pPrevTexture = &pResource->currTexture_;
-				Texture* pNextTexture = &pResource->nextTexture_;
-				
-				// get texture desc.
-				auto prevDesc = pPrevTexture->GetResourceDesc();
-				auto nextDesc = pNextTexture->GetResourceDesc();
-
-				// copy mips.
-				pCmdlist->TransitionBarrier(pPrevTexture, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_SOURCE);
-
-				u32 srcSubresourceIndex = prevDesc.DepthOrArraySize * (nextMiplevel - prevMiplevel);
-				u32 numSubresources = nextDesc.DepthOrArraySize * nextDesc.MipLevels;
-				for (u32 i = 0; i < numSubresources; i++)
-				{
-					D3D12_TEXTURE_COPY_LOCATION src, dst;
-					src.pResource = pPrevTexture->GetResourceDep();
-					src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-					src.SubresourceIndex = srcSubresourceIndex++;
-					dst.pResource = pNextTexture->GetResourceDep();
-					dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-					dst.SubresourceIndex = i;
-					pCmdlist->GetLatestCommandList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
-				}
-
-				pCmdlist->TransitionBarrier(pNextTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-
-				// swap texture and view.
-				pResource->currTexture_ = std::move(pResource->nextTexture_);
+				// swap texture view.
 				pResource->currTextureView_ = std::move(pResource->nextTextureView_);
 			}
 		};	// struct MiplevelUpRenderCommand
@@ -182,34 +190,19 @@ namespace sl12
 
 			void LoadCommand(CommandList* pCmdlist) override
 			{
-				Texture* pPrevTexture = &pResource->currTexture_;
-				Texture* pNextTexture = &pResource->nextTexture_;
+				Texture* pTexture = &pResource->currTexture_;
 				
 				// get texture footprint.
-				auto resDesc = pNextTexture->GetResourceDesc();
+				auto resDesc = pTexture->GetResourceDesc();
+				u32 firstSubresource = resDesc.DepthOrArraySize * nextMiplevel;
 				u32 numSubresources = resDesc.DepthOrArraySize * (prevMiplevel - nextMiplevel);
 				std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprint(numSubresources);
 				std::vector<u32> numRows(numSubresources);
 				std::vector<u64> rowSize(numSubresources);
 				u64 totalSize;
-				pDevice->GetDeviceDep()->GetCopyableFootprints(&resDesc, 0, numSubresources, 0, footprint.data(), numRows.data(), rowSize.data(), &totalSize);
+				pDevice->GetDeviceDep()->GetCopyableFootprints(&resDesc, firstSubresource, numSubresources, 0, footprint.data(), numRows.data(), rowSize.data(), &totalSize);
 
-				// copy high level mips.
-				pCmdlist->TransitionBarrier(pPrevTexture, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_SOURCE);
-
-				u32 dstSubresourceIndex = numSubresources;
-				u32 numCopySubresource = resDesc.DepthOrArraySize * pPrevTexture->GetResourceDesc().MipLevels;
-				for (u32 i = 0; i < numCopySubresource; i++)
-				{
-					D3D12_TEXTURE_COPY_LOCATION src, dst;
-					src.pResource = pPrevTexture->GetResourceDep();
-					src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-					src.SubresourceIndex = i;
-					dst.pResource = pNextTexture->GetResourceDep();
-					dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-					dst.SubresourceIndex = dstSubresourceIndex++;
-					pCmdlist->GetLatestCommandList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
-				}
+				pCmdlist->TransitionBarrier(pTexture, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
 
 				// create upload buffer.
 				D3D12_HEAP_PROPERTIES heapProp = {};
@@ -279,17 +272,16 @@ namespace sl12
 					src.pResource = pSrcImage;
 					src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 					src.PlacedFootprint = footprint[i];
-					dst.pResource = pNextTexture->GetResourceDep();
+					dst.pResource = pTexture->GetResourceDep();
 					dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-					dst.SubresourceIndex = i;
+					dst.SubresourceIndex = firstSubresource + i;
 					pCmdlist->GetLatestCommandList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 				}
 				pDevice->PendingKill(new ReleaseObjectItem<ID3D12Resource>(pSrcImage));
 
-				pCmdlist->TransitionBarrier(pNextTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+				pCmdlist->TransitionBarrier(pTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 
-				// swap texture and view.
-				pResource->currTexture_ = std::move(pResource->nextTexture_);
+				// swap texture view.
 				pResource->currTextureView_ = std::move(pResource->nextTextureView_);
 			}
 		};	// struct MiplevelDownRenderCommand
@@ -298,6 +290,15 @@ namespace sl12
 	//--------
 	ResourceItemStreamingTexture::~ResourceItemStreamingTexture()
 	{
+		if (tailHeap_)
+		{
+			tailHeap_->Release();
+		}
+		for (auto handle : heapHandles_)
+		{
+			handle.Invalidate();
+		}
+
 		currTextureView_.Reset();
 		currTexture_.Reset();
 	}
@@ -307,7 +308,7 @@ namespace sl12
 	{
 		auto device = pLoader->GetDevice();
 
-		std::unique_ptr<ResourceItemStreamingTexture> ret(new ResourceItemStreamingTexture());
+		std::unique_ptr<ResourceItemStreamingTexture> ret(new ResourceItemStreamingTexture(handle));
 
 		// load file.
 		std::unique_ptr<File> texBin = std::make_unique<File>();
@@ -336,28 +337,120 @@ namespace sl12
 
 		// init texture.
 		TextureDesc desc{};
+		desc.allocation = ResourceHeapAllocation::Reserved;
 		desc.dimension = kDimension[static_cast<int>(pHeader->dimension)];
 		desc.format = pHeader->format;
-		desc.width = pSubHeader->width;
-		desc.height = pSubHeader->height;
+		desc.width = pHeader->width;
+		desc.height = pHeader->height;
 		desc.depth = pHeader->depth;
-		desc.mipLevels = pHeader->tailMipCount;
+		desc.mipLevels = pHeader->mipLevels;
 		desc.usage = ResourceUsage::ShaderResource;
 		desc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
 		if (!ret->currTexture_->Initialize(device, desc))
 		{
 			return false;
 		}
+		// get tile info.
+		{
+			UINT numTiles;
+			UINT subresourceCount = desc.mipLevels;
+			std::vector<D3D12_SUBRESOURCE_TILING> tilings(subresourceCount);
+			device->GetDeviceDep()->GetResourceTiling(ret->currTexture_->GetResourceDep(), &numTiles, &ret->packedMipInfo_, &ret->tileShape_, &subresourceCount, 0, &tilings[0]);
+			ret->standardTiles_.resize(ret->packedMipInfo_.NumStandardMips);
+			for (UINT8 i = 0; i < ret->packedMipInfo_.NumStandardMips; i++)
+			{
+				ret->standardTiles_[i] = tilings[i];
+			}
+		}
+
+		// create first heap.
+		{
+			size_t numHeaps = pHeader->topMipCount + 1;
+			ret->heapHandles_.resize(pHeader->topMipCount);
+			u32 firstHeapIndex = pHeader->topMipCount;
+			UINT tileCount = ret->packedMipInfo_.NumTilesForPackedMips;
+			for (u32 i = pHeader->topMipCount; i < (u32)ret->packedMipInfo_.NumStandardMips; i++)
+			{
+				tileCount += ret->standardTiles_[i].WidthInTiles * ret->standardTiles_[i].HeightInTiles * ret->standardTiles_[i].DepthInTiles;
+			}
+			D3D12_HEAP_DESC heapDesc = {};
+			heapDesc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+			heapDesc.SizeInBytes = tileCount * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+			heapDesc.Alignment = 0;
+			heapDesc.Flags = D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES;
+			HRESULT hr = device->GetDeviceDep()->CreateHeap(&heapDesc, IID_PPV_ARGS(&ret->tailHeap_));
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
 
 		// init texture view.
-		ret->currTextureView_->Initialize(device, &ret->currTexture_);
+		ret->currTextureView_->Initialize(device, &ret->currTexture_, pHeader->topMipCount, pHeader->tailMipCount);
+
+		// execute update tile command.
+		{
+			detail::UpdateTileQueueCommand command;
+			command.pTexture = &ret->currTexture_;
+			command.pHeap = ret->tailHeap_;
+			
+			u32 updateMip = pHeader->topMipCount;
+			UINT tileCount = 0;
+			// standard mips tile.
+			for (; updateMip < (u32)ret->packedMipInfo_.NumStandardMips; updateMip++)
+			{
+				D3D12_TILED_RESOURCE_COORDINATE coord = {};
+				coord.Subresource = updateMip;
+				command.startCoordinates.push_back(coord);
+				
+				D3D12_TILE_REGION_SIZE regionSize = {};
+				regionSize.Width = ret->standardTiles_[updateMip].WidthInTiles;
+				regionSize.Height = ret->standardTiles_[updateMip].HeightInTiles;
+				regionSize.Depth = ret->standardTiles_[updateMip].DepthInTiles;
+				regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
+				regionSize.UseBox = TRUE;
+				command.regionSizes.push_back(regionSize);
+
+				command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+				command.heapRangeStartOffsets.push_back(tileCount);
+				command.rangeTileCounts.push_back(regionSize.NumTiles);
+				command.updatedRegions++;
+
+				tileCount += regionSize.NumTiles;
+			}
+			// packed mips tile.
+			if (ret->packedMipInfo_.NumPackedMips > 0)
+			{
+				D3D12_TILED_RESOURCE_COORDINATE coord = {};
+				coord.Subresource = updateMip;
+				command.startCoordinates.push_back(coord);
+				
+				D3D12_TILE_REGION_SIZE regionSize = {};
+				regionSize.NumTiles = ret->packedMipInfo_.NumTilesForPackedMips;
+				regionSize.UseBox = FALSE;
+				command.regionSizes.push_back(regionSize);
+
+				command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+				command.heapRangeStartOffsets.push_back(tileCount);
+				command.rangeTileCounts.push_back(regionSize.NumTiles);
+				command.updatedRegions++;
+			}
+
+			command.ExecuteCommand(device);
+		}
 		
-		detail::TailMipInitRenderCommand* command = new detail::TailMipInitRenderCommand();
-		command->texBin = std::move(texBin);
-		command->pDevice = device;
-		command->pTexture = &ret->currTexture_;
-		
-		device->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
+		// load resource copy command.
+		{
+			detail::TailMipInitRenderCommand* command = new detail::TailMipInitRenderCommand();
+			command->texBin = std::move(texBin);
+			command->pDevice = device;
+			command->pTexture = &ret->currTexture_;
+			command->firstMipLevel = pHeader->topMipCount;
+			command->numMiplevels = pHeader->tailMipCount;
+			
+			device->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
+		}
+
 		return ret.release();
 	}
 
@@ -391,45 +484,102 @@ namespace sl12
 			nextMiplevel = pSTex->currMiplevel_ + 1;
 		}
 
-		// create next texture desc.
-		TextureDesc desc = pSTex->currTexture_->GetTextureDesc();
-		desc.width = pSTex->streamingHeader_.width;
-		desc.height = pSTex->streamingHeader_.height;
-		for (u32 mip = 0; mip < nextMiplevel; mip++)
-		{
-			desc.width >>= 1;
-			desc.height >>= 1;
-		}
-		desc.mipLevels = pSTex->streamingHeader_.mipLevels - nextMiplevel;
-		desc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
-
-		// init next texture.
-		UniqueHandle<Texture> nextTex = sl12::MakeUnique<Texture>(pDevice);
+		// init next texture view.
 		UniqueHandle<TextureView> nextTexView = sl12::MakeUnique<TextureView>(pDevice);
-		if (!nextTex->Initialize(pDevice, desc))
-		{
-			return false;
-		}
-		nextTexView->Initialize(pDevice, &nextTex);
+		nextTexView->Initialize(pDevice, &pSTex->currTexture_, nextMiplevel, pSTex->currTexture_->GetTextureDesc().mipLevels - nextMiplevel);
 
 		u32 prevMiplevel = pSTex->currMiplevel_;
-		pSTex->nextTexture_ = std::move(nextTex);
 		pSTex->nextTextureView_ = std::move(nextTexView);
 		pSTex->currMiplevel_ = nextMiplevel;
+
+		TextureStreamAllocator* allocator = pDevice->GetTextureStreamAllocator();
 
 		// miplevel up.
 		if (prevMiplevel < nextMiplevel)
 		{
-			detail::MiplevelUpRenderCommand* command = new detail::MiplevelUpRenderCommand();
-			command->pResource = pSTex;
-			command->prevMiplevel = prevMiplevel;
-			command->nextMiplevel = nextMiplevel;
+			// load update tile command.
+			{
+				detail::UpdateTileQueueCommand command;
+				command.pTexture = &pSTex->currTexture_;
+
+				for (u32 updateMip = prevMiplevel; updateMip < nextMiplevel; updateMip++)
+				{
+					if (!pSTex->heapHandles_[updateMip].IsValid())
+					{
+						continue;
+					}
+
+					pSTex->heapHandles_[updateMip].Invalidate();
+
+					D3D12_TILED_RESOURCE_COORDINATE coord = {};
+					coord.Subresource = updateMip;
+					command.startCoordinates.push_back(coord);
+				
+					D3D12_TILE_REGION_SIZE regionSize = {};
+					regionSize.Width = pSTex->standardTiles_[updateMip].WidthInTiles;
+					regionSize.Height = pSTex->standardTiles_[updateMip].HeightInTiles;
+					regionSize.Depth = pSTex->standardTiles_[updateMip].DepthInTiles;
+					regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
+					regionSize.UseBox = TRUE;
+					command.regionSizes.push_back(regionSize);
+
+					command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NULL);
+					command.heapRangeStartOffsets.push_back(0);
+					command.rangeTileCounts.push_back(regionSize.NumTiles);
+					command.updatedRegions++;
+				}
+
+				command.ExecuteCommand(pDevice);
+			}
+			
+			// load upword command.
+			{
+				detail::MiplevelUpRenderCommand* command = new detail::MiplevelUpRenderCommand();
+				command->pResource = pSTex;
+				command->prevMiplevel = prevMiplevel;
+				command->nextMiplevel = nextMiplevel;
 		
-			pDevice->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
+				pDevice->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
+			}
 		}
 		// miplevel down.
 		else
 		{
+			// load update tile command.
+			{
+				for (u32 updateMip = nextMiplevel; updateMip < prevMiplevel; updateMip++)
+				{
+					detail::UpdateTileQueueCommand command;
+
+					D3D12_TILED_RESOURCE_COORDINATE coord = {};
+					coord.Subresource = updateMip;
+					command.startCoordinates.push_back(coord);
+				
+					D3D12_TILE_REGION_SIZE regionSize = {};
+					regionSize.Width = pSTex->standardTiles_[updateMip].WidthInTiles;
+					regionSize.Height = pSTex->standardTiles_[updateMip].HeightInTiles;
+					regionSize.Depth = pSTex->standardTiles_[updateMip].DepthInTiles;
+					regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
+					regionSize.UseBox = TRUE;
+					command.regionSizes.push_back(regionSize);
+
+					if (!pSTex->heapHandles_[updateMip].IsValid())
+					{
+						pSTex->heapHandles_[updateMip] = allocator->Allocate(pSTex->GetHandle(), regionSize.NumTiles * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+						assert(pSTex->heapHandles_[updateMip].IsValid());
+					}
+					command.pTexture = &pSTex->currTexture_;
+					command.pHeap = pSTex->heapHandles_[updateMip].GetHeapDep();
+
+					command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+					command.heapRangeStartOffsets.push_back(pSTex->heapHandles_[updateMip].GetTileOffset());
+					command.rangeTileCounts.push_back(regionSize.NumTiles);
+					command.updatedRegions++;
+					
+					command.ExecuteCommand(pDevice);
+				}
+			}
+
 			detail::MiplevelDownRenderCommand* command = new detail::MiplevelDownRenderCommand();
 			command->pResource = pSTex;
 			command->pDevice = pDevice;

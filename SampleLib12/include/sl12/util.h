@@ -14,12 +14,22 @@
 
 namespace sl12
 {
+	// color space
 	enum class ColorSpaceType
 	{
 		Rec709,
 		Rec2020,
 	};	// enum class ColorSpaceType
 
+	// resource heap allocation.
+	enum class ResourceHeapAllocation
+	{
+		Committed,
+		Placed,
+		Reserved,
+	};	// enum class ResourceHeapAllocation
+
+	// safe release memory funcs.
 	template <typename T>
 	void SafeRelease(T& p)
 	{
@@ -50,6 +60,7 @@ namespace sl12
 		}
 	}
 
+	// print to debug console.
 	inline void ConsolePrint(const char* format, ...)
 	{
 		va_list arg;
@@ -62,6 +73,7 @@ namespace sl12
 		OutputDebugStringA(tsv);
 	}
 
+	// FNV1a hash funcs.
 	static const u32 kFnv1aPrime32 = 16777619;
 	static const u32 kFnv1aSeed32 = 0x811c9dc5;
 	static const u64 kFnv1aPrime64 = 1099511628211L;
@@ -92,6 +104,7 @@ namespace sl12
 		return hash;
 	}
 
+	// compute aligned size.
 	constexpr u32 GetAlignedSize(const u32 size, const u32 align)
 	{
 		return ((size + align - 1) / align) * align;
@@ -101,6 +114,7 @@ namespace sl12
 		return ((size + align - 1) / align) * align;
 	}
 
+	// hashed string.
 	class HashString
 	{
 	public:
@@ -142,6 +156,7 @@ namespace sl12
 		u32			hash_ = 0;
 	};	// class HashString
 
+	// hashed wstring.
 	class HashWString
 	{
 	public:
@@ -183,6 +198,7 @@ namespace sl12
 		u32				hash_ = 0;
 	};	// class HashWString
 
+	// CPU time count class.
 	class CpuTimer
 	{
 	public:
@@ -252,6 +268,7 @@ namespace sl12
 		LARGE_INTEGER			time_ = {0};
 	};	// class CpuTimer
 
+	// random.
 	class Random
 	{
 	public:
@@ -307,6 +324,7 @@ namespace sl12
 		{}
 	};	// struct BoundingSphere
 
+	// bounding box.
 	struct BoundingBox
 	{
 		DirectX::XMFLOAT3	boxMin;

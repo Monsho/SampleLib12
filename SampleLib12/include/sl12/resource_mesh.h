@@ -535,8 +535,8 @@ namespace sl12
 		}
 
 	private:
-		ResourceItemMesh()
-			: ResourceItemBase(ResourceItemMesh::kType)
+		ResourceItemMesh(ResourceHandle handle)
+			: ResourceItemBase(handle, ResourceItemMesh::kType)
 		{}
 
 	private:

@@ -21,6 +21,7 @@ namespace sl12
 	class Texture;
 	class TextureView;
 	class CopyRingBuffer;
+	class TextureStreamAllocator;
 
 	struct IRenderCommand
 	{
@@ -194,9 +195,13 @@ namespace sl12
 		{
 			return defaultSamplerDescInfo_;
 		}
-		Swapchain&		GetSwapchain()
+		Swapchain& GetSwapchain()
 		{
 			return *pSwapchain_;
+		}
+		TextureStreamAllocator* GetTextureStreamAllocator()
+		{
+			return pTextureStreamAllocator_.get();
 		}
 
 		Texture* GetDummyTexture(DummyTex::Type type)
@@ -254,6 +259,7 @@ namespace sl12
 		u32				fenceValue_{ 0 };
 		HANDLE			fenceEvent_{ nullptr };
 
+
 		std::vector<std::unique_ptr<Texture>>		dummyTextures_;
 		std::vector<std::unique_ptr<TextureView>>	dummyTextureViews_;
 
@@ -263,6 +269,7 @@ namespace sl12
 		std::list<std::unique_ptr<IRenderCommand>>	renderCommands_;
 
 		std::unique_ptr<CopyRingBuffer>				pRingBuffer_;
+		std::unique_ptr<TextureStreamAllocator>		pTextureStreamAllocator_;
 	};	// class Device
 
 }	// namespace sl12

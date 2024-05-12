@@ -39,8 +39,8 @@ namespace sl12
 		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath);
 
 	private:
-		ResourceItemTexture()
-			: ResourceItemTextureBase(kSubType)
+		ResourceItemTexture(ResourceHandle handle)
+			: ResourceItemTextureBase(handle, kSubType)
 		{}
 
 	private:

@@ -29,8 +29,8 @@ namespace sl12
 		}
 
 	protected:
-		ResourceItemTextureBase(u32 subID)
-			: ResourceItemBase(ResourceItemTextureBase::kType)
+		ResourceItemTextureBase(ResourceHandle handle, u32 subID)
+			: ResourceItemBase(handle, ResourceItemTextureBase::kType)
 			, subTypeID_(subID)
 		{}
 

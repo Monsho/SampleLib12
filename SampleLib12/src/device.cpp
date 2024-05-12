@@ -9,6 +9,8 @@
 #include <sl12/ring_buffer.h>
 #include <string>
 
+#include "sl12/texture_streamer.h"
+
 namespace sl12
 {
 	LARGE_INTEGER CpuTimer::frequency_;
@@ -334,6 +336,8 @@ namespace sl12
 
 		// create copy ring buffer.
 		pRingBuffer_ = std::make_unique<CopyRingBuffer>(this);
+		// create texture stream allocator.
+		pTextureStreamAllocator_ = std::make_unique<TextureStreamAllocator>(this);
 
 		return true;
 	}
@@ -343,6 +347,7 @@ namespace sl12
 	{
 		// before clear death list.
 		pRingBuffer_.reset();
+		pTextureStreamAllocator_.reset();
 
 		// clear death list.
 		SyncKillObjects(true);

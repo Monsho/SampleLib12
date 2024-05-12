@@ -48,7 +48,7 @@ namespace sl12
 	{
 		auto device = pLoader->GetDevice();
 
-		std::unique_ptr<ResourceItemTexture> ret(new ResourceItemTexture());
+		std::unique_ptr<ResourceItemTexture> ret(new ResourceItemTexture(handle));
 
 		// check ext.
 		// NOTE: support .png, .tga, .exr, or .hdr.

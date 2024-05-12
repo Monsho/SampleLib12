@@ -68,7 +68,7 @@ namespace sl12
 		resourceDesc_.Format = desc.format;
 		resourceDesc_.SampleDesc.Count = desc.sampleCount;
 		resourceDesc_.SampleDesc.Quality = 0;
-		resourceDesc_.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		resourceDesc_.Layout = (desc.allocation == ResourceHeapAllocation::Reserved) ? D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE : D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		resourceDesc_.Flags = isRenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
 		resourceDesc_.Flags |= isDepthStencil ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
 		resourceDesc_.Flags |= isUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
@@ -116,7 +116,21 @@ namespace sl12
 				init_state = D3D12_RESOURCE_STATE_COPY_DEST;
 		}
 
-		auto hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, flags, &resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
+		HRESULT hr = E_FAIL;
+		switch (desc.allocation)
+		{
+		case ResourceHeapAllocation::Committed:
+			hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, flags, &resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
+			break;
+		case ResourceHeapAllocation::Placed:
+			ConsolePrint("Placed resource is not yet supportted.\n");
+			break;
+		case ResourceHeapAllocation::Reserved:
+			hr = pDev->GetDeviceDep()->CreateReservedResource(&resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
+			break;
+		default:
+			break;
+		}
 		if (FAILED(hr))
 		{
 			return false;

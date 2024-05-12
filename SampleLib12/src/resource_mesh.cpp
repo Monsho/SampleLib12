@@ -59,7 +59,7 @@ namespace sl12
 			return nullptr;
 		}
 
-		std::unique_ptr<ResourceItemMesh> ret(new ResourceItemMesh());
+		std::unique_ptr<ResourceItemMesh> ret(new ResourceItemMesh(handle));
 
 		// set bounding sphere.
 		ret->boundingInfo_.sphere.center.x = mesh_bin.GetBoundingSphere().centerX;

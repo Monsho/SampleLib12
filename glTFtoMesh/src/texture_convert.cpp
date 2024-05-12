@@ -10,6 +10,8 @@
 #include "mesh_work.h"
 
 #define STB_IMAGE_IMPLEMENTATION
+#include <d3d12.h>
+
 #include "stb_image.h"
 #include "sl12/streaming_texture_format.h"
 
@@ -205,6 +207,21 @@ bool ConvertToSTEX(TextureWork* pTex, const std::string& outputFilePath, bool is
 	{
 		return false;
 	}
+
+	// recalcurate tail mips.
+	UINT64 totalSize = 0;
+	size_t newTailMipRes = 0;
+	for (size_t i = 0; i < image->GetMetadata().mipLevels; i++)
+	{
+		auto sub_image = image->GetImage(image->GetMetadata().mipLevels - 1 - i, 0, 0);
+		totalSize += sub_image->slicePitch;
+		if (totalSize >= D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES)
+		{
+			break;
+		}
+		newTailMipRes = std::max(sub_image->width, sub_image->height);
+	}
+	tailMipRes = std::max(tailMipRes, newTailMipRes);
 
 	// create STEX file header.
 	sl12::StreamingTextureHeader fileHeader{};

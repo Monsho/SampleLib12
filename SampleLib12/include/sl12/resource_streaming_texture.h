@@ -7,6 +7,7 @@
 #include "sl12/streaming_texture_format.h"
 #include "sl12/texture.h"
 #include "sl12/texture_view.h"
+#include "sl12/texture_streamer.h"
 
 
 namespace sl12
@@ -59,8 +60,8 @@ namespace sl12
 		static bool ChangeMiplevel(Device* pDevice, ResourceItemStreamingTexture* pSTex, u32 nextWidth);
 
 	private:
-		ResourceItemStreamingTexture()
-			: ResourceItemTextureBase(kSubType)
+		ResourceItemStreamingTexture(ResourceHandle handle)
+			: ResourceItemTextureBase(handle, kSubType)
 		{}
 
 		u32 CalcMipLevel(u32 nextWidth);
@@ -70,6 +71,12 @@ namespace sl12
 		UniqueHandle<Texture>		currTexture_;
 		UniqueHandle<TextureView>	currTextureView_;
 		u32							currMiplevel_;
+
+		D3D12_PACKED_MIP_INFO		packedMipInfo_;
+		D3D12_TILE_SHAPE			tileShape_;
+		std::vector<D3D12_SUBRESOURCE_TILING>	standardTiles_;
+		ID3D12Heap*					tailHeap_ = nullptr;
+		std::vector<TextureStreamHeapHandle>	heapHandles_;
 
 		UniqueHandle<Texture>		nextTexture_;
 		UniqueHandle<TextureView>	nextTextureView_;

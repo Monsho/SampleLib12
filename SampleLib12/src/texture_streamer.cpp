@@ -6,6 +6,36 @@
 namespace sl12
 {
 	//--------
+	ID3D12Heap* TextureStreamHeapHandle::GetHeapDep()
+	{
+		assert(pParentAllocator_ != nullptr);
+		assert(pParentHeap_ != nullptr);
+		return pParentHeap_->GetHeapDep();
+	}
+
+	//--------
+	u32 TextureStreamHeapHandle::GetTileOffset()
+	{
+		assert(pParentAllocator_ != nullptr);
+		assert(pParentHeap_ != nullptr);
+		u64 byteSize = pParentHeap_->GetAllocateSize() * heapAllocIndex_;
+		return (u32)(byteSize / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+	}
+
+	//--------
+	void TextureStreamHeapHandle::Invalidate()
+	{
+		if (IsValid())
+		{
+			pParentAllocator_->Free(*this);
+			pParentAllocator_ = nullptr;
+			pParentHeap_ = nullptr;
+			heapAllocIndex_ = kStreamHeapNoneIndex;
+		}
+	}
+
+	
+	//--------
 	bool StreamTextureSetHandle::IsValid() const
 	{
 		if (!pParentStreamer_)
@@ -22,6 +52,127 @@ namespace sl12
 		if (!pParentStreamer_)
 			return nullptr;
 		return pParentStreamer_->GetTextureSetFromID(id_);
+	}
+
+
+	//--------
+	TextureStreamHeap::~TextureStreamHeap()
+	{
+		assert(resourcesInUse_.size() == unusedCount_);
+		if (pNativeHeap_)
+		{
+			pParentDevice_->PendingKill(new ReleaseObjectItem<ID3D12Heap>(pNativeHeap_));
+			pNativeHeap_ = nullptr;
+		}
+	}
+
+	//--------
+	bool TextureStreamHeap::Initialize(Device* pDevice, u32 maxSize, u32 allocSize)
+	{
+		D3D12_HEAP_DESC desc{};
+		desc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+		desc.SizeInBytes = maxSize;
+		desc.Alignment = 0;
+		desc.Flags = D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES;
+		HRESULT hr = pDevice->GetDeviceDep()->CreateHeap(&desc, IID_PPV_ARGS(&pNativeHeap_));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		pParentDevice_ = pDevice;
+		allocateSize_ = allocSize;
+		unusedCount_ = maxSize / allocSize;
+		resourcesInUse_.resize(unusedCount_);
+		memset(resourcesInUse_.data(), 0, sizeof(resourcesInUse_[0]) * unusedCount_);
+		return true;
+	}
+
+	//--------
+	u32 TextureStreamHeap::Allocate(ResourceHandle target)
+	{
+		assert(unusedCount_ > 0);
+		for (size_t i = 0; i < resourcesInUse_.size(); i++)
+		{
+			if (!resourcesInUse_[i].IsValid())
+			{
+				resourcesInUse_[i] = target;
+				unusedCount_--;
+				return (u32)i;
+			}
+		}
+		return kStreamHeapNoneIndex;
+	}
+	
+	//--------
+	void TextureStreamHeap::Free(u32 Index)
+	{
+		unusedCount_++;
+		resourcesInUse_[Index] = ResourceHandle();
+	}
+
+
+	//--------
+	TextureStreamAllocator::~TextureStreamAllocator()
+	{
+		for (auto&& heaps : heapMap_)
+		{
+			for (auto heap : heaps.second)
+			{
+				pParentDevice_->KillObject(heap);
+			}
+		}
+	}
+	
+	//--------
+	TextureStreamHeapHandle TextureStreamAllocator::Allocate(ResourceHandle target, u32 size)
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+
+		if (heapMap_.find(size) == heapMap_.end())
+		{
+			heapMap_[size] = HeapArray();
+		}
+
+		// find or create heap.
+		HeapArray& harray = heapMap_[size];
+		TextureStreamHeap* heap = nullptr;
+		for (auto h : harray)
+		{
+			if (h->GetUnusedCount() > 0)
+			{
+				heap = h;
+				break;
+			}
+		}
+		if (!heap)
+		{
+			heap = new TextureStreamHeap();
+			u32 maxSize = (size <= kStreamHeapSizeMax) ? kStreamHeapSizeMax : size;
+			if (!heap->Initialize(pParentDevice_, maxSize, size))
+			{
+				delete heap;
+				return TextureStreamHeapHandle();
+			}
+			harray.push_back(heap);
+		}
+
+		// allocate.
+		u32 index = heap->Allocate(target);
+		if (index == kStreamHeapNoneIndex)
+		{
+			return TextureStreamHeapHandle();
+		}
+		return TextureStreamHeapHandle(this, heap, index);
+	}
+	
+	//--------
+	void TextureStreamAllocator::Free(TextureStreamHeapHandle handle)
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+
+		assert(handle.pParentAllocator_ == this);
+		handle.pParentHeap_->Free(handle.heapAllocIndex_);
 	}
 
 	
@@ -168,7 +319,15 @@ namespace sl12
 
 		{
 			std::lock_guard<std::mutex> lock(listMutex_);
-			requestList_.push_back(item);
+			auto it = std::find_if(requestList_.begin(), requestList_.end(), [handle](const RequestItem& rhs){ return rhs.handle == handle; });
+			if (it == requestList_.end())
+			{
+				requestList_.push_back(item);
+			}
+			else if (it->targetWidth > targetWidth)
+			{
+				it->targetWidth = targetWidth;
+			}
 		}
 
 		std::lock_guard<std::mutex> lock(requestMutex_);

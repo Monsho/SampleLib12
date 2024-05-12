@@ -304,6 +304,34 @@ namespace sl12
 	}
 
 	//--------
+	u32 ResourceItemStreamingTexture::GetMipLevelFromMemSize(u32 memSize) const
+	{
+		u32 tileCount = memSize / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+		u32 mipCount = (u32)standardTiles_.size();
+		for (u32 i = 0; i < mipCount; i++)
+		{
+			u32 t = standardTiles_[i].WidthInTiles * standardTiles_[i].HeightInTiles * standardTiles_[i].DepthInTiles;
+			if (tileCount == t)
+			{
+				return i;
+			}
+		}
+		return 0;
+	}
+
+	//--------
+	void ResourceItemStreamingTexture::GetCurrentSize(u32& width, u32& height) const
+	{
+		width = currTexture_->GetTextureDesc().width;
+		height = currTexture_->GetTextureDesc().height;
+		for (u32 i = 0; i < currMiplevel_; i++)
+		{
+			width >>= 1;
+			height >>= 1;
+		}
+	}
+
+	//--------
 	ResourceItemBase* ResourceItemStreamingTexture::LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath)
 	{
 		auto device = pLoader->GetDevice();

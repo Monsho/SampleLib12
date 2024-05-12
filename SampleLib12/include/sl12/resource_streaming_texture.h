@@ -55,6 +55,9 @@ namespace sl12
 			return currMiplevel_;
 		}
 
+		u32 GetMipLevelFromMemSize(u32 memSize) const;
+		void GetCurrentSize(u32& width, u32& height) const;
+
 
 		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath);
 		static bool ChangeMiplevel(Device* pDevice, ResourceItemStreamingTexture* pSTex, u32 nextWidth);

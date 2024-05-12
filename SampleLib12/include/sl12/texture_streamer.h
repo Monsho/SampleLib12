@@ -123,6 +123,14 @@ namespace sl12
 		{
 			return unusedCount_;
 		}
+		u32 GetHeapSize() const
+		{
+			return allocateSize_ * (u32)resourcesInUse_.size();
+		}
+		bool IsAllocated() const
+		{
+			return unusedCount_ < (u32)resourcesInUse_.size();
+		}
 		std::vector<ResourceHandle>& GetResourcesInUse()
 		{
 			return resourcesInUse_;
@@ -152,6 +160,10 @@ namespace sl12
 		TextureStreamHeapHandle Allocate(ResourceHandle target, u32 size);
 		void Free(TextureStreamHeapHandle handle);
 
+		u64 GetAllHeapSize() const;
+
+		void GabageCollect();
+
 	private:
 		Device*			pParentDevice_ = nullptr;
 		std::map<u32, HeapArray>	heapMap_;
@@ -175,9 +187,11 @@ namespace sl12
 		StreamTextureSetHandle RegisterTextureSet(const std::vector<ResourceHandle>& textures);
 		void RequestStreaming(StreamTextureSetHandle handle, u32 targetWidth);
 
+		u32 GetCurrentMaxWidth(StreamTextureSetHandle handle) const;
+
 	private:
 		bool ThreadBody();
-		const StreamTextureSet* GetTextureSetFromID(u64 id);
+		const StreamTextureSet* GetTextureSetFromID(u64 id) const;
 		
 	private:
 		struct RequestItem

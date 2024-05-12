@@ -148,7 +148,7 @@ namespace sl12
 		if (!heap)
 		{
 			heap = new TextureStreamHeap();
-			u32 maxSize = (size <= kStreamHeapSizeMax) ? kStreamHeapSizeMax : size;
+			u32 maxSize = std::max(size, kStreamHeapSizeMax);
 			if (!heap->Initialize(pParentDevice_, maxSize, size))
 			{
 				delete heap;
@@ -173,6 +173,44 @@ namespace sl12
 
 		assert(handle.pParentAllocator_ == this);
 		handle.pParentHeap_->Free(handle.heapAllocIndex_);
+	}
+
+	//--------
+	u64 TextureStreamAllocator::GetAllHeapSize() const
+	{
+		u64 ret = 0;
+		for (auto&& heaps : heapMap_)
+		{
+			for (auto&& heap : heaps.second)
+			{
+				ret += (u64)heap->GetHeapSize();
+			}
+		}
+		return ret;
+	}
+
+	//--------
+	void TextureStreamAllocator::GabageCollect()
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+
+		for (auto&& heaps : heapMap_)
+		{
+			auto it = heaps.second.begin();
+			while (it != heaps.second.end())
+			{
+				if (!(*it)->IsAllocated())
+				{
+					auto p = (*it);
+					it = heaps.second.erase(it);
+					pParentDevice_->KillObject(p);
+				}
+				else
+				{
+					it++;
+				}
+			}
+		}
 	}
 
 	
@@ -295,7 +333,7 @@ namespace sl12
 	}
 	
 	//--------
-	const StreamTextureSet* TextureStreamer::GetTextureSetFromID(u64 id)
+	const StreamTextureSet* TextureStreamer::GetTextureSetFromID(u64 id) const
 	{
 		auto it = texSetMap_.find(id);
 		if (it == texSetMap_.end())
@@ -333,6 +371,26 @@ namespace sl12
 		std::lock_guard<std::mutex> lock(requestMutex_);
 		requestCV_.notify_one();
 	}
+
+	//--------
+	u32 TextureStreamer::GetCurrentMaxWidth(StreamTextureSetHandle handle) const
+	{
+		auto set = GetTextureSetFromID(handle.id_);
+		if (set)
+		{
+			u32 width = 0;
+			for (auto han : set->handles)
+			{
+				const ResourceItemStreamingTexture* tex = han.GetItem<ResourceItemStreamingTexture>();
+				u32 w, h;
+				tex->GetCurrentSize(w, h);
+				width = std::max(width, w);
+			}
+			return width;
+		}
+		return 0;
+	}
+
 
 } // namespace sl12
 

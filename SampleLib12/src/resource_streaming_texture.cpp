@@ -512,13 +512,7 @@ namespace sl12
 			nextMiplevel = pSTex->currMiplevel_ + 1;
 		}
 
-		// init next texture view.
-		UniqueHandle<TextureView> nextTexView = sl12::MakeUnique<TextureView>(pDevice);
-		nextTexView->Initialize(pDevice, &pSTex->currTexture_, nextMiplevel, pSTex->currTexture_->GetTextureDesc().mipLevels - nextMiplevel);
-
 		u32 prevMiplevel = pSTex->currMiplevel_;
-		pSTex->nextTextureView_ = std::move(nextTexView);
-		pSTex->currMiplevel_ = nextMiplevel;
 
 		TextureStreamAllocator* allocator = pDevice->GetTextureStreamAllocator();
 
@@ -573,67 +567,84 @@ namespace sl12
 		// miplevel down.
 		else
 		{
-			// load update tile command.
+			// allocate memory and update tile.
+			u32 updateMiplevel = prevMiplevel - 1;
+			u32 numUpdateMips = prevMiplevel - nextMiplevel;
+			for (u32 i = 0; i < numUpdateMips; i++, updateMiplevel--)
 			{
-				for (u32 updateMip = nextMiplevel; updateMip < prevMiplevel; updateMip++)
+				detail::UpdateTileQueueCommand command;
+
+				D3D12_TILED_RESOURCE_COORDINATE coord = {};
+				coord.Subresource = updateMiplevel;
+				command.startCoordinates.push_back(coord);
+			
+				D3D12_TILE_REGION_SIZE regionSize = {};
+				regionSize.Width = pSTex->standardTiles_[updateMiplevel].WidthInTiles;
+				regionSize.Height = pSTex->standardTiles_[updateMiplevel].HeightInTiles;
+				regionSize.Depth = pSTex->standardTiles_[updateMiplevel].DepthInTiles;
+				regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
+				regionSize.UseBox = TRUE;
+				command.regionSizes.push_back(regionSize);
+
+				if (!pSTex->heapHandles_[updateMiplevel].IsValid())
 				{
-					detail::UpdateTileQueueCommand command;
-
-					D3D12_TILED_RESOURCE_COORDINATE coord = {};
-					coord.Subresource = updateMip;
-					command.startCoordinates.push_back(coord);
-				
-					D3D12_TILE_REGION_SIZE regionSize = {};
-					regionSize.Width = pSTex->standardTiles_[updateMip].WidthInTiles;
-					regionSize.Height = pSTex->standardTiles_[updateMip].HeightInTiles;
-					regionSize.Depth = pSTex->standardTiles_[updateMip].DepthInTiles;
-					regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
-					regionSize.UseBox = TRUE;
-					command.regionSizes.push_back(regionSize);
-
-					if (!pSTex->heapHandles_[updateMip].IsValid())
+					auto heapHandle = allocator->Allocate(pSTex->GetHandle(), regionSize.NumTiles * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+					if (!heapHandle.IsValid())
 					{
-						pSTex->heapHandles_[updateMip] = allocator->Allocate(pSTex->GetHandle(), regionSize.NumTiles * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
-						assert(pSTex->heapHandles_[updateMip].IsValid());
+						numUpdateMips = i;
+						nextMiplevel = prevMiplevel - i;
+						break;
 					}
-					command.pTexture = &pSTex->currTexture_;
-					command.pHeap = pSTex->heapHandles_[updateMip].GetHeapDep();
-
-					command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
-					command.heapRangeStartOffsets.push_back(pSTex->heapHandles_[updateMip].GetTileOffset());
-					command.rangeTileCounts.push_back(regionSize.NumTiles);
-					command.updatedRegions++;
-					
-					command.ExecuteCommand(pDevice);
+					pSTex->heapHandles_[updateMiplevel] = heapHandle;
 				}
+				command.pTexture = &pSTex->currTexture_;
+				command.pHeap = pSTex->heapHandles_[updateMiplevel].GetHeapDep();
+
+				command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+				command.heapRangeStartOffsets.push_back(pSTex->heapHandles_[updateMiplevel].GetTileOffset());
+				command.rangeTileCounts.push_back(regionSize.NumTiles);
+				command.updatedRegions++;
+				
+				command.ExecuteCommand(pDevice);
 			}
 
-			detail::MiplevelDownRenderCommand* command = new detail::MiplevelDownRenderCommand();
-			command->pResource = pSTex;
-			command->pDevice = pDevice;
-			command->texBins.resize(prevMiplevel - nextMiplevel);
-			command->prevMiplevel = prevMiplevel;
-			command->nextMiplevel = nextMiplevel;
-			auto cmd = std::unique_ptr<IRenderCommand>(command);
-
-			// file read.
-			for (u32 i = 0; i < command->texBins.size(); i++)
+			// load miplevel down command.
+			if (numUpdateMips > 0)
 			{
-				auto file = std::make_unique<File>();
-				u32 index = nextMiplevel + i;
-				std::string index_str = std::to_string(index);
-				index_str = std::string(std::max(0, 2 - (int)index_str.size()), '0') + index_str;
-				std::string filepath = pSTex->fullPath_ + index_str;
-				if (!file->ReadFile(filepath.c_str()))
-				{
-					return false;
-				}
+				detail::MiplevelDownRenderCommand* command = new detail::MiplevelDownRenderCommand();
+				command->pResource = pSTex;
+				command->pDevice = pDevice;
+				command->texBins.resize(prevMiplevel - nextMiplevel);
+				command->prevMiplevel = prevMiplevel;
+				command->nextMiplevel = nextMiplevel;
+				auto cmd = std::unique_ptr<IRenderCommand>(command);
 
-				command->texBins[i] = std::move(file);
-			}
+				// file read.
+				for (u32 i = 0; i < command->texBins.size(); i++)
+				{
+					auto file = std::make_unique<File>();
+					u32 index = nextMiplevel + i;
+					std::string index_str = std::to_string(index);
+					index_str = std::string(std::max(0, 2 - (int)index_str.size()), '0') + index_str;
+					std::string filepath = pSTex->fullPath_ + index_str;
+					if (!file->ReadFile(filepath.c_str()))
+					{
+						return false;
+					}
+
+					command->texBins[i] = std::move(file);
+				}
 		
-			pDevice->AddRenderCommand(cmd);
+				pDevice->AddRenderCommand(cmd);
+			}
 		}
+
+		// init next texture view.
+		UniqueHandle<TextureView> nextTexView = sl12::MakeUnique<TextureView>(pDevice);
+		nextTexView->Initialize(pDevice, &pSTex->currTexture_, nextMiplevel, pSTex->currTexture_->GetTextureDesc().mipLevels - nextMiplevel);
+
+		pSTex->nextTextureView_ = std::move(nextTexView);
+		pSTex->currMiplevel_ = nextMiplevel;
 
 		return true;
 	}

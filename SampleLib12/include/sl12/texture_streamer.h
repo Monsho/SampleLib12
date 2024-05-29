@@ -54,47 +54,6 @@ namespace sl12
 	};	// class TextureStreamHeapHandle
 	
 	//--------
-	class StreamTextureSet
-	{
-		friend class TextureStreamer;
-		friend class StreamTextureSetHandle;
-		
-	private:
-		std::vector<ResourceHandle>	handles;
-	};	// class StreamTextureSet
-	
-	//--------
-	class StreamTextureSetHandle
-	{
-		friend class TextureStreamer;
-
-	public:
-		StreamTextureSetHandle()
-		{}
-		StreamTextureSetHandle(const StreamTextureSetHandle& rhs)
-			: pParentStreamer_(rhs.pParentStreamer_), id_(rhs.id_)
-		{}
-		
-		bool IsValid() const;
-
-		bool operator==(const StreamTextureSetHandle& rhs) const
-		{
-			return id_ == rhs.id_;
-		}
-
-	private:
-		const StreamTextureSet* GetTextureSet() const;
-
-	private:
-		StreamTextureSetHandle(TextureStreamer* streamer, u64 id)
-			: pParentStreamer_(streamer), id_(id)
-		{}
-
-		TextureStreamer*	pParentStreamer_ = nullptr;
-		u64					id_ = 0;
-	};	// class StreamTextureSetHandle
-	
-	//--------
 	class TextureStreamHeap
 	{
 		friend class TextureStreamAllocator;
@@ -154,20 +113,28 @@ namespace sl12
 	public:
 		TextureStreamAllocator(Device* pDev)
 			: pParentDevice_(pDev)
+			, poolLimitSize_(0)
+			, currentHeapSize_(0)
 		{}
 		~TextureStreamAllocator();
 		
 		TextureStreamHeapHandle Allocate(ResourceHandle target, u32 size);
 		void Free(TextureStreamHeapHandle handle);
 
-		u64 GetAllHeapSize() const;
+		u64 GetCurrentHeapSize() const
+		{
+			return currentHeapSize_;
+		}
 
-		void GabageCollect();
+		void GabageCollect(class TextureStreamer* pStreamer);
+		void SetPoolLimitSize(u64 size);
 
 	private:
-		Device*			pParentDevice_ = nullptr;
+		Device*						pParentDevice_ = nullptr;
 		std::map<u32, HeapArray>	heapMap_;
 		std::mutex					mutex_;
+		u64							poolLimitSize_;
+		u64							currentHeapSize_;
 	};	// class TextureStreamAllocator
 
 	//--------
@@ -184,26 +151,22 @@ namespace sl12
 		bool Initialize(Device* pDevice);
 		void Destroy();
 
-		StreamTextureSetHandle RegisterTextureSet(const std::vector<ResourceHandle>& textures);
-		void RequestStreaming(StreamTextureSetHandle handle, u32 targetWidth);
+		void RequestStreaming(ResourceHandle handle, u32 targetWidth);
 
-		u32 GetCurrentMaxWidth(StreamTextureSetHandle handle) const;
+		u32 GetCurrentMaxWidth(ResourceHandle handle) const;
 
 	private:
 		bool ThreadBody();
-		const StreamTextureSet* GetTextureSetFromID(u64 id) const;
 		
 	private:
 		struct RequestItem
 		{
-			StreamTextureSetHandle	handle;
-			u32						targetWidth;
+			ResourceHandle	handle;
+			u32				targetWidth;
 		};	// struct RequestItem
 
 		Device*				pDevice_ = nullptr;
 		std::atomic<u64>	handleID_ = 0;
-
-		std::map<u64, std::unique_ptr<StreamTextureSet>>	texSetMap_;
 
 		std::mutex				requestMutex_;
 		std::mutex				listMutex_;

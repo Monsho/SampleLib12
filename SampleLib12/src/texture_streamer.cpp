@@ -36,26 +36,6 @@ namespace sl12
 
 	
 	//--------
-	bool StreamTextureSetHandle::IsValid() const
-	{
-		if (!pParentStreamer_)
-			return false;
-		auto pTexSet = pParentStreamer_->GetTextureSetFromID(id_);
-		if (!pTexSet)
-			return false;
-		return true;
-	}
-
-	//--------
-	const StreamTextureSet* StreamTextureSetHandle::GetTextureSet() const
-	{
-		if (!pParentStreamer_)
-			return nullptr;
-		return pParentStreamer_->GetTextureSetFromID(id_);
-	}
-
-
-	//--------
 	TextureStreamHeap::~TextureStreamHeap()
 	{
 		assert(resourcesInUse_.size() == unusedCount_);
@@ -145,15 +125,25 @@ namespace sl12
 				break;
 			}
 		}
+		// if not found an empty heap, create new heap.
 		if (!heap)
 		{
+			// when limit size set, check current heap size.
+			if (poolLimitSize_ > 0 && currentHeapSize_ >= poolLimitSize_)
+			{
+				return TextureStreamHeapHandle();
+			}
+
+			// create new heap.
 			heap = new TextureStreamHeap();
 			u32 maxSize = std::max(size, kStreamHeapSizeMax);
 			if (!heap->Initialize(pParentDevice_, maxSize, size))
 			{
+				// failed initialize, delete heap.
 				delete heap;
 				return TextureStreamHeapHandle();
 			}
+			currentHeapSize_ += heap->GetHeapSize();
 			harray.push_back(heap);
 		}
 
@@ -176,21 +166,7 @@ namespace sl12
 	}
 
 	//--------
-	u64 TextureStreamAllocator::GetAllHeapSize() const
-	{
-		u64 ret = 0;
-		for (auto&& heaps : heapMap_)
-		{
-			for (auto&& heap : heaps.second)
-			{
-				ret += (u64)heap->GetHeapSize();
-			}
-		}
-		return ret;
-	}
-
-	//--------
-	void TextureStreamAllocator::GabageCollect()
+	void TextureStreamAllocator::GabageCollect(TextureStreamer* pStreamer)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 
@@ -203,6 +179,7 @@ namespace sl12
 				{
 					auto p = (*it);
 					it = heaps.second.erase(it);
+					currentHeapSize_ -= p->GetHeapSize();
 					pParentDevice_->KillObject(p);
 				}
 				else
@@ -211,6 +188,42 @@ namespace sl12
 				}
 			}
 		}
+
+		if (pStreamer && (poolLimitSize_ > 0) && (currentHeapSize_ > poolLimitSize_))
+		{
+			// get largest size HeapArray.
+			HeapArray* pTargetArray = nullptr;
+			u32 maxSize = 0;
+			for (auto&& heaps : heapMap_)
+			{
+				if (maxSize < heaps.first && !heaps.second.empty())
+				{
+					maxSize = heaps.first;
+					pTargetArray = &heaps.second;
+				}
+			}
+
+			// request that resources in one heap upward miplevel. 
+			if (pTargetArray)
+			{
+				auto heap = (*pTargetArray)[0];
+				for (auto handle : heap->resourcesInUse_)
+				{
+					if (!handle.IsValid())
+					{
+						continue;
+					}
+					
+					pStreamer->RequestStreaming(handle, pStreamer->GetCurrentMaxWidth(handle) / 2);
+				}
+			}
+		}
+	}
+
+	//--------
+	void TextureStreamAllocator::SetPoolLimitSize(u64 size)
+	{
+		poolLimitSize_ = size;
 	}
 
 	
@@ -227,7 +240,6 @@ namespace sl12
 
 		pDevice_ = pDevice;
 		handleID_ = 0;
-		texSetMap_.clear();
 
 		// create thread.
 		std::thread th([&]
@@ -269,12 +281,9 @@ namespace sl12
 
 		for (auto&& item : items)
 		{
-			auto texSet = item.handle.GetTextureSet();
-			for (auto handle : texSet->handles)
-			{
-				auto resSTex = const_cast<ResourceItemStreamingTexture*>(handle.GetItem<ResourceItemStreamingTexture>());
-				ResourceItemStreamingTexture::ChangeMiplevel(pDevice_, resSTex, item.targetWidth);
-			}
+			auto handle = item.handle;
+			auto resSTex = const_cast<ResourceItemStreamingTexture*>(handle.GetItem<ResourceItemStreamingTexture>());
+			ResourceItemStreamingTexture::ChangeMiplevel(pDevice_, resSTex, item.targetWidth);
 
 			if (!isAlive_)
 			{
@@ -297,54 +306,10 @@ namespace sl12
 			loadingThread_.join();
 
 		requestList_.clear();
-		texSetMap_.clear();
 	}
 
 	//--------
-	StreamTextureSetHandle TextureStreamer::RegisterTextureSet(const std::vector<ResourceHandle>& textures)
-	{
-		auto pNewSet = std::make_unique<StreamTextureSet>();
-		for (auto&& tex : textures)
-		{
-			auto base = tex.GetItem<ResourceItemTextureBase>();
-			if (base && base->IsSameSubType(ResourceItemStreamingTexture::kSubType))
-			{
-				pNewSet->handles.push_back(tex);
-			}
-		}
-		if (pNewSet->handles.empty())
-		{
-			return StreamTextureSetHandle();
-		}
-		
-		u64 id;
-		{
-			std::lock_guard<std::mutex> lock(listMutex_);
-			auto it = texSetMap_.begin();
-			do
-			{
-				id = handleID_.fetch_add(1);
-				it = texSetMap_.find(id);
-			} while (it != texSetMap_.end());
-			texSetMap_[id] = std::move(pNewSet);
-		}
-
-		return StreamTextureSetHandle(this, id);
-	}
-	
-	//--------
-	const StreamTextureSet* TextureStreamer::GetTextureSetFromID(u64 id) const
-	{
-		auto it = texSetMap_.find(id);
-		if (it == texSetMap_.end())
-		{
-			return nullptr;
-		}
-		return it->second.get();
-	}
-
-	//--------
-	void TextureStreamer::RequestStreaming(StreamTextureSetHandle handle, u32 targetWidth)
+	void TextureStreamer::RequestStreaming(ResourceHandle handle, u32 targetWidth)
 	{
 		if (!handle.IsValid())
 		{
@@ -373,20 +338,21 @@ namespace sl12
 	}
 
 	//--------
-	u32 TextureStreamer::GetCurrentMaxWidth(StreamTextureSetHandle handle) const
+	u32 TextureStreamer::GetCurrentMaxWidth(ResourceHandle handle) const
 	{
-		auto set = GetTextureSetFromID(handle.id_);
-		if (set)
+		if (!handle.IsValid())
 		{
-			u32 width = 0;
-			for (auto han : set->handles)
+			return 0;
+		}
+		if (handle.GetItemBase()->GetTypeID() == ResourceItemTextureBase::kType)
+		{
+			if (handle.GetItem<ResourceItemTextureBase>()->IsSameSubType(ResourceItemStreamingTexture::kSubType))
 			{
-				const ResourceItemStreamingTexture* tex = han.GetItem<ResourceItemStreamingTexture>();
+				const ResourceItemStreamingTexture* tex = handle.GetItem<ResourceItemStreamingTexture>();
 				u32 w, h;
 				tex->GetCurrentSize(w, h);
-				width = std::max(width, w);
+				return w;
 			}
-			return width;
 		}
 		return 0;
 	}

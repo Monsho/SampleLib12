@@ -211,15 +211,15 @@ bool SampleApplication::Initialize()
 	}
 	{
 		auto resMesh = const_cast<sl12::ResourceItemMesh*>(hResMesh_.GetItem<sl12::ResourceItemMesh>());
+		workMaterials_.reserve(resMesh->GetMaterials().size());
 		for (auto&& mat : resMesh->GetMaterials())
 		{
-			std::vector<sl12::ResourceHandle> texsets;
-			texsets.push_back(mat.baseColorTex);
-			texsets.push_back(mat.normalTex);
-			texsets.push_back(mat.ormTex);
-			auto handle = texStreamer_->RegisterTextureSet(texsets);
-			if (handle.IsValid())
-				streamingTexSets_.push_back(handle);
+			WorkMaterial work;
+			work.pResMaterial = &mat;
+			work.texHandles.push_back(mat.baseColorTex);
+			work.texHandles.push_back(mat.normalTex);
+			work.texHandles.push_back(mat.ormTex);
+			workMaterials_.push_back(work);
 		}
 	}
 	
@@ -429,9 +429,12 @@ bool SampleApplication::Execute()
 	// texture streaming request.
 	if (bStream)
 	{
-		for (auto&& handle : streamingTexSets_)
+		for (auto&& work : workMaterials_)
 		{
-			texStreamer_->RequestStreaming(handle, texTargetWidth);
+			for (auto&& handle : work.texHandles)
+			{
+				texStreamer_->RequestStreaming(handle, texTargetWidth);
+			}
 		}
 	}
 	

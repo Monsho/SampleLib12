@@ -9,13 +9,43 @@
 #include "sl12/cbv_manager.h"
 #include "sl12/render_graph.h"
 #include "sl12/texture_streamer.h"
+#include "sl12/resource_mesh.h"
+#include "sl12/resource_streaming_texture.h"
 
 
 class SampleApplication
 	: public sl12::Application
 {
 	template <typename T> using UniqueHandle = sl12::UniqueHandle<T>;
-	
+
+	struct WorkMaterial
+	{
+		const sl12::ResourceItemMesh::Material*	pResMaterial;
+		std::vector<sl12::ResourceHandle>		texHandles;
+
+		bool operator==(const WorkMaterial& rhs) const
+		{
+			return pResMaterial == rhs.pResMaterial;
+		}
+		bool operator!=(const WorkMaterial& rhs) const
+		{
+			return !operator==(rhs);
+		}
+
+		sl12::u32 GetCurrentMiplevel() const
+		{
+			if (!texHandles.empty())
+			{
+				auto sTex = texHandles[0].GetItem<sl12::ResourceItemStreamingTexture>();
+				if (sTex)
+				{
+					return sTex->GetCurrMipLevel();
+				}
+			}
+			return 0;
+		}
+	};	// struct WorkMaterial
+
 public:
 	SampleApplication(HINSTANCE hInstance, int nCmdShow, int screenWidth, int screenHeight, sl12::ColorSpaceType csType, const std::string& homeDir);
 	virtual ~SampleApplication();
@@ -118,8 +148,8 @@ private:
 	sl12::ShaderHandle		hFullscreenVV_;
 	sl12::ShaderHandle		hTonemapP_;
 
-	std::vector<sl12::StreamTextureSetHandle>	streamingTexSets_;
-
+	std::vector<WorkMaterial>	workMaterials_;
+	
 	int	displayWidth_, displayHeight_;
 };	// class SampleApplication
 

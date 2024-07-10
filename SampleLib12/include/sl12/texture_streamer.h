@@ -141,7 +141,6 @@ namespace sl12
 	class TextureStreamer
 	{
 		friend class ResourceItemStreamingTexture;
-		friend class StreamTextureSetHandle;
 		
 	public:
 		TextureStreamer()

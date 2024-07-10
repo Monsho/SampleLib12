@@ -66,7 +66,8 @@ namespace sl12
 
 		// set volume descriptor.
 		rtxgi::DDGIVolumeDesc ddgiDesc;
-		ddgiDesc.name = descs->name;
+		name_ = descs->name;
+		ddgiDesc.name = const_cast<char*>(name_.c_str());
 		ddgiDesc.index = 0;
 		ddgiDesc.rngSeed = 0;
 		ddgiDesc.origin = { descs->origin.x, descs->origin.y, descs->origin.z };
@@ -86,7 +87,7 @@ namespace sl12
 		ddgiDesc.probeRayDataFormat = 1;
 		ddgiDesc.probeIrradianceFormat = 0;
 		ddgiDesc.probeDistanceFormat = 0;
-		ddgiDesc.probeDataFormat = 0;
+		ddgiDesc.probeDataFormat = 0;;
 
 		ddgiDesc.probeRelocationEnabled = descs->enableRelocation;
 		ddgiDesc.probeMinFrontfaceDistance = 0.1f;

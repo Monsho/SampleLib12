@@ -141,9 +141,9 @@
     <ClCompile Include="..\ThirdParty\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\ThirdParty\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\ThirdParty\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\ddgi\DDGIVolume.cpp" />
-    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\ddgi\gfx\DDGIVolume_D3D12.cpp" />
-    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\Math.cpp" />
+    <ClCompile Include="..\ThirdParty\RTXGI-DDGI\src\ddgi\DDGIVolume.cpp" />
+    <ClCompile Include="..\ThirdParty\RTXGI-DDGI\src\ddgi\gfx\DDGIVolume_D3D12.cpp" />
+    <ClCompile Include="..\ThirdParty\RTXGI-DDGI\src\Math.cpp" />
     <ClCompile Include="src\acceleration_structure.cpp" />
     <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\buffer.cpp" />

@@ -13,6 +13,6 @@
 [submodule "ThirdParty/tinyexr"]
 	path = ThirdParty/tinyexr
 	url = https://github.com/syoyo/tinyexr.git
-[submodule "ThirdParty/RTXGI"]
-	path = ThirdParty/RTXGI
-	url = https://github.com/NVIDIAGameWorks/RTXGI.git
+[submodule "ThirdParty/RTXGI-DDGI"]
+	path = ThirdParty/RTXGI-DDGI
+	url = https://github.com/NVIDIAGameWorks/RTXGI-DDGI

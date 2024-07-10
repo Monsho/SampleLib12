@@ -193,7 +193,7 @@ namespace sl12
 			pD3DInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 #endif
 
-			D3D12_MESSAGE_ID blockedIds[] = { D3D12_MESSAGE_ID_COPY_DESCRIPTORS_INVALID_RANGES };
+			D3D12_MESSAGE_ID blockedIds[] = { D3D12_MESSAGE_ID_COPY_DESCRIPTORS_INVALID_RANGES, D3D12_MESSAGE_ID_COMMAND_LIST_DRAW_INDEX_BUFFER_NOT_SET };
 			D3D12_INFO_QUEUE_FILTER filter = {};
 			filter.DenyList.pIDList = blockedIds;
 			filter.DenyList.NumIDs = _countof(blockedIds);

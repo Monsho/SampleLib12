@@ -161,7 +161,7 @@ float2 UnitVectorToOctahedron(float3 n)
 	n /= dot(1.0, abs(n));
 	if (n.z < 0.0)
 	{
-		n.xy = (1.0 - abs(n.yx)) * (n.xy >= 0.0 ? 1.0 : -1.0);
+		n.xy = (1.0 - abs(n.yx)) * select(n.xy >= 0.0, 1.0, -1.0);
 	}
 	n.xy = n.xy * 0.5 + 0.5;
 	return n.xy;
@@ -173,7 +173,7 @@ float3 OctahedronToUnitVector(float2 f)
 	// https://twitter.com/Stubbesaurus/status/937994790553227264
 	float3 n = float3(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
 	float t = saturate(-n.z);
-	n.xy += n.xy >= 0.0 ? -t : t;
+	n.xy += select(n.xy >= 0.0, -t, t);
 	return normalize(n);
 }
 

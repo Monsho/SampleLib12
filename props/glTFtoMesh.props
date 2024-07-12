@@ -8,7 +8,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)\..\ThirdParty\cereal\include;$(ProjectDir)\..\ThirdParty\meshoptimizer\src;$(ProjectDir)\..\ThirdParty\mikktspace;$(ProjectDir)\..\ThirdParty\stb;$(ProjectDir)\..\SampleLib12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(ProjectDir)\..\ThirdParty\meshoptimizer\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)\..\ThirdParty\meshoptimizer\build\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>meshoptimizer.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

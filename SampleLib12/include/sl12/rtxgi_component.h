@@ -164,6 +164,7 @@ namespace sl12
 		ID3D12RootSignature*		pRootSignature_ = nullptr;
 		ID3D12PipelineState*		psos_[EShaderType::Max]{};
 
+		std::string					name_;
 		std::string					shaderDirectory_;
 		int							flipIndex_ = 0;
 	};	// class RtxgiComponent

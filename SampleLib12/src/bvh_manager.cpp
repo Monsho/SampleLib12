@@ -418,7 +418,7 @@ namespace sl12
 		input_desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info{};
-		pDevice_->GetDxrDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&input_desc, &prebuild_info);
+		pDevice_->GetLatestDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&input_desc, &prebuild_info);
 		if (prebuild_info.ResultDataMaxSizeInBytes == 0)
 		{
 			return false;
@@ -563,7 +563,7 @@ namespace sl12
 		input_desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info{};
-		pDevice_->GetDxrDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&input_desc, &prebuild_info);
+		pDevice_->GetLatestDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&input_desc, &prebuild_info);
 		if (prebuild_info.ResultDataMaxSizeInBytes == 0)
 		{
 			return nullptr;

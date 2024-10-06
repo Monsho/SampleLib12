@@ -95,7 +95,7 @@ namespace sl12
 		inputDesc.NumDescs = instanceCount;
 		inputDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
-		pDevice->GetDxrDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&inputDesc, &prebuildInfo);
+		pDevice->GetLatestDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&inputDesc, &prebuildInfo);
 		if (prebuildInfo.ResultDataMaxSizeInBytes == 0)
 			return false;
 
@@ -124,7 +124,7 @@ namespace sl12
 		inputDesc.pGeometryDescs = geos.data();
 		inputDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
-		pDevice->GetDxrDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&inputDesc, &prebuildInfo);
+		pDevice->GetLatestDeviceDep()->GetRaytracingAccelerationStructurePrebuildInfo(&inputDesc, &prebuildInfo);
 		if (prebuildInfo.ResultDataMaxSizeInBytes == 0)
 			return false;
 
@@ -338,11 +338,15 @@ namespace sl12
 		{
 			// TopASビルド前にBottomASのビルド完了を待つ必要があります.
 			// リソースバリアを張ることでBottomASビルドが完了していることを保証します.
-			pCmdList->UAVBarrier(pDxrBuffer_);
+			pCmdList->AddUAVBarrier(pDxrBuffer_);
+			if (isCompaction)
+			{
+				pCmdList->AddTransitionBarrier(pInfoBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			}
+			pCmdList->FlushBarriers();
 
 			if (isCompaction)
 			{
-				pCmdList->TransitionBarrier(pInfoBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 				pCmdList->GetDxrCommandList()->CopyResource(pPostBuildReadBuffer_->GetResourceDep(), pInfoBuffer->GetResourceDep());
 				pDevice->KillObject(pInfoBuffer);
 			}

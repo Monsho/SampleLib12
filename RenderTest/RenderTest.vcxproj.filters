@@ -13,6 +13,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{f69d0473-4c9f-4ed0-ac38-c5851573a8ef}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -29,5 +32,23 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="shaders\cbuffer.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\fullscreen.vv.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\lighting.c.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\mesh.p.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\mesh.vv.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\tonemap.p.hlsl">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

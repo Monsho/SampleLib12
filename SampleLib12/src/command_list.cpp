@@ -186,6 +186,99 @@ namespace sl12
 	}
 
 	//----
+	void CommandList::AddTransitionBarrier(Texture* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState)
+	{
+		if (!p)
+			return;
+
+		if (prevState != nextState)
+		{
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = p->pResource_;
+			barrier.Transition.StateBefore = prevState;
+			barrier.Transition.StateAfter = nextState;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			requestBarriers_.push_back(barrier);
+		}
+	}
+	void CommandList::AddTransitionBarrier(Texture* p, UINT subresource, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState)
+	{
+		if (!p)
+			return;
+
+		if (prevState != nextState)
+		{
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = p->pResource_;
+			barrier.Transition.StateBefore = prevState;
+			barrier.Transition.StateAfter = nextState;
+			barrier.Transition.Subresource = subresource;
+			requestBarriers_.push_back(barrier);
+		}
+	}
+
+	//----
+	void CommandList::AddTransitionBarrier(Buffer* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState)
+	{
+		if (!p)
+			return;
+
+		if (prevState != nextState)
+		{
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = p->pResource_;
+			barrier.Transition.StateBefore = prevState;
+			barrier.Transition.StateAfter = nextState;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			requestBarriers_.push_back(barrier);
+		}
+	}
+
+	//----
+	void CommandList::AddUAVBarrier(Texture* p)
+	{
+		if (!p)
+			return;
+
+		{
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.UAV.pResource = p->pResource_;
+			requestBarriers_.push_back(barrier);
+		}
+	}
+	void CommandList::AddUAVBarrier(Buffer* p)
+	{
+		if (!p)
+			return;
+
+		{
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.UAV.pResource = p->pResource_;
+			requestBarriers_.push_back(barrier);
+		}
+	}
+
+	//----
+	void CommandList::FlushBarriers()
+	{
+		if (!requestBarriers_.empty())
+		{
+			GetCommandList()->ResourceBarrier((UINT)requestBarriers_.size(), &requestBarriers_[0]);
+			requestBarriers_.clear();
+		}
+	}
+
+	//----
 	void CommandList::SetGraphicsRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays)
 	{
 		auto pCmdList = GetCommandList();

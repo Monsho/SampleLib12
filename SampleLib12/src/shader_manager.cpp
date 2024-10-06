@@ -50,8 +50,6 @@ namespace sl12
 			: public IDxcIncludeHandler
 		{
 		public:
-			// DefaultIncludeHandler(IDxcLibrary* pLib, const std::vector<std::string>& dirs)
-			// 	: dwRef_(1), pDxcLib_(pLib)
 			DefaultIncludeHandler(IDxcUtils* pUtils, const std::vector<std::string>& dirs)
 				: dwRef_(1), pDxcUtils_(pUtils)
 			{
@@ -114,6 +112,7 @@ namespace sl12
 
 				if (!bFileExists)
 				{
+					sl12::ConsolePrint("Failed to find shader include file. (%ls)\n", pFilename);
 					*ppIncludeSource = nullptr;
 					return E_FAIL;
 				}
@@ -133,6 +132,7 @@ namespace sl12
 				HRESULT hr = pDxcUtils_->LoadFile(path.c_str(), &codePage, &pBlob);
 				if (FAILED(hr))
 				{
+					sl12::ConsolePrint("Failed to load shader include file. (%ls)\n", path.c_str());
 					*ppIncludeSource = nullptr;
 					return E_FAIL;
 				}
@@ -300,7 +300,13 @@ namespace sl12
 		}
 
 		if (includeDirs)
-			includeDirs_ = *includeDirs;
+		{
+			for (auto&& dir : *includeDirs)
+			{
+				std::filesystem::path p(dir);
+				includeDirs_.push_back(std::filesystem::absolute(p).string());
+			}
+		}
 
 		pdbExportType_ = ShaderPDB::None;
 		if (pdbType != ShaderPDB::None && pdbDir != nullptr)
@@ -470,6 +476,7 @@ namespace sl12
 			hr = pCompiler_->pDxcUtils_->LoadFile(item->filePath.c_str(), &codePage, &pSrcBlob);
 			if (FAILED(hr))
 			{
+				sl12::ConsolePrint("Failed to load shader file. (%s)\n", item->filePath.c_str());
 				return nullptr;
 			}
 			includeDirs.push_back(item->fileDir);

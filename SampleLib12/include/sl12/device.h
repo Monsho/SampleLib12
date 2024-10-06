@@ -8,7 +8,7 @@
 #include <sl12/descriptor_heap.h>
 #include <sl12/death_list.h>
 
-#define LatestDevice	ID3D12Device6
+#define LatestDevice	ID3D12Device14
 
 namespace sl12
 {
@@ -43,6 +43,19 @@ namespace sl12
 		};
 	};	// struct DummyTex
 
+	struct FeatureFlag
+	{
+		enum Type
+		{
+			RayTracing_1_0	= 0x1 << 0,
+			RayTracing_1_1	= 0x1 << 1,
+			MeshShader		= 0x1 << 2,
+			WorkGraph		= 0x1 << 3,
+
+			All				= 0xff
+		};
+	};
+
 	struct DeviceDesc
 	{
 		HWND			hWnd = 0;
@@ -50,6 +63,7 @@ namespace sl12
 		u32				screenHeight = 0;
 		u32				numDescs[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {0};
 		ColorSpaceType	colorSpace = ColorSpaceType::Rec709;
+		u32				featureFlags = FeatureFlag::All;
 		bool			enableDebugLayer = true;
 		bool			enableDynamicResource = false;
 	};
@@ -118,10 +132,6 @@ namespace sl12
 		ID3D12Device*	GetDeviceDep()
 		{
 			return pDevice_;
-		}
-		ID3D12Device5*	GetDxrDeviceDep()
-		{
-			return pDxrDevice_;
 		}
 		bool			IsDxrSupported() const
 		{
@@ -228,8 +238,9 @@ namespace sl12
 		LatestDevice*	pLatestDevice_{ nullptr };
 		ID3D12Device*	pDevice_{ nullptr };
 
-		ID3D12Device5*	pDxrDevice_{ nullptr };
 		bool			isDxrSupported_ = false;
+		bool			isMeshShaderSupported_ = false;
+		bool			isWorkGraphSupported_ = false;
 
 		ColorSpaceType	colorSpaceType_ = ColorSpaceType::Rec709;
 		RECT			desktopCoordinates_;

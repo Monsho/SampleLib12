@@ -259,7 +259,7 @@ namespace sl12
 	{
 		D3D12_STATE_OBJECT_DESC psoDesc = dxrDesc.GetStateObjectDesc(type);
 
-		auto hr = pDev->GetDxrDeviceDep()->CreateStateObject(&psoDesc, IID_PPV_ARGS(&pDxrStateObject_));
+		auto hr = pDev->GetLatestDeviceDep()->CreateStateObject(&psoDesc, IID_PPV_ARGS(&pDxrStateObject_));
 		if (FAILED(hr))
 		{
 			return false;
@@ -272,6 +272,27 @@ namespace sl12
 	void DxrPipelineState::Destroy()
 	{
 		SafeRelease(pDxrStateObject_);
+	}
+
+
+	//----
+	bool WorkGraphState::Initialize(Device* pDev, WorkGraphStateDesc& wgDesc, D3D12_STATE_OBJECT_TYPE type)
+	{
+		D3D12_STATE_OBJECT_DESC psoDesc = wgDesc.GetStateObjectDesc(type);
+
+		auto hr = pDev->GetLatestDeviceDep()->CreateStateObject(&psoDesc, IID_PPV_ARGS(&pWorkGraphStateObject_));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	//----
+	void WorkGraphState::Destroy()
+	{
+		SafeRelease(pWorkGraphStateObject_);
 	}
 
 }	// namespace sl12

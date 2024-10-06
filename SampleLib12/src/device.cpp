@@ -11,6 +11,9 @@
 
 #include "sl12/texture_streamer.h"
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 614; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 namespace sl12
 {
 	LARGE_INTEGER CpuTimer::frequency_;
@@ -52,14 +55,12 @@ namespace sl12
 		bool isWarp = false;
 		IDXGIAdapter1* pAdapter = nullptr;
 		ID3D12Device* pDevice = nullptr;
-		ID3D12Device5* pDxrDevice = nullptr;
 		LatestDevice* pLatestDevice = nullptr;
 		UINT adapterIndex = 0;
 		while (true)
 		{
 			SafeRelease(pAdapter);
 			SafeRelease(pDevice);
-			SafeRelease(pDxrDevice);
 
 			hr = pFactory_->EnumAdapterByGpuPreference(adapterIndex++, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter));
 			if (FAILED(hr))
@@ -72,16 +73,54 @@ namespace sl12
 			if (FAILED(hr))
 				continue;
 
-			D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData{};
-			if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData))))
+			bool isFeatureValid = true;
+			if (devDesc.featureFlags & (FeatureFlag::RayTracing_1_0 | FeatureFlag::RayTracing_1_1))
 			{
-				isDxrSupported_ = featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
-				if (isDxrSupported_)
+				D3D12_FEATURE_DATA_D3D12_OPTIONS5 Options5{};
+				if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &Options5, sizeof(Options5))))
 				{
-					pDevice->QueryInterface(IID_PPV_ARGS(&pDxrDevice));
-					pDevice->QueryInterface(IID_PPV_ARGS(&pLatestDevice));
-					break;
+					if (devDesc.featureFlags & FeatureFlag::RayTracing_1_1)
+					{
+						isDxrSupported_ = Options5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1;
+					}
+					else if (devDesc.featureFlags & FeatureFlag::RayTracing_1_0)
+					{
+						isDxrSupported_ = Options5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0;
+					}
 				}
+				if (!isDxrSupported_)
+				{
+					isFeatureValid = false;
+				}
+			}
+			if (devDesc.featureFlags & FeatureFlag::MeshShader)
+			{
+				D3D12_FEATURE_DATA_D3D12_OPTIONS7 Options7{};
+				if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &Options7, sizeof(Options7))))
+				{
+					isMeshShaderSupported_ = Options7.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+				}
+				if (!isMeshShaderSupported_)
+				{
+					isFeatureValid = false;
+				}
+			}
+			if (devDesc.featureFlags & FeatureFlag::WorkGraph)
+			{
+				D3D12_FEATURE_DATA_D3D12_OPTIONS21 Options21{};
+				if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS21, &Options21, sizeof(Options21))))
+				{
+					isWorkGraphSupported_ = Options21.WorkGraphsTier != D3D12_WORK_GRAPHS_TIER_NOT_SUPPORTED;
+				}
+				if (!isWorkGraphSupported_)
+				{
+					isFeatureValid = false;
+				}
+			}
+			if (isFeatureValid)
+			{
+				pDevice->QueryInterface(IID_PPV_ARGS(&pLatestDevice));
+				break;
 			}
 		}
 		if (!pDevice)
@@ -111,7 +150,6 @@ namespace sl12
 		}
 
 		pDevice_ = pDevice;
-		pDxrDevice_ = pDxrDevice;
 		pLatestDevice_ = pLatestDevice;
 
 		// enumerate displays.
@@ -376,7 +414,6 @@ namespace sl12
 		SafeDelete(pCopyQueue_);
 
 		SafeRelease(pLatestDevice_);
-		SafeRelease(pDxrDevice_);
 
 		SafeRelease(pDevice_);
 		SafeRelease(pOutput_);
@@ -528,8 +565,9 @@ namespace sl12
 
 		for (auto&& tex : dummyTextures_)
 		{
-			pCmdList->TransitionBarrier(tex.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+			pCmdList->AddTransitionBarrier(tex.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 		}
+		pCmdList->FlushBarriers();
 
 		return true;
 	}

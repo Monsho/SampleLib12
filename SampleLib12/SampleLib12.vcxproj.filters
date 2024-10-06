@@ -183,6 +183,21 @@
     <ClInclude Include="..\ThirdParty\imgui\imstb_truetype.h">
       <Filter>include\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="include\sl12\resource_streaming_texture.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\resource_texture_base.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\streaming_texture_format.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\texture_streamer.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sl12\work_graph.h">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\swapchain.cpp">
@@ -296,15 +311,6 @@
     <ClCompile Include="..\ThirdParty\imgui\imgui_widgets.cpp">
       <Filter>src\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\Math.cpp">
-      <Filter>src\RTXGI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\ddgi\DDGIVolume.cpp">
-      <Filter>src\RTXGI\ddgi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\ThirdParty\RTXGI\rtxgi-sdk\src\ddgi\gfx\DDGIVolume_D3D12.cpp">
-      <Filter>src\RTXGI\ddgi\gfx</Filter>
-    </ClCompile>
     <ClCompile Include="src\buffer_suballocator.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -315,6 +321,24 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\render_graph.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ThirdParty\RTXGI-DDGI\src\ddgi\DDGIVolume.cpp">
+      <Filter>src\RTXGI\ddgi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ThirdParty\RTXGI-DDGI\src\ddgi\gfx\DDGIVolume_D3D12.cpp">
+      <Filter>src\RTXGI\ddgi\gfx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ThirdParty\RTXGI-DDGI\src\Math.cpp">
+      <Filter>src\RTXGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resource_streaming_texture.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\texture_streamer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\work_graph.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

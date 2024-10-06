@@ -375,14 +375,15 @@ namespace sl12
 				{
 					if (target->texture.IsValid())
 					{
-						pCmdList->TransitionBarrier(&target->texture, barrier.second.before, barrier.second.after);
+						pCmdList->AddTransitionBarrier(&target->texture, barrier.second.before, barrier.second.after);
 					}
 					else
 					{
-						pCmdList->TransitionBarrier(&target->buffer, barrier.second.before, barrier.second.after);
+						pCmdList->AddTransitionBarrier(&target->buffer, barrier.second.before, barrier.second.after);
 					}
 				}
 			}
+			pCmdList->FlushBarriers();
 		}
 
 		return true;
@@ -442,14 +443,15 @@ namespace sl12
 			{
 				if (target->texture.IsValid())
 				{
-					pCmdList->TransitionBarrier(&target->texture, barrier.second.before, barrier.second.after);
+					pCmdList->AddTransitionBarrier(&target->texture, barrier.second.before, barrier.second.after);
 				}
 				else
 				{
-					pCmdList->TransitionBarrier(&target->buffer, barrier.second.before, barrier.second.after);
+					pCmdList->AddTransitionBarrier(&target->buffer, barrier.second.before, barrier.second.after);
 				}
 			}
 		}
+		pCmdList->FlushBarriers();
 	}
 
 	//----
@@ -492,14 +494,15 @@ namespace sl12
 			{
 				if (target->texture.IsValid())
 				{
-					pCmdList->TransitionBarrier(&target->texture, barrier.second.before, barrier.second.after);
+					pCmdList->AddTransitionBarrier(&target->texture, barrier.second.before, barrier.second.after);
 				}
 				else
 				{
-					pCmdList->TransitionBarrier(&target->buffer, barrier.second.before, barrier.second.after);
+					pCmdList->AddTransitionBarrier(&target->buffer, barrier.second.before, barrier.second.after);
 				}
 			}
 		}
+		pCmdList->FlushBarriers();
 	}
 
 }	// namespace sl12

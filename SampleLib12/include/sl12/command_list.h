@@ -4,7 +4,7 @@
 #include <vector>
 
 
-#define LatestCommandList	ID3D12GraphicsCommandList6
+#define LatestCommandList	ID3D12GraphicsCommandList10
 
 namespace sl12
 {
@@ -78,6 +78,16 @@ namespace sl12
 		void UAVBarrier(Texture* p);
 		void UAVBarrier(Buffer* p);
 
+		// Add barrier request.
+		void AddTransitionBarrier(Texture* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
+		void AddTransitionBarrier(Texture* p, UINT subresource, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
+		void AddTransitionBarrier(Buffer* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
+		void AddUAVBarrier(Texture* p);
+		void AddUAVBarrier(Buffer* p);
+
+		// Execute requested barriers.
+		void FlushBarriers();
+
 		void SetDescriptorHeapDirty()
 		{
 			changeHeap_ = true;
@@ -133,6 +143,8 @@ namespace sl12
 		ID3D12DescriptorHeap*		pCurrentSamplerHeap_{ nullptr };
 		ID3D12DescriptorHeap*		pPrevSamplerHeap_{ nullptr };
 		bool						changeHeap_{ true };
+
+		std::vector<D3D12_RESOURCE_BARRIER>	requestBarriers_;
 	};	// class CommandList
 
 }	// namespace sl12

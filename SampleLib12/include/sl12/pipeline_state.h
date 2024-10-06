@@ -135,16 +135,16 @@ namespace sl12
 	};	// class ComputePipelineState
 
 
-	class DxrPipelineStateDesc
+	class StateObjectDesc
 	{
 	public:
-		DxrPipelineStateDesc()
+		StateObjectDesc()
 		{}
-		~DxrPipelineStateDesc()
+		virtual ~StateObjectDesc()
 		{
 			for (auto&& v : descBinaries_)
 			{
-				free(v);
+				FreeBinary(v);
 			}
 			descBinaries_.clear();
 		}
@@ -173,6 +173,112 @@ namespace sl12
 			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, dxilDesc);
 		}
 
+		void AddGlobalRootSignature(sl12::RootSignature& rootSig)
+		{
+			auto globalRS = AllocBinary<ID3D12RootSignature*>();
+
+			*globalRS = rootSig.GetRootSignature();
+			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, globalRS);
+		}
+
+		void AddLocalRootSignature(sl12::RootSignature& localRootSig, LPCWSTR* exportsArray, UINT exportsCount)
+		{
+			auto localRS = AllocBinary<ID3D12RootSignature*>();
+
+			*localRS = localRootSig.GetRootSignature();
+			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, localRS);
+
+			// associate shader symbol to local root signature.
+			if ((exportsArray != nullptr) && (exportsCount > 0))
+			{
+				auto assDesc = AllocBinary<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION>();
+				assDesc->pSubobjectToAssociate = nullptr;
+				assDesc->NumExports = exportsCount;
+				assDesc->pExports = exportsArray;
+				AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, assDesc);
+			}
+		}
+
+		[[deprecated("use AddLocalRootSignature function.")]]
+		void AddLocalRootSignatureAndExportsAssociation(sl12::RootSignature& localRootSig, LPCWSTR* exportsArray, UINT exportsCount)
+		{
+			AddLocalRootSignature(localRootSig, exportsArray, exportsCount);
+		}
+
+		void AddStateObjectConfig(D3D12_STATE_OBJECT_FLAGS flags)
+		{
+			auto config = AllocBinary< D3D12_STATE_OBJECT_CONFIG>();
+
+			config->Flags = flags;
+			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG, config);
+		}
+
+		void AddExistingCollection(ID3D12StateObject* pso, D3D12_EXPORT_DESC* exportDescs, UINT exportDescsCount)
+		{
+			auto desc = AllocBinary<D3D12_EXISTING_COLLECTION_DESC>();
+
+			desc->pExistingCollection = pso;
+			desc->NumExports = exportDescsCount;
+			desc->pExports = exportDescs;
+			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION, desc);
+		}
+
+		D3D12_STATE_OBJECT_DESC GetStateObjectDesc(D3D12_STATE_OBJECT_TYPE type)
+		{
+			ResolveExportAssosiation();
+
+			D3D12_STATE_OBJECT_DESC psoDesc{};
+			psoDesc.Type = type;
+			psoDesc.pSubobjects = subobjects_.data();
+			psoDesc.NumSubobjects = (UINT)subobjects_.size();
+			return psoDesc;
+		}
+
+	protected:
+		template <typename T>
+		T* AllocBinary()
+		{
+			auto p = malloc(sizeof(T));
+			descBinaries_.push_back(p);
+			return reinterpret_cast<T*>(p);
+		}
+
+		void FreeBinary(void* p)
+		{
+			if (p)
+			{
+				free(p);
+			}
+		}
+
+		void ResolveExportAssosiation()
+		{
+			auto subDesc = subobjects_.data();
+			for (auto&& v : exportAssociationIndices_)
+			{
+				auto e = v;
+				auto l = e - 1;
+
+				auto eDesc = (D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION*)subobjects_[e].pDesc;
+				eDesc->pSubobjectToAssociate = subDesc + l;
+			}
+		}
+
+	private:
+		std::vector<D3D12_STATE_SUBOBJECT>	subobjects_;
+		std::vector<int>					exportAssociationIndices_;
+		std::vector<void*>					descBinaries_;
+	};	// class StateObjectDesc
+
+	class DxrPipelineStateDesc
+		: public StateObjectDesc
+	{
+	public:
+		DxrPipelineStateDesc()
+		{}
+		virtual ~DxrPipelineStateDesc()
+		{}
+
 		void AddHitGroup(LPCWSTR hitGroupName, bool isTriangle, LPCWSTR anyHitName, LPCWSTR closestHitName, LPCWSTR intersectionName)
 		{
 			auto hitGroupDesc = AllocBinary<D3D12_HIT_GROUP_DESC>();
@@ -194,31 +300,6 @@ namespace sl12
 			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, shaderConfigDesc);
 		}
 
-		void AddLocalRootSignatureAndExportAssociation(sl12::RootSignature& localRootSig, LPCWSTR* exportsArray, UINT exportsCount)
-		{
-			auto localRS = AllocBinary<ID3D12RootSignature*>();
-
-			*localRS = localRootSig.GetRootSignature();
-			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, localRS);
-
-			if ((exportsArray != nullptr) && (exportsCount > 0))
-			{
-				auto assDesc = AllocBinary< D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION>();
-				assDesc->pSubobjectToAssociate = nullptr;
-				assDesc->NumExports = exportsCount;
-				assDesc->pExports = exportsArray;
-				AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, assDesc);
-			}
-		}
-
-		void AddGlobalRootSignature(sl12::RootSignature& localRootSig)
-		{
-			auto globalRS = AllocBinary<ID3D12RootSignature*>();
-
-			*globalRS = localRootSig.GetRootSignature();
-			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, globalRS);
-		}
-
 		void AddRaytracinConfig(UINT traceRayCount)
 		{
 			auto rtConfigDesc = AllocBinary<D3D12_RAYTRACING_PIPELINE_CONFIG>();
@@ -226,62 +307,6 @@ namespace sl12
 			rtConfigDesc->MaxTraceRecursionDepth = traceRayCount;
 			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, rtConfigDesc);
 		}
-
-		void AddStateObjectConfig(D3D12_STATE_OBJECT_FLAGS flags)
-		{
-			auto config = AllocBinary< D3D12_STATE_OBJECT_CONFIG>();
-
-			config->Flags = flags;
-			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG, config);
-		}
-
-		void AddExistingCollection(ID3D12StateObject* pso, D3D12_EXPORT_DESC* exportDescs, UINT exportDescsCount)
-		{
-			auto desc = AllocBinary< D3D12_EXISTING_COLLECTION_DESC >();
-
-			desc->pExistingCollection = pso;
-			desc->NumExports = exportDescsCount;
-			desc->pExports = exportDescs;
-			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION, desc);
-		}
-
-		D3D12_STATE_OBJECT_DESC GetStateObjectDesc(D3D12_STATE_OBJECT_TYPE type)
-		{
-			ResolveExportAssosiation();
-
-			D3D12_STATE_OBJECT_DESC psoDesc{};
-			psoDesc.Type = type;
-			psoDesc.pSubobjects = subobjects_.data();
-			psoDesc.NumSubobjects = (UINT)subobjects_.size();
-			return psoDesc;
-		}
-
-	private:
-		template <typename T>
-		T* AllocBinary()
-		{
-			auto p = malloc(sizeof(T));
-			descBinaries_.push_back(p);
-			return reinterpret_cast<T*>(p);
-		}
-
-		void ResolveExportAssosiation()
-		{
-			auto subDesc = subobjects_.data();
-			for (auto&& v : exportAssociationIndices_)
-			{
-				auto e = v;
-				auto l = e - 1;
-
-				auto eDesc = (D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION*)subobjects_[e].pDesc;
-				eDesc->pSubobjectToAssociate = subDesc + l;
-			}
-		}
-
-	private:
-		std::vector<D3D12_STATE_SUBOBJECT>	subobjects_;
-		std::vector<int>					exportAssociationIndices_;
-		std::vector<void*>					descBinaries_;
 	};	// class DxrPipelineStateDesc
 
 	class DxrPipelineState
@@ -302,6 +327,48 @@ namespace sl12
 	private:
 		ID3D12StateObject*			pDxrStateObject_ = nullptr;
 	};	// class DxrPipelineState
+
+	class WorkGraphStateDesc
+		: public StateObjectDesc
+	{
+	public:
+		WorkGraphStateDesc()
+		{}
+		virtual ~WorkGraphStateDesc()
+		{}
+
+		void AddWorkGraph(LPCWSTR progName, D3D12_WORK_GRAPH_FLAGS flags = D3D12_WORK_GRAPH_FLAG_INCLUDE_ALL_AVAILABLE_NODES, UINT numEntryPoints = 0, D3D12_NODE_ID* pEntryPoints = nullptr, UINT numDefinedNodes = 0, D3D12_NODE* pDefinedNodes = nullptr)
+		{
+			auto wgDesc = AllocBinary<D3D12_WORK_GRAPH_DESC>();
+
+			wgDesc->ProgramName = progName;
+			wgDesc->Flags = flags;
+			wgDesc->NumEntrypoints = numEntryPoints;
+			wgDesc->pEntrypoints = pEntryPoints;
+			wgDesc->NumExplicitlyDefinedNodes = numDefinedNodes;
+			wgDesc->pExplicitlyDefinedNodes = pDefinedNodes;
+			AddSubobject(D3D12_STATE_SUBOBJECT_TYPE_WORK_GRAPH, wgDesc);
+		}
+	};
+
+	class WorkGraphState
+	{
+	public:
+		WorkGraphState()
+		{}
+		~WorkGraphState()
+		{
+			Destroy();
+		}
+
+		bool Initialize(Device* pDev, WorkGraphStateDesc& wgDesc, D3D12_STATE_OBJECT_TYPE type = D3D12_STATE_OBJECT_TYPE_EXECUTABLE);
+		void Destroy();
+
+		ID3D12StateObject* GetPSO() { return pWorkGraphStateObject_; }
+
+	private:
+		ID3D12StateObject* pWorkGraphStateObject_ = nullptr;
+	};	// class WorkGraphState
 
 }	// namespace sl12
 

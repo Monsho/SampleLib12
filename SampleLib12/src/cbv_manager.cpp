@@ -285,8 +285,9 @@ namespace sl12
 
 		for (auto&& t : transitions)
 		{
-			pCmdList->TransitionBarrier(t, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+			pCmdList->AddTransitionBarrier(t, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 		}
+		pCmdList->FlushBarriers();
 	}
 
 }   // namespace sl12

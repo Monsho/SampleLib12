@@ -61,6 +61,11 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PreBuildEvent>
+      <Command>dxc $(ProjectDir)src\shader\VSGui.hlsl /E main /O3 /Vn kVSGui /T vs_6_0 /Fh $(ProjectDir)include\sl12\VSGui.h /nologo
+dxc $(ProjectDir)src\shader\PSGui.hlsl /E main /O3 /Vn kPSGui /T ps_6_0 /Fh $(ProjectDir)include\sl12\PSGui.h /nologo
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -80,6 +85,11 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <PreBuildEvent>
+      <Command>dxc $(ProjectDir)src\shader\VSGui.hlsl /E main /O3 /Vn kVSGui /T vs_6_0 /Fh $(ProjectDir)include\sl12\VSGui.h /nologo
+dxc $(ProjectDir)src\shader\PSGui.hlsl /E main /O3 /Vn kPSGui /T ps_6_0 /Fh $(ProjectDir)include\sl12\PSGui.h /nologo
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\ThirdParty\imgui\imconfig.h" />
@@ -188,7 +198,7 @@
     <ClCompile Include="src\work_graph.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="src\shader\PSGui.hlsl">
+    <None Include="src\shader\PSGui.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">k%(Filename)</VariableName>
@@ -201,8 +211,11 @@
       </ObjectFileOutput>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="src\shader\VSGui.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="src\shader\VSGui.hlsl">
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">k%(Filename)</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">k%(Filename)</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)include\sl12\%(Filename).h</HeaderFileOutput>
@@ -215,7 +228,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-    </FxCompile>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

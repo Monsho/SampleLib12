@@ -343,14 +343,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="src\shader\VSGui.hlsl">
-      <Filter>src\shader</Filter>
-    </FxCompile>
-    <FxCompile Include="src\shader\PSGui.hlsl">
-      <Filter>src\shader</Filter>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
+    <None Include="src\shader\PSGui.hlsl">
+      <Filter>src\shader</Filter>
+    </None>
+    <None Include="src\shader\VSGui.hlsl">
+      <Filter>src\shader</Filter>
+    </None>
   </ItemGroup>
 </Project>

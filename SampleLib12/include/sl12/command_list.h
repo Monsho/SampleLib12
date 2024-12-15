@@ -93,9 +93,9 @@ namespace sl12
 			changeHeap_ = true;
 		}
 		// Set root signature and descriptor set (NOT dynamic resource).
-		void SetGraphicsRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
-		void SetMeshRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
-		void SetComputeRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays = nullptr);
+		void SetGraphicsRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>>* pBindlessArrays = nullptr);
+		void SetMeshRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>>* pBindlessArrays = nullptr);
+		void SetComputeRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>>* pBindlessArrays = nullptr);
 
 		// Set root signature and dynamic resource index.
 		void SetGraphicsRootSignatureAndDynamicResource(RootSignature* pRS, const std::vector<std::vector<u32>>& rootIndices);

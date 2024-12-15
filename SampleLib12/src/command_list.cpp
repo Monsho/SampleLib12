@@ -279,7 +279,7 @@ namespace sl12
 	}
 
 	//----
-	void CommandList::SetGraphicsRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays)
+	void CommandList::SetGraphicsRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>>* pBindlessArrays)
 	{
 		auto pCmdList = GetCommandList();
 		auto def_view = pParentDevice_->GetDefaultViewDescInfo().cpuHandle;
@@ -397,14 +397,15 @@ namespace sl12
 
 		// set bindless srv.
 		auto bindless_infos = pRS->GetBindlessInfos();
-		if (ppBindlessArrays && bindless_infos.size() != 0)
+		if (pBindlessArrays && bindless_infos.size() == pBindlessArrays->size())
 		{
+			auto& bindlessArrays = *pBindlessArrays;
 			auto bindless_array_count = bindless_infos.size();
 			for (size_t ba = 0; ba < bindless_array_count; ba++)
 			{
-				if (ppBindlessArrays[ba])
+				if (!bindlessArrays[ba].empty())
 				{
-					auto&& bindless = *ppBindlessArrays[ba];
+					auto& bindless = bindlessArrays[ba];
 					SetViewDesc((u32)bindless.size(), bindless.data(), bindless_infos[ba].index_);
 				}
 			}
@@ -412,7 +413,7 @@ namespace sl12
 	}
 
 	//----
-	void CommandList::SetMeshRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays)
+	void CommandList::SetMeshRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>>* pBindlessArrays)
 	{
 		auto pCmdList = GetCommandList();
 		auto def_view = pParentDevice_->GetDefaultViewDescInfo().cpuHandle;
@@ -517,14 +518,15 @@ namespace sl12
 
 		// set bindless srv.
 		auto bindless_infos = pRS->GetBindlessInfos();
-		if (ppBindlessArrays && bindless_infos.size() != 0)
+		if (pBindlessArrays && bindless_infos.size() == pBindlessArrays->size())
 		{
+			auto& bindlessArrays = *pBindlessArrays;
 			auto bindless_array_count = bindless_infos.size();
 			for (size_t ba = 0; ba < bindless_array_count; ba++)
 			{
-				if (ppBindlessArrays[ba])
+				if (!bindlessArrays[ba].empty())
 				{
-					auto&& bindless = *ppBindlessArrays[ba];
+					auto& bindless = bindlessArrays[ba];
 					SetViewDesc((u32)bindless.size(), bindless.data(), bindless_infos[ba].index_);
 				}
 			}
@@ -532,7 +534,7 @@ namespace sl12
 	}
 
 	//----
-	void CommandList::SetComputeRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>** ppBindlessArrays)
+	void CommandList::SetComputeRootSignatureAndDescriptorSet(RootSignature* pRS, DescriptorSet* pDSet, const std::vector<std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>>* pBindlessArrays)
 	{
 		auto pCmdList = GetCommandList();
 		auto def_view = pParentDevice_->GetDefaultViewDescInfo().cpuHandle;
@@ -620,14 +622,15 @@ namespace sl12
 
 		// set bindless srv.
 		auto bindless_infos = pRS->GetBindlessInfos();
-		if (ppBindlessArrays && bindless_infos.size() != 0)
+		if (pBindlessArrays && bindless_infos.size() == pBindlessArrays->size())
 		{
+			auto& bindlessArrays = *pBindlessArrays;
 			auto bindless_array_count = bindless_infos.size();
 			for (size_t ba = 0; ba < bindless_array_count; ba++)
 			{
-				if (ppBindlessArrays[ba])
+				if (!bindlessArrays[ba].empty())
 				{
-					auto&& bindless = *ppBindlessArrays[ba];
+					auto& bindless = bindlessArrays[ba];
 					SetViewDesc((u32)bindless.size(), bindless.data(), bindless_infos[ba].index_);
 				}
 			}

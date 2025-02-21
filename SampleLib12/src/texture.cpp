@@ -97,8 +97,8 @@ namespace sl12
 			clearValue_.Format = desc.format;
 			memcpy(clearValue_.Color, desc.clearColor, sizeof(clearValue_.Color));
 
-			if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
-				init_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			// if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
+			// 	init_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		}
 		else if (isDepthStencil)
 		{
@@ -107,13 +107,13 @@ namespace sl12
 			clearValue_.DepthStencil.Depth = desc.clearDepth;
 			clearValue_.DepthStencil.Stencil = desc.clearStencil;
 
-			if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
-				init_state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+			// if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
+			// 	init_state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 		}
 		else
 		{
-			if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
-				init_state = D3D12_RESOURCE_STATE_COPY_DEST;
+			// if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
+			// 	init_state = D3D12_RESOURCE_STATE_COPY_DEST;
 		}
 
 		HRESULT hr = E_FAIL;

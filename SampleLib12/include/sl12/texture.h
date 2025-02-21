@@ -40,6 +40,46 @@ namespace sl12
 		u8						clearStencil			= 0;
 		bool					forceSysRam				= false;
 		bool					deviceShared			= false;
+
+		void Initialize1D(DXGI_FORMAT _format, u32 _width, u32 _mip, u32 _array, u32 _usage)
+		{
+			dimension = TextureDimension::Texture1D;
+			format = _format;
+			width = _width;
+			height = 1;
+			depth = _array > 0 ? _array : 1;
+			mipLevels = _mip;
+			usage = _usage;
+		}
+		void Initialize2D(DXGI_FORMAT _format, u32 _width, u32 _height, u32 _mip, u32 _array, u32 _usage)
+		{
+			dimension = TextureDimension::Texture2D;
+			format = _format;
+			width = _width;
+			height = _height;
+			depth = _array > 0 ? _array : 1;
+			mipLevels = _mip;
+			usage = _usage;
+		}
+		void Initialize3D(DXGI_FORMAT _format, u32 _width, u32 _height, u32 _depth, u32 _mip, u32 _usage)
+		{
+			dimension = TextureDimension::Texture3D;
+			format = _format;
+			width = _width;
+			height = _height;
+			depth = _depth;
+			mipLevels = _mip;
+			usage = _usage;
+		}
+		void InitializeCube(DXGI_FORMAT _format, u32 _width, u32 _height, u32 _depth, u32 _mip, u32 _array, u32 _usage)
+		{
+			dimension = TextureDimension::Texture2D;
+			format = _format;
+			width = height = _width;
+			depth = _array > 0 ? _array * 6 : 6;
+			mipLevels = _mip;
+			usage = _usage;
+		}
 	};	// struct TextureDesc
 
 	class Texture

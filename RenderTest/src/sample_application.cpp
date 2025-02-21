@@ -13,7 +13,7 @@
 #include "sl12/descriptor_set.h"
 #include "sl12/resource_texture.h"
 
-#define ENABLE_DYNAMIC_RESOURCE	0
+#define ENABLE_DYNAMIC_RESOURCE	1
 
 namespace
 {
@@ -73,8 +73,12 @@ SampleApplication::SampleApplication(HINSTANCE hInstance, int nCmdShow, int scre
 SampleApplication::~SampleApplication()
 {}
 
+extern void TestRenderGraph2(sl12::Device* pDevice);
+
 bool SampleApplication::Initialize()
 {
+	//TestRenderGraph2(&device_);
+	
 	// initialize mesh manager.
 	const size_t kVertexBufferSize = 512 * 1024 * 1024;		// 512MB
 	const size_t kIndexBufferSize = 64 * 1024 * 1024;		// 64MB
@@ -102,19 +106,19 @@ bool SampleApplication::Initialize()
 	const std::string shaderBaseDir = sl12::JoinPath(homeDir_, kShaderDir);
 	std::vector<sl12::ShaderDefine> shaderDefines;
 	shaderDefines.push_back(sl12::ShaderDefine("ENABLE_DYNAMIC_RESOURCE", ENABLE_DYNAMIC_RESOURCE ? "1" : "0"));
-	hMeshVV_ = shaderMan_->CompileFromFile(
+	hShaders_[ShaderID::Mesh_VV] = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "mesh.vv.hlsl"),
 		"main", sl12::ShaderType::Vertex, 6, 6, nullptr, &shaderDefines);
-	hMeshP_ = shaderMan_->CompileFromFile(
+	hShaders_[ShaderID::Mesh_P] = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "mesh.p.hlsl"),
 		"main", sl12::ShaderType::Pixel, 6, 6, nullptr, &shaderDefines);
-	hLightingC_ = shaderMan_->CompileFromFile(
+	hShaders_[ShaderID::Lighting_C] = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "lighting.c.hlsl"),
 		"main", sl12::ShaderType::Compute, 6, 6, nullptr, &shaderDefines);
-	hFullscreenVV_ = shaderMan_->CompileFromFile(
+	hShaders_[ShaderID::Fullscreen_VV] = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "fullscreen.vv.hlsl"),
 		"main", sl12::ShaderType::Vertex, 6, 6, nullptr, &shaderDefines);
-	hTonemapP_ = shaderMan_->CompileFromFile(
+	hShaders_[ShaderID::Tonemap_P] = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "tonemap.p.hlsl"),
 		"main", sl12::ShaderType::Pixel, 6, 6, nullptr, &shaderDefines);
 	
@@ -126,6 +130,18 @@ bool SampleApplication::Initialize()
 	if (!mainCmdList_->Initialize(&device_, &device_.GetGraphicsQueue()))
 	{
 		sl12::ConsolePrint("Error: failed to init main command list.");
+		return false;
+	}
+	frameStartCmdList_ = sl12::MakeUnique<CommandLists>(nullptr);
+	if (!frameStartCmdList_->Initialize(&device_, &device_.GetGraphicsQueue()))
+	{
+		sl12::ConsolePrint("Error: failed to init frame start command list.");
+		return false;
+	}
+	frameEndCmdList_ = sl12::MakeUnique<CommandLists>(nullptr);
+	if (!frameEndCmdList_->Initialize(&device_, &device_.GetGraphicsQueue()))
+	{
+		sl12::ConsolePrint("Error: failed to init frame end command list.");
 		return false;
 	}
 
@@ -229,12 +245,12 @@ bool SampleApplication::Initialize()
 	rsTonemapDR_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
 	psoMesh_ = sl12::MakeUnique<sl12::GraphicsPipelineState>(&device_);
 	psoTonemap_ = sl12::MakeUnique<sl12::GraphicsPipelineState>(&device_);
-	rsVsPs_->Initialize(&device_, hMeshVV_.GetShader(), hMeshP_.GetShader(), nullptr, nullptr, nullptr);
+	rsVsPs_->Initialize(&device_, hShaders_[ShaderID::Mesh_VV].GetShader(), hShaders_[ShaderID::Mesh_P].GetShader(), nullptr, nullptr, nullptr);
 	{
 		sl12::GraphicsPipelineStateDesc desc{};
 		desc.pRootSignature = &rsVsPs_;
-		desc.pVS = hMeshVV_.GetShader();
-		desc.pPS = hMeshP_.GetShader();
+		desc.pVS = hShaders_[ShaderID::Mesh_VV].GetShader();
+		desc.pPS = hShaders_[ShaderID::Mesh_P].GetShader();
 
 		desc.blend.sampleMask = UINT_MAX;
 		desc.blend.rtDesc[0].isBlendEnable = false;
@@ -287,8 +303,8 @@ bool SampleApplication::Initialize()
 	{
 		sl12::GraphicsPipelineStateDesc desc{};
 		desc.pRootSignature = &rsVsPs_;
-		desc.pVS = hFullscreenVV_.GetShader();
-		desc.pPS = hTonemapP_.GetShader();
+		desc.pVS = hShaders_[ShaderID::Fullscreen_VV].GetShader();
+		desc.pPS = hShaders_[ShaderID::Tonemap_P].GetShader();
 
 		desc.blend.sampleMask = UINT_MAX;
 		desc.blend.rtDesc[0].isBlendEnable = false;
@@ -330,10 +346,10 @@ bool SampleApplication::Initialize()
 	rsCs_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
 	rsLightingDR_ = sl12::MakeUnique<sl12::RootSignature>(&device_);
 	psoLighting_ = sl12::MakeUnique<sl12::ComputePipelineState>(&device_);
-	rsCs_->Initialize(&device_, hLightingC_.GetShader());
+	rsCs_->Initialize(&device_, hShaders_[ShaderID::Lighting_C].GetShader());
 	{
 		sl12::ComputePipelineStateDesc desc{};
-		desc.pCS = hLightingC_.GetShader();
+		desc.pCS = hShaders_[ShaderID::Lighting_C].GetShader();
 #if !ENABLE_DYNAMIC_RESOURCE
 		desc.pRootSignature = &rsCs_;
 
@@ -356,6 +372,17 @@ bool SampleApplication::Initialize()
 #endif
 	}
 
+	// init render graph2.
+	SceneRenderState::InitInstance(&device_);
+	auto state = SceneRenderState::GetInstance();
+	state->SetRenderObjects(&cbvMan_);
+	state->SetScreenSize(screenWidth_, screenHeight_);
+	state->SetShaderHandles(hShaders_);
+	state->SetResMesh(hResMesh_);
+	renderGraph2_ = sl12::MakeUnique<sl12::RenderGraph2>(&device_);
+	renderGraph2_->Initialize(&device_);
+	SetupRenderGraph(&device_, &renderGraph2_);
+	
 	return true;
 }
 
@@ -366,6 +393,7 @@ void SampleApplication::Finalize()
 	device_.Present(1);
 
 	// destroy render objects.
+	SceneRenderState::DestroyInstance();
 	gui_.Reset();
 	psoLighting_.Reset();
 	rsCs_.Reset();
@@ -378,13 +406,17 @@ void SampleApplication::Finalize()
 	texStreamer_.Reset();
 	depthTex_.Reset();
 	depthDSV_.Reset();
+	renderGraph2_.Reset();
 	renderGraph_.Reset();
 	cbvMan_.Reset();
+	frameEndCmdList_.Reset();
+	frameStartCmdList_.Reset();
 	mainCmdList_.Reset();
 	shaderMan_.Reset();
 	resLoader_.Reset();
 }
 
+#if 0
 bool SampleApplication::Execute()
 {
 	const int kSwapchainBufferOffset = 1;
@@ -622,7 +654,7 @@ bool SampleApplication::Execute()
 			pCmdList->GetLatestCommandList()->SetPipelineState(psoMesh_->GetPSO());
 			pCmdList->GetLatestCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			auto meshRes = hSuzanneMesh_.GetItem<sl12::ResourceItemMesh>();
+			auto meshRes = hResMesh_.GetItem<sl12::ResourceItemMesh>();
 			auto&& submeshes = meshRes->GetSubmeshes();
 			auto submesh_count = submeshes.size();
 			for (int i = 0; i < submesh_count; i++)
@@ -768,6 +800,147 @@ bool SampleApplication::Execute()
 
 	return true;
 }
+#else
+bool SampleApplication::Execute()
+{
+	const int kSwapchainBufferOffset = 1;
+	auto frameIndex = (device_.GetSwapchain().GetFrameIndex() + sl12::Swapchain::kMaxBuffer - 1) % sl12::Swapchain::kMaxBuffer;
+	auto prevFrameIndex = (device_.GetSwapchain().GetFrameIndex() + sl12::Swapchain::kMaxBuffer - 2) % sl12::Swapchain::kMaxBuffer;
+
+	// compile render graph.
+	sl12::Texture* pSwapchainTex = device_.GetSwapchain().GetCurrentTexture(kSwapchainBufferOffset);
+	CompileRenderGraph(&device_, &renderGraph2_, pSwapchainTex);
+
+	// device sync.
+	device_.WaitPresent();
+	device_.SyncKillObjects();
+
+	// frame start commands.
+	auto pCmdList = &frameStartCmdList_->Reset();
+
+	// imgui setup.
+	bool bStream = false;
+	static sl12::u32 texTargetWidth = 256;
+	
+	gui_->BeginNewFrame(pCmdList, displayWidth_, displayHeight_, inputData_);
+	inputData_.Reset();
+	{
+		ImGui::Text("Deer imgui.");
+		if (ImGui::Button("Miplevel Down"))
+		{
+			bStream = true;
+			texTargetWidth <<= 1;
+			texTargetWidth = std::min(texTargetWidth, 4096u);
+		}
+		if (ImGui::Button("Miplevel Up"))
+		{
+			bStream = true;
+			texTargetWidth >>= 1;
+			texTargetWidth = std::max(texTargetWidth, 32u);
+		}
+		static float sV = 0.0f;
+		ImGui::DragFloat("My Float", &sV, 1.0f, 0.0f, 100.0f);
+		static char sT[256]{};
+		ImGui::InputText("My Text", sT, 256);
+	}
+	ImGui::Render();
+
+	// frame begin commands.
+	device_.LoadRenderCommands(pCmdList);
+	meshMan_->BeginNewFrame(pCmdList);
+	cbvMan_->BeginNewFrame();
+
+	// texture streaming request.
+	if (bStream)
+	{
+		for (auto&& work : workMaterials_)
+		{
+			for (auto&& handle : work.texHandles)
+			{
+				texStreamer_->RequestStreaming(handle, texTargetWidth);
+			}
+		}
+	}
+	
+	// create scene constant buffer.
+	sl12::CbvHandle hSceneCB;
+	{
+		DirectX::XMFLOAT3 camPos(300.0f, 100.0f, 0.0f);
+		DirectX::XMFLOAT3 tgtPos(0.0f, 0.0f, 0.0f);
+		DirectX::XMFLOAT3 upVec(0.0f, 1.0f, 0.0f);
+		auto cp = DirectX::XMLoadFloat3(&camPos);
+		auto tp = DirectX::XMLoadFloat3(&tgtPos);
+		auto up = DirectX::XMLoadFloat3(&upVec);
+		auto mtxWorldToView = DirectX::XMMatrixLookAtRH(cp, tp, up);
+		auto mtxViewToClip = sl12::MatrixPerspectiveInfiniteFovRH(DirectX::XMConvertToRadians(60.0f), (float)displayWidth_ / (float)displayHeight_, 0.1f);
+		auto mtxWorldToClip = mtxWorldToView * mtxViewToClip;
+		auto mtxClipToWorld = DirectX::XMMatrixInverse(nullptr, mtxWorldToClip);
+		auto mtxViewToWorld = DirectX::XMMatrixInverse(nullptr, mtxWorldToView);
+
+		SceneCB cbScene;
+		DirectX::XMStoreFloat4x4(&cbScene.mtxWorldToProj, mtxWorldToClip);
+		DirectX::XMStoreFloat4x4(&cbScene.mtxWorldToView, mtxWorldToView);
+		DirectX::XMStoreFloat4x4(&cbScene.mtxProjToWorld, mtxClipToWorld);
+		DirectX::XMStoreFloat4x4(&cbScene.mtxViewToWorld, mtxViewToWorld);
+		cbScene.screenSize.x = (float)displayWidth_;
+		cbScene.screenSize.y = (float)displayHeight_;
+
+		hSceneCB = cbvMan_->GetTemporal(&cbScene, sizeof(cbScene));
+	}
+	SceneRenderState::GetInstance()->SetFrameResource(hSceneCB.GetCBV());
+	frameStartCmdList_->Close();
+
+	
+	// render graph commands.
+	renderGraph2_->LoadCommand();
+
+
+	// frame end commands.
+	pCmdList = &frameEndCmdList_->Reset();
+	
+	// draw GUI.
+	{
+		auto&& rtv = device_.GetSwapchain().GetCurrentRenderTargetView(kSwapchainBufferOffset)->GetDescInfo().cpuHandle;
+		pCmdList->GetLatestCommandList()->OMSetRenderTargets(1, &rtv, false, nullptr);
+
+		// set viewport.
+		D3D12_VIEWPORT vp;
+		vp.TopLeftX = vp.TopLeftY = 0.0f;
+		vp.Width = (float)displayWidth_;
+		vp.Height = (float)displayHeight_;
+		vp.MinDepth = 0.0f;
+		vp.MaxDepth = 1.0f;
+		pCmdList->GetLatestCommandList()->RSSetViewports(1, &vp);
+
+		// set scissor rect.
+		D3D12_RECT rect;
+		rect.left = rect.top = 0;
+		rect.right = displayWidth_;
+		rect.bottom = displayHeight_;
+		pCmdList->GetLatestCommandList()->RSSetScissorRects(1, &rect);
+
+		gui_->LoadDrawCommands(pCmdList);
+	}
+	
+	// barrier swapchain.
+	pCmdList->TransitionBarrier(pSwapchainTex, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+	frameEndCmdList_->Close();
+
+	// wait prev frame render.
+	device_.WaitDrawDone();
+
+	// present swapchain.
+	device_.Present(0);
+
+	// execute current frame render.
+	frameStartCmdList_->Execute();
+	renderGraph2_->Execute();
+	frameEndCmdList_->Execute();
+
+	return true;
+}
+#endif
 
 int SampleApplication::Input(UINT message, WPARAM wParam, LPARAM lParam)
 {

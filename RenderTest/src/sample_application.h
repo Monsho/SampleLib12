@@ -12,6 +12,8 @@
 #include "sl12/resource_mesh.h"
 #include "sl12/resource_streaming_texture.h"
 
+#include "sample_render_pass.h"
+
 
 class SampleApplication
 	: public sl12::Application
@@ -120,9 +122,12 @@ private:
 	UniqueHandle<sl12::ShaderManager>	shaderMan_;
 	UniqueHandle<sl12::MeshManager>		meshMan_;
 	UniqueHandle<CommandLists>			mainCmdList_;
+	UniqueHandle<CommandLists>			frameStartCmdList_;
+	UniqueHandle<CommandLists>			frameEndCmdList_;
 	UniqueHandle<sl12::CbvManager>		cbvMan_;
 	UniqueHandle<sl12::RenderGraph>		renderGraph_;
 	UniqueHandle<sl12::TextureStreamer>	texStreamer_;
+	UniqueHandle<sl12::RenderGraph2>	renderGraph2_;
 
 	UniqueHandle<sl12::RootSignature>			rsVsPs_;
 	UniqueHandle<sl12::RootSignature>			rsCs_;
@@ -142,11 +147,7 @@ private:
 	sl12::InputData				inputData_{};
 
 	sl12::ResourceHandle	hResMesh_;
-	sl12::ShaderHandle		hMeshVV_;
-	sl12::ShaderHandle		hMeshP_;
-	sl12::ShaderHandle		hLightingC_;
-	sl12::ShaderHandle		hFullscreenVV_;
-	sl12::ShaderHandle		hTonemapP_;
+	sl12::ShaderHandle		hShaders_[ShaderID::Max];
 
 	std::vector<WorkMaterial>	workMaterials_;
 	

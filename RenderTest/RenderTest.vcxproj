@@ -90,6 +90,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\sample_render_pass.cpp" />
     <None Include="shaders\fullscreen.vv.hlsl" />
     <None Include="shaders\lighting.c.hlsl" />
     <None Include="shaders\mesh.p.hlsl" />
@@ -99,6 +100,7 @@
     <ClCompile Include="src\sample_application.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\sample_render_pass.h" />
     <None Include="shaders\cbuffer.hlsli" />
     <ClInclude Include="src\sample_application.h" />
   </ItemGroup>

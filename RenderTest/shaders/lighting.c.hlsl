@@ -1,18 +1,5 @@
 #include "cbuffer.hlsli"
 
-#if !ENABLE_DYNAMIC_RESOURCE
-
-ConstantBuffer<SceneCB>				cbScene				: register(b0);
-
-Texture2D							texGBufferA			: register(t0);
-Texture2D							texGBufferB			: register(t1);
-Texture2D							texGBufferC			: register(t2);
-Texture2D<float>					texDepth			: register(t3);
-
-RWTexture2D<float4>					rwOutput			: register(u0);
-
-#else
-
 struct ResourceIndex
 {
 	uint cbScene;
@@ -20,21 +7,19 @@ struct ResourceIndex
 	uint texGBufferB;
 	uint texGBufferC;
 	uint texDepth;
+	uint rLight;
 	uint rwOutput;
 };
 
 ConstantBuffer<ResourceIndex>	cbResIndex	: register(b0);
 
-#endif
-
 float3 Lighting(uint2 pixelPos, float depth)
 {
-#if ENABLE_DYNAMIC_RESOURCE
 	ConstantBuffer<SceneCB> cbScene = ResourceDescriptorHeap[cbResIndex.cbScene];
 	Texture2D texGBufferA = ResourceDescriptorHeap[cbResIndex.texGBufferA];
 	Texture2D texGBufferB = ResourceDescriptorHeap[cbResIndex.texGBufferB];
 	Texture2D texGBufferC = ResourceDescriptorHeap[cbResIndex.texGBufferC];
-#endif
+	StructuredBuffer<LightData> rLight = ResourceDescriptorHeap[cbResIndex.rLight];
 	
 	// get gbuffer.
 	float4 color = texGBufferA[pixelPos];
@@ -48,9 +33,9 @@ float3 Lighting(uint2 pixelPos, float depth)
 	worldPos.xyz /= worldPos.w;
 
 	// apply light.
-	float NoL = saturate(normal.y);
+	float NoL = dot(normal, -rLight[0].dir);
 	float3 diffuse = lerp(color.rgb, 0, orm.b);
-	return diffuse * NoL;
+	return diffuse * NoL * rLight[0].color;
 }
 
 [numthreads(8, 8, 1)]
@@ -61,11 +46,9 @@ void main(
 {
 	uint2 pixelPos = did.xy;
 
-#if ENABLE_DYNAMIC_RESOURCE
 	ConstantBuffer<SceneCB> cbScene = ResourceDescriptorHeap[cbResIndex.cbScene];
 	Texture2D<float> texDepth = ResourceDescriptorHeap[cbResIndex.texDepth];
 	RWTexture2D<float4> rwOutput = ResourceDescriptorHeap[cbResIndex.rwOutput];
-#endif
 
 	if (all(pixelPos < (uint2)cbScene.screenSize))
 	{

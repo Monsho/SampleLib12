@@ -7,7 +7,7 @@
 #include "sl12/pipeline_state.h"
 #include "sl12/unique_handle.h"
 #include "sl12/cbv_manager.h"
-#include "sl12/render_graph.h"
+#include "sl12/render_graph_deprecated.h"
 #include "sl12/texture_streamer.h"
 #include "sl12/resource_mesh.h"
 #include "sl12/resource_streaming_texture.h"
@@ -121,25 +121,11 @@ private:
 	UniqueHandle<sl12::ResourceLoader>	resLoader_;
 	UniqueHandle<sl12::ShaderManager>	shaderMan_;
 	UniqueHandle<sl12::MeshManager>		meshMan_;
-	UniqueHandle<CommandLists>			mainCmdList_;
 	UniqueHandle<CommandLists>			frameStartCmdList_;
 	UniqueHandle<CommandLists>			frameEndCmdList_;
 	UniqueHandle<sl12::CbvManager>		cbvMan_;
-	UniqueHandle<sl12::RenderGraph>		renderGraph_;
 	UniqueHandle<sl12::TextureStreamer>	texStreamer_;
-	UniqueHandle<sl12::RenderGraph2>	renderGraph2_;
-
-	UniqueHandle<sl12::RootSignature>			rsVsPs_;
-	UniqueHandle<sl12::RootSignature>			rsCs_;
-	UniqueHandle<sl12::RootSignature>			rsMeshDR_;
-	UniqueHandle<sl12::RootSignature>			rsTonemapDR_;
-	UniqueHandle<sl12::RootSignature>			rsLightingDR_;
-	UniqueHandle<sl12::GraphicsPipelineState>	psoMesh_;
-	UniqueHandle<sl12::GraphicsPipelineState>	psoTonemap_;
-	UniqueHandle<sl12::ComputePipelineState>	psoLighting_;
-	
-	UniqueHandle<sl12::Texture>				depthTex_;
-	UniqueHandle<sl12::DepthStencilView>	depthDSV_;
+	UniqueHandle<sl12::RenderGraph>		renderGraph_;
 
 	UniqueHandle<sl12::Sampler>				linearSampler_;
 

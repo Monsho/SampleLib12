@@ -28,5 +28,11 @@ struct MeshCB
     float4x4	mtxLocalToWorld;
 };
 
+struct LightData
+{
+    float3      color;
+    float3      dir;
+};
+
 #endif // CBUFFER_HLSLI
 //  EOF

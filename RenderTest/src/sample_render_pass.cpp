@@ -14,6 +14,7 @@ namespace
 	static const sl12::TransientResourceID kGBufferCID("GBufferC");
 	static const sl12::TransientResourceID kLightResultID("LightResult");
 	static const sl12::TransientResourceID kSwapchainID("Swapchain");
+	static const sl12::TransientResourceID kLightBufferID("LightBuffer");
 
 	static const DXGI_FORMAT	kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 	static const DXGI_FORMAT	kGBufferAFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -415,7 +416,7 @@ public:
 		rootSig_ = sl12::MakeUnique<sl12::RootSignature>(pDevice_);
 		pso_ = sl12::MakeUnique<sl12::ComputePipelineState>(pDevice_);
 		{
-			rootSig_->InitializeWithDynamicResource(pDevice_, 6);
+			rootSig_->InitializeWithDynamicResource(pDevice_, 7);
 
 			sl12::ComputePipelineStateDesc desc{};
 			desc.pCS = state->GetShaderHandle(ShaderID::Lighting_C).GetShader();
@@ -439,10 +440,12 @@ public:
 		sl12::TransientResource gbufferB(kGBufferBID, sl12::TransientState::ShaderResource);
 		sl12::TransientResource gbufferC(kGBufferCID, sl12::TransientState::ShaderResource);
 		sl12::TransientResource depth(kDepthBufferID, sl12::TransientState::ShaderResource);
+		sl12::TransientResource light(kLightBufferID, sl12::TransientState::ShaderResource);
 		ret.push_back(gbufferA);
 		ret.push_back(gbufferB);
 		ret.push_back(gbufferC);
 		ret.push_back(depth);
+		ret.push_back(light);
 		return ret;
 	}
 	virtual std::vector<sl12::TransientResource> GetOutputResources() const
@@ -472,30 +475,36 @@ public:
 		auto gbufferB = pResManager->GetRenderGraphResource(kGBufferBID)->pTexture;
 		auto gbufferC = pResManager->GetRenderGraphResource(kGBufferCID)->pTexture;
 		auto depthBuffer = pResManager->GetRenderGraphResource(kDepthBufferID)->pTexture;
+		auto lightBuffer = pResManager->GetRenderGraphResource(kLightBufferID)->pBuffer;
 		auto lightResult = pResManager->GetRenderGraphResource(kLightResultID)->pTexture;
 
 		sl12::UniqueHandle<sl12::TextureView> srvGA = sl12::MakeUnique<sl12::TextureView>(pDevice_);
 		sl12::UniqueHandle<sl12::TextureView> srvGB = sl12::MakeUnique<sl12::TextureView>(pDevice_);
 		sl12::UniqueHandle<sl12::TextureView> srvGC = sl12::MakeUnique<sl12::TextureView>(pDevice_);
 		sl12::UniqueHandle<sl12::TextureView> srvDepth = sl12::MakeUnique<sl12::TextureView>(pDevice_);
+		sl12::UniqueHandle<sl12::BufferView> srvLight = sl12::MakeUnique<sl12::BufferView>(pDevice_);
 		sl12::UniqueHandle<sl12::UnorderedAccessView> uavResult = sl12::MakeUnique<sl12::UnorderedAccessView>(pDevice_);
 		srvGA->Initialize(pDevice_, gbufferA);
 		srvGB->Initialize(pDevice_, gbufferB);
 		srvGC->Initialize(pDevice_, gbufferC);
 		srvDepth->Initialize(pDevice_, depthBuffer);
+		size_t size = lightBuffer->GetBufferDesc().size;
+		size_t stride = lightBuffer->GetBufferDesc().stride;
+		srvLight->Initialize(pDevice_, lightBuffer, 0, (sl12::u32)(size / stride), (sl12::u32)stride);
 		uavResult->Initialize(pDevice_, lightResult);
 
 		// set pipeline.
 		pCmdList->GetLatestCommandList()->SetPipelineState(pso_->GetPSO());
 
 		std::vector<sl12::u32> resIndices;
-		resIndices.resize(6);
+		resIndices.resize(7);
 		resIndices[0] = state->GetSceneCBV()->GetDynamicDescInfo().index;
 		resIndices[1] = srvGA->GetDynamicDescInfo().index;
 		resIndices[2] = srvGB->GetDynamicDescInfo().index;
 		resIndices[3] = srvGC->GetDynamicDescInfo().index;
 		resIndices[4] = srvDepth->GetDynamicDescInfo().index;
-		resIndices[5] = uavResult->GetDynamicDescInfo().index;
+		resIndices[5] = srvLight->GetDynamicDescInfo().index;
+		resIndices[6] = uavResult->GetDynamicDescInfo().index;
 
 		pCmdList->SetComputeRootSignatureAndDynamicResource(&rootSig_, resIndices);
 
@@ -625,7 +634,7 @@ public:
 		pCmdList->SetGraphicsRootSignatureAndDynamicResource(&rootSig_, resIndices);
 
 		// draw fullscreen.
-		pCmdList->GetLatestCommandList()->DrawIndexedInstanced(3, 1, 0, 0, 0);
+		pCmdList->GetLatestCommandList()->DrawInstanced(3, 1, 0, 0);
 	}
 
 private:
@@ -634,7 +643,64 @@ private:
 	sl12::UniqueHandle<sl12::GraphicsPipelineState>	pso_;
 };
 
-void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph2* pRenderGraph)
+class CopyLightDataPass : public sl12::IRenderPass
+{
+public:
+	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	{
+		std::vector<sl12::TransientResource> ret;
+		return ret;
+	}
+	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	{
+		std::vector<sl12::TransientResource> ret;
+		sl12::TransientResource light(kLightBufferID, sl12::TransientState::CopyDst);
+
+		light.desc.bIsTexture = false;
+		light.desc.bufferDesc.heap = sl12::BufferHeap::Default;
+		light.desc.bufferDesc.stride = sizeof(LightData);
+		light.desc.bufferDesc.size = light.desc.bufferDesc.stride * 1;
+		light.desc.bufferDesc.usage = sl12::ResourceUsage::ShaderResource;
+		
+		ret.push_back(light);
+		return ret;
+	}
+	virtual sl12::HardwareQueue::Value GetExecuteQueue() const
+	{
+		return sl12::HardwareQueue::Copy;
+	}
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	{
+		auto state = SceneRenderState::GetInstance();
+		auto pDev = state->GetDevice();
+		
+		sl12::UniqueHandle<sl12::Buffer> CopySrcBuffer = sl12::MakeUnique<sl12::Buffer>(pDev);
+		sl12::BufferDesc desc;
+		desc.heap = sl12::BufferHeap::Dynamic;
+		desc.stride = sizeof(LightData);
+		desc.size = desc.stride;
+		desc.usage = sl12::ResourceUsage::Unknown;
+		bool bInitSuccess = CopySrcBuffer->Initialize(pDev, desc);
+		assert(bInitSuccess);
+
+		float c = sinf(time_ / 360.0f * DirectX::XM_PI) * 0.5f + 0.5f;
+		time_ += 1.0f;
+		
+		LightData* pData = reinterpret_cast<LightData*>(CopySrcBuffer->Map());
+		pData->color = DirectX::XMFLOAT3(c, 0.0f, 0.0f);
+		pData->dir = DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f);
+		CopySrcBuffer->Unmap();
+
+		sl12::Buffer* pDstBuffer = pResManager->GetRenderGraphResource(kLightBufferID)->pBuffer;
+		pCmdList->GetLatestCommandList()->CopyResource(pDstBuffer->GetResourceDep(), CopySrcBuffer->GetResourceDep());
+	}
+
+private:
+	float	time_ = 0.0f;
+};
+
+
+void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph* pRenderGraph)
 {
 	auto state = SceneRenderState::GetInstance();
 
@@ -642,17 +708,22 @@ void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph2* pRenderGraph)
 	std::unique_ptr<sl12::IRenderPass> gbuffer_pass = std::make_unique<GBufferPass>();
 	std::unique_ptr<sl12::IRenderPass> lighting_pass = std::make_unique<LightingPass>();
 	std::unique_ptr<sl12::IRenderPass> tonemap_pass = std::make_unique<TonemapPass>();
+	std::unique_ptr<sl12::IRenderPass> copy_light_pass = std::make_unique<CopyLightDataPass>();
 	pRenderGraph->AddPass(depth_pre_pass.get(), nullptr);
 	pRenderGraph->AddPass(gbuffer_pass.get(), depth_pre_pass.get());
-	pRenderGraph->AddPass(lighting_pass.get(), gbuffer_pass.get());
+	pRenderGraph->AddPass(copy_light_pass.get(), gbuffer_pass.get());
+	pRenderGraph->AddPass(lighting_pass.get(), copy_light_pass.get());
+	// pRenderGraph->AddPass(copy_light_pass.get(), nullptr);
+	// pRenderGraph->AddPass(lighting_pass.get(), { gbuffer_pass.get(), copy_light_pass.get() });
 	pRenderGraph->AddPass(tonemap_pass.get(), lighting_pass.get());
 	state->AddPass(depth_pre_pass);
 	state->AddPass(gbuffer_pass);
 	state->AddPass(lighting_pass);
 	state->AddPass(tonemap_pass);
+	state->AddPass(copy_light_pass);
 }
 
-void CompileRenderGraph(sl12::Device* pDev, sl12::RenderGraph2* pRenderGraph, sl12::Texture* pSwapchain)
+void CompileRenderGraph(sl12::Device* pDev, sl12::RenderGraph* pRenderGraph, sl12::Texture* pSwapchain)
 {
 	pRenderGraph->AddExternalTexture(kSwapchainID, pSwapchain, sl12::TransientState::Present);
 	pRenderGraph->Compile();

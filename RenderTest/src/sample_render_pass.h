@@ -9,11 +9,11 @@
 #include "sl12/pipeline_state.h"
 #include "sl12/unique_handle.h"
 #include "sl12/cbv_manager.h"
-#include "sl12/render_graph.h"
+#include "sl12/render_graph_deprecated.h"
 #include "sl12/texture_streamer.h"
 #include "sl12/resource_mesh.h"
 #include "sl12/resource_streaming_texture.h"
-#include "sl12/render_graph2.h"
+#include "sl12/render_graph.h"
 
 struct ShaderID
 {
@@ -133,7 +133,7 @@ private:
 	static std::unique_ptr<SceneRenderState> instance_;
 };
 
-void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph2* pRenderGraph);
-void CompileRenderGraph(sl12::Device* pDev, sl12::RenderGraph2* pRenderGraph, sl12::Texture* pSwapchain);
+void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph* pRenderGraph);
+void CompileRenderGraph(sl12::Device* pDev, sl12::RenderGraph* pRenderGraph, sl12::Texture* pSwapchain);
 
 //	EOF

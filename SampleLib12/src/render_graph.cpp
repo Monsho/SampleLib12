@@ -80,7 +80,7 @@ namespace sl12
 
 	void TransientResourceManager::AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state)
 	{
-		ExternalResourceInstance inst;
+		RDGExternalResourceInstance inst;
 		inst.bIsTexture = true;
 		inst.pTexture = pTexture;
 		inst.state = state;
@@ -89,7 +89,7 @@ namespace sl12
 	
 	void TransientResourceManager::AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state)
 	{
-		ExternalResourceInstance inst;
+		RDGExternalResourceInstance inst;
 		inst.bIsTexture = false;
 		inst.pBuffer = pBuffer;
 		inst.state = state;
@@ -106,24 +106,246 @@ namespace sl12
 		return &it->second;
 	}
 
-	TransientResourceManager::ResourceType TransientResourceManager::GetResourceInstance(TransientResourceID id, TransientResourceInstance*& OutTransient, ExternalResourceInstance*& OutExternal)
+	TextureView* TransientResourceManager::CreateOrGetTextureView(RenderGraphResource* pResource, u32 firstMip, u32 mipCount, u32 firstArray, u32 arraySize)
+	{
+		if (!pResource->bIsTexture)
+		{
+			return nullptr;
+		}
+
+		std::lock_guard<std::mutex> lock(viewMutex_);
+		
+		// find cache.
+		RDGTextureViewDesc desc{ firstMip, mipCount, firstArray, arraySize };
+		auto ret = viewInstances_.equal_range(pResource->pTexture);
+		for (auto it = ret.first; it != ret.second; ++it)
+		{
+			if (it->second->type == RDGResourceViewType::Texture)
+			{
+				if (it->second->textureDesc == desc)
+				{
+					it->second->unusedFrame_ = 0;
+					return &(it->second->texture);
+				}
+			}
+		}
+
+		// create new instance.
+		std::unique_ptr<RDGResourceViewInstance> inst = std::make_unique<RDGResourceViewInstance>();
+		inst->type = RDGResourceViewType::Texture;
+		inst->textureDesc = desc;
+		inst->texture = MakeUnique<TextureView>(pDevice_);
+		bool bTextureViewInitSuccess = inst->texture->Initialize(pDevice_, pResource->pTexture, firstMip, mipCount, firstArray, arraySize);
+		assert(bTextureViewInitSuccess);
+
+		auto view = &inst->texture;
+		viewInstances_.insert(std::make_pair(pResource->pTexture, std::move(inst)));
+		return view;
+	}
+	
+	BufferView* TransientResourceManager::CreateOrGetBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride)
+	{
+		if (pResource->bIsTexture)
+		{
+			return nullptr;
+		}
+
+		std::lock_guard<std::mutex> lock(viewMutex_);
+
+		// find cache.
+		RDGBufferViewDesc desc{ firstElement, numElement, stride, 0 };
+		auto ret = viewInstances_.equal_range(pResource->pTexture);
+		for (auto it = ret.first; it != ret.second; ++it)
+		{
+			if (it->second->type == RDGResourceViewType::Buffer)
+			{
+				if (it->second->bufferDesc == desc)
+				{
+					it->second->unusedFrame_ = 0;
+					return &(it->second->buffer);
+				}
+			}
+		}
+
+		// create new instance.
+		std::unique_ptr<RDGResourceViewInstance> inst = std::make_unique<RDGResourceViewInstance>();
+		inst->type = RDGResourceViewType::Buffer;
+		inst->bufferDesc = desc;
+		inst->buffer = MakeUnique<BufferView>(pDevice_);
+		bool bTextureViewInitSuccess = inst->buffer->Initialize(pDevice_, pResource->pBuffer, firstElement, numElement, stride);
+		assert(bTextureViewInitSuccess);
+
+		auto view = &inst->buffer;
+		viewInstances_.insert(std::make_pair(pResource->pBuffer, std::move(inst)));
+		return view;
+	}
+	
+	RenderTargetView* TransientResourceManager::CreateOrGetRenderTargetView(RenderGraphResource* pResource, u32 mipSlice, u32 firstArray, u32 arraySize)
+	{
+		if (!pResource->bIsTexture)
+		{
+			return nullptr;
+		}
+
+		std::lock_guard<std::mutex> lock(viewMutex_);
+
+		// find cache.
+		RDGTextureViewDesc desc{ mipSlice, 0, firstArray, arraySize };
+		auto ret = viewInstances_.equal_range(pResource->pTexture);
+		for (auto it = ret.first; it != ret.second; ++it)
+		{
+			if (it->second->type == RDGResourceViewType::RenderTarget)
+			{
+				if (it->second->textureDesc == desc)
+				{
+					it->second->unusedFrame_ = 0;
+					return &(it->second->rtv);
+				}
+			}
+		}
+
+		// create new instance.
+		std::unique_ptr<RDGResourceViewInstance> inst = std::make_unique<RDGResourceViewInstance>();
+		inst->type = RDGResourceViewType::RenderTarget;
+		inst->textureDesc = desc;
+		inst->rtv = MakeUnique<RenderTargetView>(pDevice_);
+		bool bTextureViewInitSuccess = inst->rtv->Initialize(pDevice_, pResource->pTexture, mipSlice, firstArray, arraySize);
+		assert(bTextureViewInitSuccess);
+
+		auto view = &inst->rtv;
+		viewInstances_.insert(std::make_pair(pResource->pTexture, std::move(inst)));
+		return view;
+	}
+	
+	DepthStencilView* TransientResourceManager::CreateOrGetDepthStencilView(RenderGraphResource* pResource, u32 mipSlice, u32 firstArray, u32 arraySize)
+	{
+		if (!pResource->bIsTexture)
+		{
+			return nullptr;
+		}
+
+		std::lock_guard<std::mutex> lock(viewMutex_);
+
+		// find cache.
+		RDGTextureViewDesc desc{ mipSlice, 0, firstArray, arraySize };
+		auto ret = viewInstances_.equal_range(pResource->pTexture);
+		for (auto it = ret.first; it != ret.second; ++it)
+		{
+			if (it->second->type == RDGResourceViewType::DepthStencil)
+			{
+				if (it->second->textureDesc == desc)
+				{
+					it->second->unusedFrame_ = 0;
+					return &(it->second->dsv);
+				}
+			}
+		}
+
+		// create new instance.
+		std::unique_ptr<RDGResourceViewInstance> inst = std::make_unique<RDGResourceViewInstance>();
+		inst->type = RDGResourceViewType::DepthStencil;
+		inst->textureDesc = desc;
+		inst->dsv = MakeUnique<DepthStencilView>(pDevice_);
+		bool bTextureViewInitSuccess = inst->dsv->Initialize(pDevice_, pResource->pTexture, mipSlice, firstArray, arraySize);
+		assert(bTextureViewInitSuccess);
+
+		auto view = &inst->dsv;
+		viewInstances_.insert(std::make_pair(pResource->pTexture, std::move(inst)));
+		return view;
+	}
+	
+	UnorderedAccessView* TransientResourceManager::CreateOrGetUnorderedAccessTextureView(RenderGraphResource* pResource, u32 mipSlice, u32 firstArray, u32 arraySize)
+	{
+		if (!pResource->bIsTexture)
+		{
+			return nullptr;
+		}
+
+		std::lock_guard<std::mutex> lock(viewMutex_);
+
+		// find cache.
+		RDGTextureViewDesc desc{ mipSlice, 0, firstArray, arraySize };
+		auto ret = viewInstances_.equal_range(pResource->pTexture);
+		for (auto it = ret.first; it != ret.second; ++it)
+		{
+			if (it->second->type == RDGResourceViewType::UnorderedAccessTexture)
+			{
+				if (it->second->textureDesc == desc)
+				{
+					it->second->unusedFrame_ = 0;
+					return &(it->second->uav);
+				}
+			}
+		}
+
+		// create new instance.
+		std::unique_ptr<RDGResourceViewInstance> inst = std::make_unique<RDGResourceViewInstance>();
+		inst->type = RDGResourceViewType::UnorderedAccessTexture;
+		inst->textureDesc = desc;
+		inst->uav = MakeUnique<UnorderedAccessView>(pDevice_);
+		bool bTextureViewInitSuccess = inst->uav->Initialize(pDevice_, pResource->pTexture, mipSlice, firstArray, arraySize);
+		assert(bTextureViewInitSuccess);
+
+		auto view = &inst->uav;
+		viewInstances_.insert(std::make_pair(pResource->pTexture, std::move(inst)));
+		return view;
+	}
+
+	UnorderedAccessView* TransientResourceManager::CreateOrGetUnorderedAccessBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride, u32 offset)
+	{
+		if (pResource->bIsTexture)
+		{
+			return nullptr;
+		}
+
+		std::lock_guard<std::mutex> lock(viewMutex_);
+
+		// find cache.
+		RDGBufferViewDesc desc{ firstElement, numElement, stride, offset };
+		auto ret = viewInstances_.equal_range(pResource->pTexture);
+		for (auto it = ret.first; it != ret.second; ++it)
+		{
+			if (it->second->type == RDGResourceViewType::UnorderedAccessBuffer)
+			{
+				if (it->second->bufferDesc == desc)
+				{
+					it->second->unusedFrame_ = 0;
+					return &(it->second->uav);
+				}
+			}
+		}
+
+		// create new instance.
+		std::unique_ptr<RDGResourceViewInstance> inst = std::make_unique<RDGResourceViewInstance>();
+		inst->type = RDGResourceViewType::UnorderedAccessBuffer;
+		inst->bufferDesc = desc;
+		inst->uav = MakeUnique<UnorderedAccessView>(pDevice_);
+		bool bTextureViewInitSuccess = inst->uav->Initialize(pDevice_, pResource->pBuffer, firstElement, numElement, stride, offset);
+		assert(bTextureViewInitSuccess);
+
+		auto view = &inst->uav;
+		viewInstances_.insert(std::make_pair(pResource->pBuffer, std::move(inst)));
+		return view;
+	}
+
+	TransientResourceManager::RDGResourceType TransientResourceManager::GetResourceInstance(TransientResourceID id, RDGTransientResourceInstance*& OutTransient, RDGExternalResourceInstance*& OutExternal)
 	{
 		OutTransient = nullptr;
 		OutExternal = nullptr;
 		if (resourceIDMap_.find(id) != resourceIDMap_.end())
 		{
 			OutTransient = committedResources_[resourceIDMap_[id]].get();
-			return ResourceType::Transient;
+			return RDGResourceType::Transient;
 		}
 		if (externalResources_.find(id) != externalResources_.end())
 		{
 			OutExternal = &externalResources_[id];
-			return ResourceType::External;
+			return RDGResourceType::External;
 		}
-		return ResourceType::None;
+		return RDGResourceType::None;
 	}
 
-	TransientResourceInstance* TransientResourceManager::GetTransientResourceInstance(TransientResourceID id)
+	TransientResourceManager::RDGTransientResourceInstance* TransientResourceManager::GetTransientResourceInstance(TransientResourceID id)
 	{
 		auto it = resourceIDMap_.find(id);
 		if (it == resourceIDMap_.end())
@@ -133,7 +355,7 @@ namespace sl12
 		return committedResources_[it->second].get();
 	}
 
-	ExternalResourceInstance* TransientResourceManager::GetExternalResourceInstance(TransientResourceID id)
+	TransientResourceManager::RDGExternalResourceInstance* TransientResourceManager::GetExternalResourceInstance(TransientResourceID id)
 	{
 		auto it = externalResources_.find(id);
 		if (it == externalResources_.end())
@@ -145,8 +367,43 @@ namespace sl12
 
 	void TransientResourceManager::ResetResource()
 	{
+		static const u8 kMaxStorageFrame = 3;
+		
+		// delete unused resources.
+		auto it = unusedResources_.begin();
+		for (; it != unusedResources_.end(); ++it)
+		{
+			it->second->unusedFrame++;
+			if (it->second->unusedFrame > kMaxStorageFrame)
+			{
+				void* viewKey = it->second->desc.bIsTexture
+					? reinterpret_cast<void*>(&(it->second->texture))
+					: reinterpret_cast<void*>(&(it->second->buffer));
+				auto views = viewInstances_.equal_range(viewKey);
+				if (views.first != views.second)
+				{
+					viewInstances_.erase(views.first, views.second);
+				}
+				it = unusedResources_.erase(it);
+				continue;
+			}
+		}
+
+		// delete unused views.
+		auto viewIt = viewInstances_.begin();
+		for (; viewIt != viewInstances_.end(); ++viewIt)
+		{
+			viewIt->second->unusedFrame_++;
+			if (viewIt->second->unusedFrame_ > kMaxStorageFrame)
+			{
+				viewIt = viewInstances_.erase(viewIt);
+			}
+		}
+		
+		// transition committed resource to unused.
 		for (auto&& res : committedResources_)
 		{
+			res->unusedFrame = 0;
 			unusedResources_.insert(std::make_pair(res->desc, std::move(res)));
 		}
 		committedResources_.clear();
@@ -167,7 +424,7 @@ namespace sl12
 			}
 			else
 			{
-				std::unique_ptr<TransientResourceInstance> res = std::make_unique<TransientResourceInstance>();
+				std::unique_ptr<RDGTransientResourceInstance> res = std::make_unique<RDGTransientResourceInstance>();
 				res->desc = desc;
 				res->state = TransientState::Common;
 				if (desc.bIsTexture)
@@ -879,19 +1136,19 @@ namespace sl12
 
 			for (auto res : transientRess)
 			{
-				TransientResourceInstance* pTRes;
-				ExternalResourceInstance* pERes;
+				TransientResourceManager::RDGTransientResourceInstance* pTRes;
+				TransientResourceManager::RDGExternalResourceInstance* pERes;
 				auto result = resManager_->GetResourceInstance(res.first, pTRes, pERes);
 				switch (result)
 				{
-				case TransientResourceManager::Transient:
+				case TransientResourceManager::RDGResourceType::Transient:
 					if (pTRes->state != res.second.state)
 					{
 						cmd.barriers.push_back(Barrier(res.first, pTRes->state, res.second.state));
 						pTRes->state = res.second.state;
 					}
 					break;
-				case TransientResourceManager::External:
+				case TransientResourceManager::RDGResourceType::External:
 					if (pERes->state != res.second.state)
 					{
 						cmd.barriers.push_back(Barrier(res.first, pERes->state, res.second.state));
@@ -899,7 +1156,7 @@ namespace sl12
 					}
 					break;
 				default:
-					assert(result != TransientResourceManager::None);
+					assert(result != TransientResourceManager::RDGResourceType::None);
 					break;
 				}
 			}

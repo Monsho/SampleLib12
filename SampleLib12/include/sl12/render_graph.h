@@ -174,43 +174,6 @@ namespace sl12
 		}
 	};
 
-	struct TransientResourceInstance
-	{
-		TransientResourceDesc	desc;
-		TransientState::Value	state;
-		UniqueHandle<Texture>	texture;
-		UniqueHandle<Buffer>	buffer;
-
-		TransientResourceInstance()
-		{}
-		TransientResourceInstance(TransientResourceInstance&& rhs)
-		{
-			desc = rhs.desc;
-			state = rhs.state;
-			texture = std::move(rhs.texture);
-			buffer = std::move(rhs.buffer);
-		}
-		TransientResourceInstance& operator=(TransientResourceInstance&& rhs) noexcept
-		{
-			desc = rhs.desc;
-			state = rhs.state;
-			texture = std::move(rhs.texture);
-			buffer = std::move(rhs.buffer);
-			return *this;
-		}
-	};
-
-	struct ExternalResourceInstance
-	{
-		bool					bIsTexture;
-		TransientState::Value	state;
-		union
-		{
-			Texture*			pTexture;
-			Buffer*				pBuffer;
-		};
-	};
-
 	struct RenderGraphResource
 	{
 		bool					bIsTexture;
@@ -225,11 +188,156 @@ namespace sl12
 	{
 		friend class RenderGraph;
 
-		enum ResourceType
+		enum class RDGResourceType
 		{
 			None,
 			Transient,
 			External,
+		};
+
+		struct RDGTransientResourceInstance
+		{
+			TransientResourceDesc	desc;
+			TransientState::Value	state;
+			UniqueHandle<Texture>	texture;
+			UniqueHandle<Buffer>	buffer;
+			u8						unusedFrame = 0;
+
+			RDGTransientResourceInstance()
+			{}
+			RDGTransientResourceInstance(RDGTransientResourceInstance&& rhs) noexcept
+			{
+				desc = rhs.desc;
+				state = rhs.state;
+				texture = std::move(rhs.texture);
+				buffer = std::move(rhs.buffer);
+				unusedFrame = rhs.unusedFrame;
+			}
+			RDGTransientResourceInstance& operator=(RDGTransientResourceInstance&& rhs) noexcept
+			{
+				desc = rhs.desc;
+				state = rhs.state;
+				texture = std::move(rhs.texture);
+				buffer = std::move(rhs.buffer);
+				unusedFrame = rhs.unusedFrame;
+				return *this;
+			}
+			RDGTransientResourceInstance(RDGTransientResourceInstance& rhs) = delete;
+			RDGTransientResourceInstance& operator=(RDGTransientResourceInstance& rhs) = delete;
+		};
+
+		struct RDGExternalResourceInstance
+		{
+			bool					bIsTexture;
+			TransientState::Value	state;
+			union
+			{
+				Texture*			pTexture;
+				Buffer*				pBuffer;
+			};
+		};
+
+		enum class RDGResourceViewType
+		{
+			Texture,
+			Buffer,
+			RenderTarget,
+			DepthStencil,
+			UnorderedAccessTexture,
+			UnorderedAccessBuffer,
+		};
+
+		struct RDGTextureViewDesc
+		{
+			u32		firstMip = 0;
+			u32		mipCount = 0;
+			u32		firstArray = 0;
+			u32		arraySize = 0;
+
+			bool operator==(const RDGTextureViewDesc& rhs) const
+			{
+				return (firstMip == rhs.firstMip)
+					&& (mipCount == rhs.mipCount)
+					&& (firstArray == rhs.firstArray)
+					&& (arraySize == rhs.arraySize);
+			}
+		};
+
+		struct RDGBufferViewDesc
+		{
+			u32		firstElement = 0;
+			u32		numElement = 0;
+			u32		stride = 0;
+			u32		offset = 0;
+
+			bool operator==(const RDGBufferViewDesc& rhs) const
+			{
+				return (firstElement == rhs.firstElement)
+					&& (numElement == rhs.numElement)
+					&& (stride == rhs.stride);
+			}
+		};
+
+		struct RDGResourceViewInstance
+		{
+			RDGResourceViewType					type = RDGResourceViewType::Texture;
+			u8									unusedFrame_ = 0;
+			union
+			{
+				RDGTextureViewDesc				textureDesc;
+				RDGBufferViewDesc				bufferDesc;
+			};
+			UniqueHandle<TextureView>			texture;
+			UniqueHandle<BufferView>			buffer;
+			UniqueHandle<RenderTargetView>		rtv;
+			UniqueHandle<DepthStencilView>		dsv;
+			UniqueHandle<UnorderedAccessView>	uav;
+
+			RDGResourceViewInstance()
+			{}
+			RDGResourceViewInstance(RDGResourceViewInstance&& rhs) noexcept
+			{
+				type = rhs.type;
+				unusedFrame_ = rhs.unusedFrame_;
+				switch (type)
+				{
+				case RDGResourceViewType::Texture:
+				case RDGResourceViewType::RenderTarget:
+				case RDGResourceViewType::DepthStencil:
+				case RDGResourceViewType::UnorderedAccessTexture:
+					textureDesc = rhs.textureDesc; break;
+				default:
+					bufferDesc = rhs.bufferDesc; break;
+				}
+				texture = std::move(rhs.texture);
+				buffer = std::move(rhs.buffer);
+				rtv = std::move(rhs.rtv);
+				dsv = std::move(rhs.dsv);
+				uav = std::move(rhs.uav);
+			}
+			RDGResourceViewInstance& operator=(RDGResourceViewInstance&& rhs) noexcept
+			{
+				type = rhs.type;
+				unusedFrame_ = rhs.unusedFrame_;
+				switch (type)
+				{
+				case RDGResourceViewType::Texture:
+				case RDGResourceViewType::RenderTarget:
+				case RDGResourceViewType::DepthStencil:
+				case RDGResourceViewType::UnorderedAccessTexture:
+					textureDesc = rhs.textureDesc; break;
+				default:
+					bufferDesc = rhs.bufferDesc; break;
+				}
+				texture = std::move(rhs.texture);
+				buffer = std::move(rhs.buffer);
+				rtv = std::move(rhs.rtv);
+				dsv = std::move(rhs.dsv);
+				uav = std::move(rhs.uav);
+				return *this;
+			}
+			RDGResourceViewInstance(RDGResourceViewInstance& rhs) = delete;
+			RDGResourceViewInstance& operator=(RDGResourceViewInstance& rhs) = delete;
 		};
 		
 	public:
@@ -239,6 +347,13 @@ namespace sl12
 		~TransientResourceManager();
 
 		RenderGraphResource* GetRenderGraphResource(TransientResourceID id);
+
+		TextureView* CreateOrGetTextureView(RenderGraphResource* pResource, u32 firstMip = 0, u32 mipCount = 0, u32 firstArray = 0, u32 arraySize = 0);
+		BufferView* CreateOrGetBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride);
+		RenderTargetView* CreateOrGetRenderTargetView(RenderGraphResource* pResource, u32 mipSlice = 0, u32 firstArray = 0, u32 arraySize = 1);
+		DepthStencilView* CreateOrGetDepthStencilView(RenderGraphResource* pResource, u32 mipSlice = 0, u32 firstArray = 0, u32 arraySize = 1);
+		UnorderedAccessView* CreateOrGetUnorderedAccessTextureView(RenderGraphResource* pResource, u32 mipSlice = 0, u32 firstArray = 0, u32 arraySize = 1);
+		UnorderedAccessView* CreateOrGetUnorderedAccessBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride, u32 offset);
 		
 	private:
 		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state);
@@ -247,18 +362,21 @@ namespace sl12
 		void ResetResource();
 		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap);
 
-		ResourceType GetResourceInstance(TransientResourceID id, TransientResourceInstance*& OutTransient, ExternalResourceInstance*& OutExternal);
-		TransientResourceInstance* GetTransientResourceInstance(TransientResourceID id);
-		ExternalResourceInstance* GetExternalResourceInstance(TransientResourceID id);
+		RDGResourceType GetResourceInstance(TransientResourceID id, RDGTransientResourceInstance*& OutTransient, RDGExternalResourceInstance*& OutExternal);
+		RDGTransientResourceInstance* GetTransientResourceInstance(TransientResourceID id);
+		RDGExternalResourceInstance* GetExternalResourceInstance(TransientResourceID id);
 
 	private:
 		Device*		pDevice_ = nullptr;
 
-		std::vector<std::unique_ptr<TransientResourceInstance>>								committedResources_;
+		std::vector<std::unique_ptr<RDGTransientResourceInstance>>							committedResources_;
 		std::map<TransientResourceID, RenderGraphResource>									graphResources_;
 		std::map<TransientResourceID, u16>													resourceIDMap_;
-		std::multimap<TransientResourceDesc, std::unique_ptr<TransientResourceInstance>>	unusedResources_;
-		std::map<TransientResourceID, ExternalResourceInstance>								externalResources_;
+		std::multimap<TransientResourceDesc, std::unique_ptr<RDGTransientResourceInstance>>	unusedResources_;
+		std::map<TransientResourceID, RDGExternalResourceInstance>							externalResources_;
+
+		std::mutex																			viewMutex_;
+		std::multimap<void*, std::unique_ptr<RDGResourceViewInstance>>						viewInstances_;
 	};
 
 	class IRenderPass

@@ -130,9 +130,8 @@ public:
 		auto height = state->GetScreenHeight();
 		auto hResMesh = state->GetResMesh();
 
-		auto depthBuffer = pResManager->GetRenderGraphResource(kDepthBufferID)->pTexture;
-		sl12::UniqueHandle<sl12::DepthStencilView> dsv = sl12::MakeUnique<sl12::DepthStencilView>(pDevice_);
-		dsv->Initialize(pDevice_, depthBuffer);
+		auto depthBuffer = pResManager->GetRenderGraphResource(kDepthBufferID);
+		auto dsv = pResManager->CreateOrGetDepthStencilView(depthBuffer);
 
 		// clear depth.
 		D3D12_CPU_DESCRIPTOR_HANDLE hDSV = dsv->GetDescInfo().cpuHandle;
@@ -307,18 +306,15 @@ public:
 		auto height = state->GetScreenHeight();
 		auto hResMesh = state->GetResMesh();
 
-		auto gbufferA = pResManager->GetRenderGraphResource(kGBufferAID)->pTexture;
-		auto gbufferB = pResManager->GetRenderGraphResource(kGBufferBID)->pTexture;
-		auto gbufferC = pResManager->GetRenderGraphResource(kGBufferCID)->pTexture;
-		auto depthBuffer = pResManager->GetRenderGraphResource(kDepthBufferID)->pTexture;
-		sl12::UniqueHandle<sl12::RenderTargetView> rtvA = sl12::MakeUnique<sl12::RenderTargetView>(pDevice_);
-		sl12::UniqueHandle<sl12::RenderTargetView> rtvB = sl12::MakeUnique<sl12::RenderTargetView>(pDevice_);
-		sl12::UniqueHandle<sl12::RenderTargetView> rtvC = sl12::MakeUnique<sl12::RenderTargetView>(pDevice_);
-		sl12::UniqueHandle<sl12::DepthStencilView> dsv = sl12::MakeUnique<sl12::DepthStencilView>(pDevice_);
-		rtvA->Initialize(pDevice_, gbufferA);
-		rtvB->Initialize(pDevice_, gbufferB);
-		rtvC->Initialize(pDevice_, gbufferC);
-		dsv->Initialize(pDevice_, depthBuffer);
+		auto gbufferA = pResManager->GetRenderGraphResource(kGBufferAID);
+		auto gbufferB = pResManager->GetRenderGraphResource(kGBufferBID);
+		auto gbufferC = pResManager->GetRenderGraphResource(kGBufferCID);
+		auto depthBuffer = pResManager->GetRenderGraphResource(kDepthBufferID);
+
+		auto rtvA = pResManager->CreateOrGetRenderTargetView(gbufferA);
+		auto rtvB = pResManager->CreateOrGetRenderTargetView(gbufferB);
+		auto rtvC = pResManager->CreateOrGetRenderTargetView(gbufferC);
+		auto dsv = pResManager->CreateOrGetDepthStencilView(depthBuffer);
 
 		// set render targets.
 		D3D12_CPU_DESCRIPTOR_HANDLE hRTVs[] = {
@@ -471,27 +467,19 @@ public:
 		auto width = state->GetScreenWidth();
 		auto height = state->GetScreenHeight();
 
-		auto gbufferA = pResManager->GetRenderGraphResource(kGBufferAID)->pTexture;
-		auto gbufferB = pResManager->GetRenderGraphResource(kGBufferBID)->pTexture;
-		auto gbufferC = pResManager->GetRenderGraphResource(kGBufferCID)->pTexture;
-		auto depthBuffer = pResManager->GetRenderGraphResource(kDepthBufferID)->pTexture;
-		auto lightBuffer = pResManager->GetRenderGraphResource(kLightBufferID)->pBuffer;
-		auto lightResult = pResManager->GetRenderGraphResource(kLightResultID)->pTexture;
-
-		sl12::UniqueHandle<sl12::TextureView> srvGA = sl12::MakeUnique<sl12::TextureView>(pDevice_);
-		sl12::UniqueHandle<sl12::TextureView> srvGB = sl12::MakeUnique<sl12::TextureView>(pDevice_);
-		sl12::UniqueHandle<sl12::TextureView> srvGC = sl12::MakeUnique<sl12::TextureView>(pDevice_);
-		sl12::UniqueHandle<sl12::TextureView> srvDepth = sl12::MakeUnique<sl12::TextureView>(pDevice_);
-		sl12::UniqueHandle<sl12::BufferView> srvLight = sl12::MakeUnique<sl12::BufferView>(pDevice_);
-		sl12::UniqueHandle<sl12::UnorderedAccessView> uavResult = sl12::MakeUnique<sl12::UnorderedAccessView>(pDevice_);
-		srvGA->Initialize(pDevice_, gbufferA);
-		srvGB->Initialize(pDevice_, gbufferB);
-		srvGC->Initialize(pDevice_, gbufferC);
-		srvDepth->Initialize(pDevice_, depthBuffer);
-		size_t size = lightBuffer->GetBufferDesc().size;
-		size_t stride = lightBuffer->GetBufferDesc().stride;
-		srvLight->Initialize(pDevice_, lightBuffer, 0, (sl12::u32)(size / stride), (sl12::u32)stride);
-		uavResult->Initialize(pDevice_, lightResult);
+		auto gbufferA = pResManager->GetRenderGraphResource(kGBufferAID);
+		auto gbufferB = pResManager->GetRenderGraphResource(kGBufferBID);
+		auto gbufferC = pResManager->GetRenderGraphResource(kGBufferCID);
+		auto depthBuffer = pResManager->GetRenderGraphResource(kDepthBufferID);
+		auto lightBuffer = pResManager->GetRenderGraphResource(kLightBufferID);
+		auto lightResult = pResManager->GetRenderGraphResource(kLightResultID);
+		
+		auto srvGA = pResManager->CreateOrGetTextureView(gbufferA);
+		auto srvGB = pResManager->CreateOrGetTextureView(gbufferB);
+		auto srvGC = pResManager->CreateOrGetTextureView(gbufferC);
+		auto srvDepth = pResManager->CreateOrGetTextureView(depthBuffer);
+		auto srvLight = pResManager->CreateOrGetBufferView(lightBuffer, 0, 0, (sl12::u32)lightBuffer->pBuffer->GetBufferDesc().stride);
+		auto uavResult = pResManager->CreateOrGetUnorderedAccessTextureView(lightResult);
 
 		// set pipeline.
 		pCmdList->GetLatestCommandList()->SetPipelineState(pso_->GetPSO());
@@ -594,13 +582,11 @@ public:
 		auto width = state->GetScreenWidth();
 		auto height = state->GetScreenHeight();
 
-		auto lightResult = pResManager->GetRenderGraphResource(kLightResultID)->pTexture;
-		auto swapchain = pResManager->GetRenderGraphResource(kSwapchainID)->pTexture;
+		auto lightResult = pResManager->GetRenderGraphResource(kLightResultID);
+		auto swapchain = pResManager->GetRenderGraphResource(kSwapchainID);
 
-		sl12::UniqueHandle<sl12::TextureView> srvResult = sl12::MakeUnique<sl12::TextureView>(pDevice_);
-		sl12::UniqueHandle<sl12::RenderTargetView> rtvSwap = sl12::MakeUnique<sl12::RenderTargetView>(pDevice_);
-		srvResult->Initialize(pDevice_, lightResult);
-		rtvSwap->Initialize(pDevice_, swapchain);
+		auto srvResult = pResManager->CreateOrGetTextureView(lightResult);
+		auto rtvSwap = pResManager->CreateOrGetRenderTargetView(swapchain);
 		
 		// set render targets.
 		auto&& rtv = rtvSwap->GetDescInfo().cpuHandle;
@@ -711,10 +697,8 @@ void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph* pRenderGraph)
 	std::unique_ptr<sl12::IRenderPass> copy_light_pass = std::make_unique<CopyLightDataPass>();
 	pRenderGraph->AddPass(depth_pre_pass.get(), nullptr);
 	pRenderGraph->AddPass(gbuffer_pass.get(), depth_pre_pass.get());
-	pRenderGraph->AddPass(copy_light_pass.get(), gbuffer_pass.get());
-	pRenderGraph->AddPass(lighting_pass.get(), copy_light_pass.get());
-	// pRenderGraph->AddPass(copy_light_pass.get(), nullptr);
-	// pRenderGraph->AddPass(lighting_pass.get(), { gbuffer_pass.get(), copy_light_pass.get() });
+	pRenderGraph->AddPass(copy_light_pass.get(), nullptr);
+	pRenderGraph->AddPass(lighting_pass.get(), { gbuffer_pass.get(), copy_light_pass.get() });
 	pRenderGraph->AddPass(tonemap_pass.get(), lighting_pass.get());
 	state->AddPass(depth_pre_pass);
 	state->AddPass(gbuffer_pass);

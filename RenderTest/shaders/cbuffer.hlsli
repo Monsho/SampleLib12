@@ -19,8 +19,11 @@ struct SceneCB
     float4x4	mtxWorldToProj;
     float4x4	mtxWorldToView;
     float4x4    mtxProjToWorld;
+    float4x4    mtxProjToView;
     float4x4    mtxViewToWorld;
     float2      screenSize;
+    uint        frameTime;
+    uint        frag;
 };
 
 struct MeshCB

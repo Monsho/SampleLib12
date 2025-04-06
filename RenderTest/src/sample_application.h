@@ -136,7 +136,9 @@ private:
 	sl12::ShaderHandle		hShaders_[ShaderID::Max];
 
 	std::vector<WorkMaterial>	workMaterials_;
-	
+
+	sl12::u32 frameTime_ = 0;
+	bool bEnableAO_ = true;
 	int	displayWidth_, displayHeight_;
 };	// class SampleApplication
 

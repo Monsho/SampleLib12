@@ -7,6 +7,7 @@ struct ResourceIndex
 	uint texGBufferB;
 	uint texGBufferC;
 	uint texDepth;
+	uint texAO;
 	uint rLight;
 	uint rwOutput;
 };
@@ -19,12 +20,18 @@ float3 Lighting(uint2 pixelPos, float depth)
 	Texture2D texGBufferA = ResourceDescriptorHeap[cbResIndex.texGBufferA];
 	Texture2D texGBufferB = ResourceDescriptorHeap[cbResIndex.texGBufferB];
 	Texture2D texGBufferC = ResourceDescriptorHeap[cbResIndex.texGBufferC];
+	Texture2D texAO = ResourceDescriptorHeap[cbResIndex.texAO];
 	StructuredBuffer<LightData> rLight = ResourceDescriptorHeap[cbResIndex.rLight];
 	
 	// get gbuffer.
 	float4 color = texGBufferA[pixelPos];
 	float3 orm = texGBufferB[pixelPos].xyz;
-	float3 normal = texGBufferC[pixelPos].xyz * 2.0 - 1.0;
+	float3 normal = normalize(texGBufferC[pixelPos].xyz * 2.0 - 1.0);
+	float ao = texAO[pixelPos].x;
+	if (!(cbScene.frag & 0x01))
+	{
+		ao = 1.0;
+	}
 
 	// get world position.
 	float2 screenPos = ((float2)pixelPos + 0.5) / cbScene.screenSize;
@@ -34,8 +41,9 @@ float3 Lighting(uint2 pixelPos, float depth)
 
 	// apply light.
 	float NoL = dot(normal, -rLight[0].dir);
+	NoL = NoL * 0.5 + 0.5;
 	float3 diffuse = lerp(color.rgb, 0, orm.b);
-	return diffuse * NoL * rLight[0].color;
+	return diffuse * NoL * rLight[0].color * ao;
 }
 
 [numthreads(8, 8, 1)]

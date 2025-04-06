@@ -46,7 +46,7 @@ PSOutput main(PSInput In)
 	normalInTS *= float3(1, -sign(In.tangent.w), 1);
 	float3 normalInWS = ConvertVectorTangetToWorld(normalInTS, T, B, N);
 
-	Out.color = baseColor * saturate(normalInWS.y);
+	Out.color = baseColor;
 	Out.orm.rgb = orm;
 	Out.normal.xyz = normalInWS * 0.5 + 0.5;
 

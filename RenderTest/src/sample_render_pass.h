@@ -24,6 +24,7 @@ struct ShaderID
 		Lighting_C,
 		Fullscreen_VV,
 		Tonemap_P,
+		DepthAO_C,
 
 		Max
 	};
@@ -38,6 +39,7 @@ public:
 		// create linear sampler.
 		{
 			linearSampler_ = sl12::MakeUnique<sl12::Sampler>(pDev);
+			linearClampSampler_ = sl12::MakeUnique<sl12::Sampler>(pDev);
 
 			D3D12_SAMPLER_DESC desc{};
 			desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -46,6 +48,9 @@ public:
 			desc.MinLOD = 0.0f;
 			desc.MipLODBias = 0.0f;
 			linearSampler_->Initialize(pDev, desc);
+
+			desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			linearClampSampler_->Initialize(pDev, desc);
 		}
 	}
 
@@ -106,6 +111,10 @@ public:
 	{
 		return &linearSampler_;
 	}
+	sl12::Sampler* GetLinearClampSampler()
+	{
+		return &linearClampSampler_;
+	}
 	sl12::ConstantBufferView* GetSceneCBV()
 	{
 		return pSceneCBV_;
@@ -119,6 +128,7 @@ private:
 	sl12::ResourceHandle	hResMesh_;
 
 	sl12::UniqueHandle<sl12::Sampler>	linearSampler_;
+	sl12::UniqueHandle<sl12::Sampler>	linearClampSampler_;
 
 	sl12::ConstantBufferView*	pSceneCBV_;
 	

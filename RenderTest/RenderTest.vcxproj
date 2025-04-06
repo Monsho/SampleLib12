@@ -90,6 +90,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="shaders\depth_ao.c.hlsl" />
     <ClCompile Include="src\sample_render_pass.cpp" />
     <None Include="shaders\fullscreen.vv.hlsl" />
     <None Include="shaders\lighting.c.hlsl" />

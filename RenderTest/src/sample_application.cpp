@@ -119,6 +119,9 @@ bool SampleApplication::Initialize()
 	hShaders_[ShaderID::Tonemap_P] = shaderMan_->CompileFromFile(
 		sl12::JoinPath(shaderBaseDir, "tonemap.p.hlsl"),
 		"main", sl12::ShaderType::Pixel, 6, 6, nullptr, &shaderDefines);
+	hShaders_[ShaderID::DepthAO_C] = shaderMan_->CompileFromFile(
+		sl12::JoinPath(shaderBaseDir, "depth_ao.c.hlsl"),
+		"main", sl12::ShaderType::Compute, 6, 6, nullptr, &shaderDefines);
 	
 	// load request.
 	hResMesh_ = resLoader_->LoadRequest<sl12::ResourceItemMesh>("mesh/chinese_dragon/chinese_dragon.rmesh");
@@ -280,6 +283,7 @@ bool SampleApplication::Execute()
 			texTargetWidth >>= 1;
 			texTargetWidth = std::max(texTargetWidth, 32u);
 		}
+		ImGui::Checkbox("Enable AO", &bEnableAO_);
 		static float sV = 0.0f;
 		ImGui::DragFloat("My Float", &sV, 1.0f, 0.0f, 100.0f);
 		static char sT[256]{};
@@ -318,14 +322,19 @@ bool SampleApplication::Execute()
 		auto mtxWorldToClip = mtxWorldToView * mtxViewToClip;
 		auto mtxClipToWorld = DirectX::XMMatrixInverse(nullptr, mtxWorldToClip);
 		auto mtxViewToWorld = DirectX::XMMatrixInverse(nullptr, mtxWorldToView);
+		auto mtxClipToView = DirectX::XMMatrixInverse(nullptr, mtxViewToClip);
 
 		SceneCB cbScene;
 		DirectX::XMStoreFloat4x4(&cbScene.mtxWorldToProj, mtxWorldToClip);
 		DirectX::XMStoreFloat4x4(&cbScene.mtxWorldToView, mtxWorldToView);
 		DirectX::XMStoreFloat4x4(&cbScene.mtxProjToWorld, mtxClipToWorld);
+		DirectX::XMStoreFloat4x4(&cbScene.mtxProjToView, mtxClipToView);
 		DirectX::XMStoreFloat4x4(&cbScene.mtxViewToWorld, mtxViewToWorld);
 		cbScene.screenSize.x = (float)displayWidth_;
 		cbScene.screenSize.y = (float)displayHeight_;
+		cbScene.frameTime = frameTime_++;
+		cbScene.frag = 0;
+		cbScene.frag |= bEnableAO_ ? (0x01 << 0) : 0x00;
 
 		hSceneCB = cbvMan_->GetTemporal(&cbScene, sizeof(cbScene));
 	}

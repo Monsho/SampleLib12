@@ -342,6 +342,11 @@ namespace sl12
 			OutExternal = &externalResources_[id];
 			return RDGResourceType::External;
 		}
+		if (historyResources_.find(id) != historyResources_.end())
+		{
+			OutTransient = historyResources_[id].get();
+			return RDGResourceType::History;
+		}
 		return RDGResourceType::None;
 	}
 
@@ -400,19 +405,56 @@ namespace sl12
 			}
 		}
 		
+		// manage history buffers.
+		std::map<TransientResourceID, std::unique_ptr<RDGTransientResourceInstance>> tmpHistories;
+		for (auto&& res : historyResources_)
+		{
+			tmpHistories.emplace(std::make_pair(res.first, std::move(res.second)));
+		}
+		historyResources_.clear();
+		for (auto&& res : tmpHistories)
+		{
+			TransientResourceID id = res.first;
+			id.history++;
+			if (res.second->desc.historyFrame <= id.history)
+			{
+				// move to unused resource.
+				res.second->unusedFrame = 0;
+				unusedResources_.insert(std::make_pair(res.second->desc, std::move(res.second)));
+			}
+			else
+			{
+				// history to next frame.
+				historyResources_.emplace(id, std::move(res.second));
+			}
+		}
+
+		// keep history buffers.
+		for (auto id : keepHistoryIDs_)
+		{
+			u16 itemIndex = resourceIDMap_[id];
+			assert(itemIndex < committedResources_.size() && committedResources_[itemIndex] != nullptr);
+			id.history++;
+			historyResources_.emplace(id, std::move(committedResources_[itemIndex]));
+		}
+		keepHistoryIDs_.clear();
+
 		// transition committed resource to unused.
 		for (auto&& res : committedResources_)
 		{
-			res->unusedFrame = 0;
-			unusedResources_.insert(std::make_pair(res->desc, std::move(res)));
+			if (res.get())
+			{
+				res->unusedFrame = 0;
+				unusedResources_.insert(std::make_pair(res->desc, std::move(res)));
+			}
 		}
 		committedResources_.clear();
+
 	}
 
-	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap)
+	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::vector<TransientResourceID>& keepHistoryTransientIDs)
 	{
-		// create or cache resources.
-		std::vector<u16> DescIndexToItemIndex;
+		// create or cache transient resources.
 		for (auto desc : descs)
 		{
 			auto find_it = unusedResources_.find(desc);
@@ -449,7 +491,6 @@ namespace sl12
 				}
 				committedResources_.push_back(std::move(res));
 			}
-			DescIndexToItemIndex.push_back((u16)(committedResources_.size() - 1));
 		}
 
 		// external resource to graph resource.
@@ -468,11 +509,27 @@ namespace sl12
 			graphResources_[res.first] = rdgRes;
 		}
 
+		// history resource to graph resource.
+		for (auto&& res : historyResources_)
+		{
+			RenderGraphResource rdgRes;
+			rdgRes.bIsTexture = res.second->desc.bIsTexture;
+			if (rdgRes.bIsTexture)
+			{
+				rdgRes.pTexture = &res.second->texture;
+			}
+			else
+			{
+				rdgRes.pBuffer = &res.second->buffer;
+			}
+			graphResources_[res.first] = rdgRes;
+		}
+
 		// mapping id to resource.
 		resourceIDMap_.clear();
 		for (auto id : idMap)
 		{
-			u16 itemIndex = DescIndexToItemIndex[id.second];
+			u16 itemIndex = id.second;
 			resourceIDMap_[id.first] = itemIndex;
 
 			RenderGraphResource rdgRes;
@@ -487,6 +544,9 @@ namespace sl12
 			}
 			graphResources_[id.first] = rdgRes;
 		}
+
+		// store history buffer IDs.
+		keepHistoryIDs_ = keepHistoryTransientIDs;
 		
 		return true;
 	}
@@ -677,6 +737,7 @@ namespace sl12
 
 		// gather transient resources and set lifespan.
 		std::map<TransientResource, TransientResource> transients;
+		std::vector<TransientResourceID> keepHistoryTransientIDs;
 		for (size_t n = 0; n < sortedNodeIDs.size(); n++)
 		{
 			u16 nodeID = sortedNodeIDs[n];
@@ -688,6 +749,10 @@ namespace sl12
 			for (auto&& res : resources)
 			{
 				if (resManager_->GetExternalResourceInstance(res.id))
+				{
+					continue;
+				}
+				if (res.id.history > 0)
 				{
 					continue;
 				}
@@ -713,6 +778,11 @@ namespace sl12
 
 				// extend lifespan.
 				it->second.lifespan.Extend((u16)(n + 1), pass->GetExecuteQueue());
+				if (res.desc.historyFrame > 0)
+				{
+					it->second.lifespan.Extend(0xffff, pass->GetExecuteQueue());
+					keepHistoryTransientIDs.push_back(res.id);
+				}
 			}
 		}
 		for (auto&& r : transients)
@@ -729,7 +799,7 @@ namespace sl12
 
 		// commit resources.
 		resManager_->ResetResource();
-		if (!resManager_->CommitResources(commitResourceDescs, commitResIDs))
+		if (!resManager_->CommitResources(commitResourceDescs, commitResIDs, keepHistoryTransientIDs))
 		{
 			ConsolePrint("Error : Failed to commit transient resources.");
 			return false;
@@ -743,6 +813,7 @@ namespace sl12
 
 	void RenderGraph::CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap)
 	{
+		// This structure contains a cached resource desc and a set of IDs to use this resource.
 		struct CachedResource
 		{
 			TransientResourceDesc desc;
@@ -792,6 +863,8 @@ namespace sl12
 			}
 		}
 
+		// OutDescs : The array of descs of non-overlapping resources to generated.
+		// OutIDMap : The dictionary of TransientResourceID to OutDescs index.
 		for (auto it = cache.begin(); it != cache.end(); ++it)
 		{
 			u16 no = (u16)OutDescs.size();
@@ -1142,6 +1215,7 @@ namespace sl12
 				switch (result)
 				{
 				case TransientResourceManager::RDGResourceType::Transient:
+				case TransientResourceManager::RDGResourceType::History:
 					if (pTRes->state != res.second.state)
 					{
 						cmd.barriers.push_back(Barrier(res.first, pTRes->state, res.second.state));
@@ -1156,7 +1230,10 @@ namespace sl12
 					}
 					break;
 				default:
-					assert(result != TransientResourceManager::RDGResourceType::None);
+					if (res.first.history == 0)
+					{
+						assert(result != TransientResourceManager::RDGResourceType::None);
+					}
 					break;
 				}
 			}

@@ -57,11 +57,19 @@ namespace sl12
 	{
 		std::string	name = "";
 		u64			hash = 0;
+		u32			history = 0;
 
-		TransientResourceID(const std::string& n)
+		TransientResourceID(const std::string& n, u32 h = 0)
 		{
 			name = n;
 			hash = CalcFnv1a64(n.c_str(), n.length());
+			history = h;
+		}
+		TransientResourceID(const TransientResourceID& id, u32 h)
+		{
+			name = id.name;
+			hash = id.hash;
+			history = h;
 		}
 
 		bool operator==(const TransientResourceID& rhs) const
@@ -70,22 +78,26 @@ namespace sl12
 			if (hash == rhs.hash)
 			{
 				assert(name == rhs.name);
-				return true;
+				return (history == rhs.history);
 			}
 			return false;
 #else
-			return hash == rhs.hash;
+			return (hash == rhs.hash) && (history == rhs.history);
 #endif
 		}
 
 		bool operator<(const TransientResourceID& rhs) const
 		{
-#if _DEBUG
 			if (hash == rhs.hash)
 			{
+#if _DEBUG
+				if (name == rhs.name)
+				{
+					return history < rhs.history;
+				}
 				return name < rhs.name;
-			}
 #endif
+			}
 			return hash < rhs.hash;
 		}
 	};
@@ -93,6 +105,7 @@ namespace sl12
 	struct TransientResourceDesc
 	{
 		bool		bIsTexture = true;
+		u32			historyFrame = 0;
 		union
 		{
 			BufferDesc	bufferDesc;
@@ -101,6 +114,7 @@ namespace sl12
 
 		TransientResourceDesc()
 			: bIsTexture(true)
+			, historyFrame(0)
 		{
 			textureDesc = TextureDesc();
 		}
@@ -193,6 +207,7 @@ namespace sl12
 			None,
 			Transient,
 			External,
+			History,
 		};
 
 		struct RDGTransientResourceInstance
@@ -360,7 +375,7 @@ namespace sl12
 		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state);
 
 		void ResetResource();
-		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap);
+		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::vector<TransientResourceID>& keepHistoryTransientIDs);
 
 		RDGResourceType GetResourceInstance(TransientResourceID id, RDGTransientResourceInstance*& OutTransient, RDGExternalResourceInstance*& OutExternal);
 		RDGTransientResourceInstance* GetTransientResourceInstance(TransientResourceID id);
@@ -373,6 +388,8 @@ namespace sl12
 		std::map<TransientResourceID, RenderGraphResource>									graphResources_;
 		std::map<TransientResourceID, u16>													resourceIDMap_;
 		std::multimap<TransientResourceDesc, std::unique_ptr<RDGTransientResourceInstance>>	unusedResources_;
+		std::vector<TransientResourceID>													keepHistoryIDs_;
+		std::map<TransientResourceID, std::unique_ptr<RDGTransientResourceInstance>>		historyResources_;
 		std::map<TransientResourceID, RDGExternalResourceInstance>							externalResources_;
 
 		std::mutex																			viewMutex_;

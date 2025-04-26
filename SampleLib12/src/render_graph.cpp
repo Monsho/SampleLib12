@@ -35,6 +35,7 @@ namespace
 			sl12::ResourceUsage::DepthStencil,		// DepthStencil
 			sl12::ResourceUsage::ShaderResource,	// ShaderResource
 			sl12::ResourceUsage::UnorderedAccess,	// UnorderedAccess
+			0,										// IndirectArgument
 			0,										// CopySrc
 			0,										// CopyDst
 			0,										// Present
@@ -50,6 +51,7 @@ namespace
 			D3D12_RESOURCE_STATE_DEPTH_WRITE,			// DepthStencil
 			D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,	// ShaderResource
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,		// UnorderedAccess
+			D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,		// IndirectArgument
 			D3D12_RESOURCE_STATE_COPY_SOURCE,			// CopySrc
 			D3D12_RESOURCE_STATE_COPY_DEST,				// CopyDst
 			D3D12_RESOURCE_STATE_PRESENT,				// Present

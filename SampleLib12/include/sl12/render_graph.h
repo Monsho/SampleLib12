@@ -35,6 +35,7 @@ namespace sl12
 			DepthStencil,
 			ShaderResource,
 			UnorderedAccess,
+			IndirectArgument,
 			CopySrc,
 			CopyDst,
 			Present,

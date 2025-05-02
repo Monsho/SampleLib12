@@ -378,7 +378,7 @@ namespace sl12
 		
 		// delete unused resources.
 		auto it = unusedResources_.begin();
-		for (; it != unusedResources_.end(); ++it)
+		while (it != unusedResources_.end())
 		{
 			it->second->unusedFrame++;
 			if (it->second->unusedFrame > kMaxStorageFrame)
@@ -394,16 +394,21 @@ namespace sl12
 				it = unusedResources_.erase(it);
 				continue;
 			}
+			++it;
 		}
 
 		// delete unused views.
 		auto viewIt = viewInstances_.begin();
-		for (; viewIt != viewInstances_.end(); ++viewIt)
+		while (viewIt != viewInstances_.end())
 		{
 			viewIt->second->unusedFrame_++;
 			if (viewIt->second->unusedFrame_ > kMaxStorageFrame)
 			{
 				viewIt = viewInstances_.erase(viewIt);
+			}
+			else
+			{
+				++viewIt;
 			}
 		}
 		

@@ -59,14 +59,14 @@ namespace
 		return kD3D12States[state];
 	}
 
-	sl12::u16 NodeID2PassNo(const std::vector<sl12::u16>& sortedNodeIDs, sl12::u16 nodeID)
+	sl12::u16 NodeID2PassNo(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::RenderPassID nodeID)
 	{
 		auto dist = std::distance(sortedNodeIDs.begin(), std::find(sortedNodeIDs.begin(), sortedNodeIDs.end(), nodeID));
 		assert(dist >= 0);
 		return (sl12::u16)(dist + 1);
 	};
 
-	sl12::u16 PassNo2NodeID(const std::vector<sl12::u16>& sortedNodeIDs, sl12::u16 passNo)
+	sl12::RenderPassID PassNo2NodeID(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::u16 passNo)
 	{
 		return sortedNodeIDs[passNo - 1];
 	};
@@ -583,37 +583,48 @@ namespace sl12
 		return true;
 	}
 
-	void RenderGraph::ClearPasses()
+	void RenderGraph::ClearAllPasses()
 	{
 		renderPasses_.clear();
 		graphEdges_.clear();
 	}
 
-	void RenderGraph::AddPass(IRenderPass* pPass, IRenderPass* pParent)
+	void RenderGraph::ClearAllGraphEdges()
 	{
-		std::vector<IRenderPass*> parents;
-		if (pParent) parents.push_back(pParent);
-		AddPass(pPass, parents);
+		graphEdges_.clear();
 	}
 
-	void RenderGraph::AddPass(IRenderPass* pPass, const std::vector<IRenderPass*>& parents)
+	RenderPassID RenderGraph::AddPass(RenderPassID ID, IRenderPass* pPass)
 	{
-#if _DEBUG
-		auto it = std::find(renderPasses_.begin(), renderPasses_.end(), pPass);
-		assert(it == renderPasses_.end());
-#endif
-		u16 ownID = (u16)renderPasses_.size();
-		renderPasses_.push_back(pPass);
-		if (!parents.empty())
+		renderPasses_[ID] = pPass;
+		return ID;
+	}
+	
+	bool RenderGraph::AddGraphEdge(RenderPassID ParentID, RenderPassID ChildID)
+	{
+		GraphEdge edge(ParentID, ChildID);
+		GraphEdge redge(ChildID, ParentID);
+		if (graphEdges_.find(redge) != graphEdges_.end())
 		{
-			for (auto pParent : parents)
+			ConsolePrint("Error! Reverse edge founded! (Parent:%s, Child%s)\n", ParentID.name.c_str(), ChildID.name.c_str());
+			return false;
+		}
+		graphEdges_.emplace(edge);
+		return true;
+	}
+	
+	int RenderGraph::AddGraphEdges(const std::vector<RenderPassID>& ParentIDs, const std::vector<RenderPassID>& ChildIDs)
+	{
+		int count = 0;
+		for (auto&& pid : ParentIDs)
+		{
+			for (auto&& cid : ChildIDs)
 			{
-				auto pit = std::find(renderPasses_.begin(), renderPasses_.end(), pParent);
-				assert(pit != renderPasses_.end());
-				u16 parentID = (u16)std::distance(renderPasses_.begin(), pit);
-				graphEdges_.push_back(GraphEdge(parentID, ownID));
+				bool bSuccess = AddGraphEdge(pid, cid);
+				if (bSuccess) ++count;
 			}
 		}
+		return count;
 	}
 
 	void RenderGraph::AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state)
@@ -644,18 +655,18 @@ namespace sl12
 		PreCompile();
 
 		// ready graph sorting.
-		std::vector<GraphEdge> edges = graphEdges_;
-		std::map<u16, std::vector<u16>> inputEdgeIDs, outputEdgeIDs;
-		std::vector<u16> nodeS, nodeR;
-		for (size_t i = 0; i < renderPasses_.size(); i++)
-		{
-			inputEdgeIDs[(u16)i] = std::vector<u16>();
-			outputEdgeIDs[(u16)i] = std::vector<u16>();
-		}
+		std::set<GraphEdge> edges = graphEdges_;
+		std::map<RenderPassID, std::vector<RenderPassID>> inputEdgeIDs, outputEdgeIDs;
+		std::vector<RenderPassID> nodeS, nodeR;
 		for (auto edge : edges)
 		{
 			inputEdgeIDs[edge.second].push_back(edge.first);
 			outputEdgeIDs[edge.first].push_back(edge.second);
+
+			if (inputEdgeIDs.find(edge.first) == inputEdgeIDs.end())
+			{
+				inputEdgeIDs[edge.first] = std::vector<RenderPassID>();
+			}
 		}
 		for (auto inputEdgeID : inputEdgeIDs)
 		{
@@ -670,10 +681,10 @@ namespace sl12
 		}
 
 		// sort graph.
-		std::vector<u16> sortedNodeIDs;
+		std::vector<RenderPassID> sortedNodeIDs;
 		while (!nodeS.empty())
 		{
-			u16 node = nodeS[0];
+			RenderPassID node = nodeS[0];
 			nodeS.erase(nodeS.begin());
 			sortedNodeIDs.push_back(node);
 
@@ -694,6 +705,8 @@ namespace sl12
 		}
 
 		// create cross queue deps.
+		// NodeID : RenderPassID
+		// PassNo : Sorted pass index
 		CrossQueueDepsType CrossQueueDeps;
 		CrossQueueDeps.resize(sortedNodeIDs.size() + 1);
 		for (size_t p = 0; p < sortedNodeIDs.size() + 1; p++)
@@ -703,9 +716,9 @@ namespace sl12
 				CrossQueueDeps[p][q] = 0;
 			}
 		}
-		auto GetParentNodeIDs = [&edges](u16 nodeID)
+		auto GetParentNodeIDs = [&edges](RenderPassID nodeID)
 		{
-			std::vector<u16> IDs;
+			std::vector<RenderPassID> IDs;
 			for (auto&& edge : edges)
 			{
 				if (edge.second == nodeID)
@@ -722,7 +735,7 @@ namespace sl12
 			auto parentNodeIDs = GetParentNodeIDs(childNodeID);
 			if (parentNodeIDs.empty()) continue;
 
-			for (u16 parentNodeID : parentNodeIDs)
+			for (RenderPassID parentNodeID : parentNodeIDs)
 			{
 				auto parentNode = renderPasses_[parentNodeID];
 				auto parentPassNo = NodeID2PassNo(sortedNodeIDs, parentNodeID);
@@ -747,10 +760,10 @@ namespace sl12
 		std::vector<TransientResourceID> keepHistoryTransientIDs;
 		for (size_t n = 0; n < sortedNodeIDs.size(); n++)
 		{
-			u16 nodeID = sortedNodeIDs[n];
+			RenderPassID nodeID = sortedNodeIDs[n];
 			IRenderPass* pass = renderPasses_[nodeID];
-			auto resources = pass->GetInputResources();
-			auto outres = pass->GetOutputResources();
+			auto resources = pass->GetInputResources(nodeID);
+			auto outres = pass->GetOutputResources(nodeID);
 			resources.insert(resources.end(), outres.begin(), outres.end());
 
 			for (auto&& res : resources)
@@ -889,7 +902,8 @@ namespace sl12
 		{
 			u16 commandIndex;
 			u16 beforeNodeID;
-			std::vector<u16> relativeNodeIDs;
+			std::vector<RenderPassID> relativeNodeIDs;
+			//std::vector<u16> relativeNodeIDs;
 		};
 		std::vector<TransitionBarrier> graphicsTransitions;
 		
@@ -900,7 +914,7 @@ namespace sl12
 		
 		// If there is no parent GraphicsQueue in ComputeQueue or CopyQueue,
 		// barrier command is loaded first.
-		std::vector<u16> nodeIDsWithoutParentGraphics;
+		std::vector<RenderPassID> nodeIDsWithoutParentGraphics;
 		for (auto id : sortedNodeIDs_)
 		{
 			if (renderPasses_[id]->GetExecuteQueue() == HardwareQueue::Graphics)
@@ -933,14 +947,14 @@ namespace sl12
 			fenceCmds[HardwareQueue::Graphics][0] = 1;
 		}
 
-		auto GetRelativeAnotherQueuePass = [&CrossQueueDeps, this](u16 nodeID, HardwareQueue::Value queue) -> std::vector<u16>
+		auto GetRelativeAnotherQueuePass = [&CrossQueueDeps, this](RenderPassID nodeID, HardwareQueue::Value queue) -> std::vector<RenderPassID>
 		{
-			std::vector<u16> ret;
+			std::vector<RenderPassID> ret;
 			u16 passNo = NodeID2PassNo(sortedNodeIDs_, nodeID);
 			u16 passCnt = (u16)CrossQueueDeps.size();
 			for (u16 no = passNo + 1; no < passCnt; no++)
 			{
-				u16 id = PassNo2NodeID(sortedNodeIDs_, no);
+				RenderPassID id = PassNo2NodeID(sortedNodeIDs_, no);
 				if (renderPasses_[id]->GetExecuteQueue() != queue && CrossQueueDeps[no][queue] == passNo)
 				{
 					ret.push_back(PassNo2NodeID(sortedNodeIDs_, no));
@@ -1080,9 +1094,9 @@ namespace sl12
 				if (prevPassNo != 0)
 				{
 					// UAV barrier.
-					u16 prevNodeID = PassNo2NodeID(sortedNodeIDs_, prevPassNo);
-					auto outputRess = renderPasses_[prevNodeID]->GetOutputResources();
-					auto inputRess = renderPasses_[nodeID]->GetInputResources();
+					RenderPassID prevNodeID = PassNo2NodeID(sortedNodeIDs_, prevPassNo);
+					auto outputRess = renderPasses_[prevNodeID]->GetOutputResources(prevNodeID);
+					auto inputRess = renderPasses_[nodeID]->GetInputResources(prevNodeID);
 
 					Command barrierCmd;
 					barrierCmd.type = CommandType::Barrier;
@@ -1202,8 +1216,8 @@ namespace sl12
 			std::map<TransientResourceID, TransientResource> transientRess;
 			for (auto nodeID : transition.relativeNodeIDs)
 			{
-				auto inputRess = renderPasses_[nodeID]->GetInputResources();
-				auto outputRess = renderPasses_[nodeID]->GetOutputResources();
+				auto inputRess = renderPasses_[nodeID]->GetInputResources(nodeID);
+				auto outputRess = renderPasses_[nodeID]->GetOutputResources(nodeID);
 				inputRess.insert(inputRess.end(), outputRess.begin(), outputRess.end());
 				for (auto res : inputRess)
 				{
@@ -1405,7 +1419,7 @@ namespace sl12
 				{
 					// render pass.
 					auto pass = renderPasses_[cmd.passNodeID];
-					pass->Execute(loader.pCmdList, &resManager_);
+					pass->Execute(loader.pCmdList, &resManager_, cmd.passNodeID);
 				}
 				else
 				{

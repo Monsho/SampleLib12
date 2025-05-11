@@ -3,6 +3,7 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <set>
 #include <sl12/util.h>
 #include <sl12/unique_handle.h>
 #include <sl12/buffer.h>
@@ -26,6 +27,58 @@ namespace sl12
 
 	using CrossQueueDepsType = std::vector<std::array<u16, HardwareQueue::Max>>;
 
+	//----
+	struct RenderPassID
+	{
+		std::string	name = "";
+		u64			hash = 0;
+
+		RenderPassID()
+			: name("")
+			, hash(0)
+		{}
+		RenderPassID(const char* n)
+		{
+			name = n;
+			hash = CalcFnv1a64(name.c_str(), name.length());
+		}
+		RenderPassID(const std::string& n)
+		{
+			name = n;
+			hash = CalcFnv1a64(n.c_str(), n.length());
+		}
+		RenderPassID(const RenderPassID& id)
+			: name(id.name)
+			, hash(id.hash)
+		{}
+
+		bool operator==(const RenderPassID& rhs) const
+		{
+#if _DEBUG
+			if (hash == rhs.hash)
+			{
+				assert(name == rhs.name);
+				return true;
+			}
+			return false;
+#else
+			return (hash == rhs.hash);
+#endif
+		}
+
+		bool operator<(const RenderPassID& rhs) const
+		{
+#if _DEBUG
+			if (hash == rhs.hash)
+			{
+				return name < rhs.name;
+			}
+#endif
+			return hash < rhs.hash;
+		}
+	};
+	
+	//----
 	struct TransientState
 	{
 		enum Value
@@ -42,6 +95,7 @@ namespace sl12
 		};
 	};
 
+	//----
 	struct TransientResourceLifespan
 	{
 		u16 first = 0xffff;
@@ -54,6 +108,7 @@ namespace sl12
 		}
 	};
 
+	//----
 	struct TransientResourceID
 	{
 		std::string	name = "";
@@ -103,6 +158,7 @@ namespace sl12
 		}
 	};
 
+	//----
 	struct TransientResourceDesc
 	{
 		bool		bIsTexture = true;
@@ -158,6 +214,7 @@ namespace sl12
 		}
 	};
 
+	//----
 	struct TransientResource
 	{
 		TransientResourceID			id;
@@ -189,6 +246,7 @@ namespace sl12
 		}
 	};
 
+	//----
 	struct RenderGraphResource
 	{
 		bool					bIsTexture;
@@ -199,6 +257,7 @@ namespace sl12
 		};
 	};
 	
+	//----
 	class TransientResourceManager
 	{
 		friend class RenderGraph;
@@ -397,16 +456,18 @@ namespace sl12
 		std::multimap<void*, std::unique_ptr<RDGResourceViewInstance>>						viewInstances_;
 	};
 
+	//----
 	class IRenderPass
 	{
 	public:
 		virtual ~IRenderPass() {}
-		virtual std::vector<TransientResource> GetInputResources() const = 0;
-		virtual std::vector<TransientResource> GetOutputResources() const = 0;
+		virtual std::vector<TransientResource> GetInputResources(const RenderPassID& ID) const = 0;
+		virtual std::vector<TransientResource> GetOutputResources(const RenderPassID& ID) const = 0;
 		virtual HardwareQueue::Value GetExecuteQueue() const = 0;
-		virtual void Execute(CommandList* pCmdList, TransientResourceManager* pResManager) = 0;
+		virtual void Execute(CommandList* pCmdList, TransientResourceManager* pResManager, const RenderPassID& ID) = 0;
 	};
 
+	//----
 	class RenderGraph
 	{
 	private:
@@ -435,8 +496,9 @@ namespace sl12
 		{
 			CommandType::Value		type;
 			HardwareQueue::Value	queue;
+			RenderPassID			passNodeID;
 			u16						cmdListIndex;
-			u16						passNodeID;
+			//u16						passNodeID;
 			u16						fenceIndex;
 			u16						loaderIndex;
 			std::vector<Barrier>	barriers;
@@ -454,9 +516,13 @@ namespace sl12
 
 		bool Initialize(Device* pDev);
 
-		void ClearPasses();
-		void AddPass(IRenderPass* pPass, IRenderPass* pParent);
-		void AddPass(IRenderPass* pPass, const std::vector<IRenderPass*>& parents);
+		void ClearAllPasses();
+		void ClearAllGraphEdges();
+		RenderPassID AddPass(RenderPassID ID, IRenderPass* pPass);
+		bool AddGraphEdge(RenderPassID ParentID, RenderPassID ChildID);
+		int AddGraphEdges(const std::vector<RenderPassID>& ParentIDs, const std::vector<RenderPassID>& ChildID);
+		// void AddPass(IRenderPass* pPass, IRenderPass* pParent);
+		// void AddPass(IRenderPass* pPass, const std::vector<IRenderPass*>& parents);
 
 		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state);
 		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state);
@@ -471,14 +537,17 @@ namespace sl12
 		void CreateCommands(const CrossQueueDepsType& CrossQueueDeps);
 
 	private:
-		typedef std::pair<u16, u16> GraphEdge;
+		typedef std::pair<RenderPassID, RenderPassID> GraphEdge;
+		//typedef std::pair<u16, u16> GraphEdge;
 		
 	private:
 		Device*							pDevice_ = nullptr;
 		UniqueHandle<TransientResourceManager>	resManager_;
-		std::vector<IRenderPass*>		renderPasses_;
-		std::vector<GraphEdge>			graphEdges_;
-		std::vector<u16>				sortedNodeIDs_;
+		std::map<RenderPassID, IRenderPass*>	renderPasses_;
+		//std::vector<IRenderPass*>		renderPasses_;
+		std::set<GraphEdge>				graphEdges_;
+		std::vector<RenderPassID>		sortedNodeIDs_;
+		//std::vector<u16>				sortedNodeIDs_;
 		std::vector<TransientResource>	transientResources_;
 
 		std::vector<Command>			sortedCommands_;

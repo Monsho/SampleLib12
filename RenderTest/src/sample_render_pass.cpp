@@ -105,12 +105,12 @@ public:
 	virtual ~DepthPrePass()
 	{}
 	
-	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	virtual std::vector<sl12::TransientResource> GetInputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		return ret;
 	}
-	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	virtual std::vector<sl12::TransientResource> GetOutputResources(const sl12::RenderPassID&) const
 	{
 		auto state = SceneRenderState::GetInstance();
 
@@ -127,7 +127,7 @@ public:
 	{
 		return sl12::HardwareQueue::Graphics;
 	}
-	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager, const sl12::RenderPassID&)
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto width = state->GetScreenWidth();
@@ -215,14 +215,14 @@ private:
 class CopyDepthPass : public sl12::IRenderPass
 {
 public:
-	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	virtual std::vector<sl12::TransientResource> GetInputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		sl12::TransientResource depth(kDepthBufferID, sl12::TransientState::CopySrc);
 		ret.push_back(depth);
 		return ret;
 	}
-	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	virtual std::vector<sl12::TransientResource> GetOutputResources(const sl12::RenderPassID&) const
 	{
 		auto state = SceneRenderState::GetInstance();
 
@@ -238,7 +238,7 @@ public:
 	{
 		return sl12::HardwareQueue::Graphics;
 	}
-	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager, const sl12::RenderPassID&)
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto pDev = state->GetDevice();
@@ -307,12 +307,12 @@ public:
 	virtual ~GBufferPass()
 	{}
 
-	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	virtual std::vector<sl12::TransientResource> GetInputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		return ret;
 	}
-	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	virtual std::vector<sl12::TransientResource> GetOutputResources(const sl12::RenderPassID&) const
 	{
 		auto state = SceneRenderState::GetInstance();
 
@@ -341,7 +341,7 @@ public:
 	{
 		return sl12::HardwareQueue::Graphics;
 	}
-	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager, const sl12::RenderPassID&)
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto width = state->GetScreenWidth();
@@ -471,7 +471,7 @@ public:
 	virtual ~LightingPass()
 	{}
 
-	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	virtual std::vector<sl12::TransientResource> GetInputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		sl12::TransientResource gbufferA(kGBufferAID, sl12::TransientState::ShaderResource);
@@ -488,7 +488,7 @@ public:
 		ret.push_back(light);
 		return ret;
 	}
-	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	virtual std::vector<sl12::TransientResource> GetOutputResources(const sl12::RenderPassID&) const
 	{
 		auto state = SceneRenderState::GetInstance();
 
@@ -505,7 +505,7 @@ public:
 	{
 		return sl12::HardwareQueue::Graphics;
 	}
-	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager, const sl12::RenderPassID&)
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto width = state->GetScreenWidth();
@@ -600,14 +600,14 @@ public:
 	virtual ~TonemapPass()
 	{}
 
-	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	virtual std::vector<sl12::TransientResource> GetInputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		sl12::TransientResource result(kLightResultID, sl12::TransientState::ShaderResource);
 		ret.push_back(result);
 		return ret;
 	}
-	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	virtual std::vector<sl12::TransientResource> GetOutputResources(const sl12::RenderPassID&) const
 	{
 		auto state = SceneRenderState::GetInstance();
 
@@ -623,7 +623,7 @@ public:
 	{
 		return sl12::HardwareQueue::Graphics;
 	}
-	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager, const sl12::RenderPassID&)
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto width = state->GetScreenWidth();
@@ -679,12 +679,12 @@ private:
 class CopyLightDataPass : public sl12::IRenderPass
 {
 public:
-	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	virtual std::vector<sl12::TransientResource> GetInputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		return ret;
 	}
-	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	virtual std::vector<sl12::TransientResource> GetOutputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		sl12::TransientResource light(kLightBufferID, sl12::TransientState::CopyDst);
@@ -702,7 +702,7 @@ public:
 	{
 		return sl12::HardwareQueue::Copy;
 	}
-	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager, const sl12::RenderPassID&)
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto pDev = state->GetDevice();
@@ -764,14 +764,14 @@ public:
 	virtual ~AOPass()
 	{}
 
-	virtual std::vector<sl12::TransientResource> GetInputResources() const
+	virtual std::vector<sl12::TransientResource> GetInputResources(const sl12::RenderPassID&) const
 	{
 		std::vector<sl12::TransientResource> ret;
 		ret.push_back(sl12::TransientResource(kDepthCopyID, sl12::TransientState::ShaderResource));
 		ret.push_back(sl12::TransientResource(kAOHistoryID, sl12::TransientState::ShaderResource));
 		return ret;
 	}
-	virtual std::vector<sl12::TransientResource> GetOutputResources() const
+	virtual std::vector<sl12::TransientResource> GetOutputResources(const sl12::RenderPassID&) const
 	{
 		auto state = SceneRenderState::GetInstance();
 
@@ -789,7 +789,7 @@ public:
 	{
 		return sl12::HardwareQueue::Compute;
 	}
-	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager)
+	virtual void Execute(sl12::CommandList* pCmdList, sl12::TransientResourceManager* pResManager, const sl12::RenderPassID&)
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto width = state->GetScreenWidth();
@@ -848,13 +848,24 @@ void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph* pRenderGraph)
 	std::unique_ptr<sl12::IRenderPass> lighting_pass = std::make_unique<LightingPass>();
 	std::unique_ptr<sl12::IRenderPass> tonemap_pass = std::make_unique<TonemapPass>();
 	std::unique_ptr<sl12::IRenderPass> copy_light_pass = std::make_unique<CopyLightDataPass>();
-	pRenderGraph->AddPass(depth_pre_pass.get(), nullptr);
-	pRenderGraph->AddPass(copy_depth_pass.get(), depth_pre_pass.get());
-	pRenderGraph->AddPass(gbuffer_pass.get(), copy_depth_pass.get());
-	pRenderGraph->AddPass(copy_light_pass.get(), nullptr);
-	pRenderGraph->AddPass(ao_pass.get(), copy_depth_pass.get());
-	pRenderGraph->AddPass(lighting_pass.get(), { gbuffer_pass.get(), ao_pass.get(), copy_light_pass.get() });
-	pRenderGraph->AddPass(tonemap_pass.get(), lighting_pass.get());
+
+	// register pass.
+	auto DepthPrePassID = pRenderGraph->AddPass("DepthPrePass", depth_pre_pass.get());
+	auto CopyDepthPassID = pRenderGraph->AddPass("CopyDepthPass", copy_depth_pass.get());
+	auto GBufferPassID = pRenderGraph->AddPass("GBufferPass", gbuffer_pass.get());
+	auto CopyLightPassID = pRenderGraph->AddPass("CopyLightPass", copy_light_pass.get());
+	auto AOPassID = pRenderGraph->AddPass("AOPass", ao_pass.get());
+	auto LightingPassID = pRenderGraph->AddPass("LightingPass", lighting_pass.get());
+	auto TonemapPassID = pRenderGraph->AddPass("TonemapPass", tonemap_pass.get());
+	auto NonePassID = pRenderGraph->AddPass("NonePass", ao_pass.get()); // Testing the node not connected to the graph.
+
+	// construct graph.
+	pRenderGraph->AddGraphEdge(DepthPrePassID, CopyDepthPassID);
+	pRenderGraph->AddGraphEdge(CopyDepthPassID, GBufferPassID);
+	pRenderGraph->AddGraphEdge(CopyDepthPassID, AOPassID);
+	pRenderGraph->AddGraphEdges({GBufferPassID, AOPassID, CopyLightPassID}, {LightingPassID});
+	pRenderGraph->AddGraphEdge(LightingPassID, TonemapPassID);
+	
 	state->AddPass(depth_pre_pass);
 	state->AddPass(copy_depth_pass);
 	state->AddPass(gbuffer_pass);

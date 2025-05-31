@@ -29,6 +29,21 @@ namespace sl12
 		D3D12_RESOURCE_STATES	initialState = D3D12_RESOURCE_STATE_COMMON;
 		bool					forceSysRam = false;
 		bool					deviceShared = false;
+
+		void InitializeStructured(size_t _stride, size_t _count, u32 _usage, BufferHeap::Type _heap = BufferHeap::Default)
+		{
+			size = _stride * _count;
+			stride = _stride;
+			usage = _usage;
+			heap = _heap;
+		}
+		void InitializeByteAddress(size_t _size, u32 _usage, BufferHeap::Type _heap = BufferHeap::Default)
+		{
+			size = _size;
+			stride = 0;
+			usage = _usage;
+			heap = _heap;
+		}
 	};	// struct BufferDesc
 
 	class Buffer

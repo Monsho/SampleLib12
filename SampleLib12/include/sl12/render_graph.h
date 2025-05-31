@@ -194,7 +194,13 @@ namespace sl12
 					&& textureDesc.mipLevels == rhs.textureDesc.mipLevels
 					&& textureDesc.sampleCount == rhs.textureDesc.sampleCount
 					&& textureDesc.forceSysRam == rhs.textureDesc.forceSysRam
-					&& textureDesc.deviceShared == rhs.textureDesc.deviceShared);
+					&& textureDesc.deviceShared == rhs.textureDesc.deviceShared
+					&& textureDesc.clearColor[0] == rhs.textureDesc.clearColor[0]
+					&& textureDesc.clearColor[1] == rhs.textureDesc.clearColor[1]
+					&& textureDesc.clearColor[2] == rhs.textureDesc.clearColor[2]
+					&& textureDesc.clearColor[3] == rhs.textureDesc.clearColor[3]
+					&& textureDesc.clearDepth == rhs.textureDesc.clearDepth
+					&& textureDesc.clearStencil == rhs.textureDesc.clearStencil);
 			}
 			return (bufferDesc.heap == rhs.bufferDesc.heap
 				&& bufferDesc.size == rhs.bufferDesc.size

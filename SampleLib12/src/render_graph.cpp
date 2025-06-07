@@ -459,7 +459,7 @@ namespace sl12
 
 	}
 
-	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::vector<TransientResourceID>& keepHistoryTransientIDs)
+	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs)
 	{
 		// create or cache transient resources.
 		for (auto desc : descs)
@@ -757,7 +757,7 @@ namespace sl12
 
 		// gather transient resources and set lifespan.
 		std::map<TransientResource, TransientResource> transients;
-		std::vector<TransientResourceID> keepHistoryTransientIDs;
+		std::set<TransientResourceID> keepHistoryTransientIDs;
 		for (size_t n = 0; n < sortedNodeIDs.size(); n++)
 		{
 			RenderPassID nodeID = sortedNodeIDs[n];
@@ -798,10 +798,10 @@ namespace sl12
 
 				// extend lifespan.
 				it->second.lifespan.Extend((u16)(n + 1), pass->GetExecuteQueue());
-				if (res.desc.historyFrame > 0)
+				if (res.desc.historyFrame > 0 && keepHistoryTransientIDs.find(res.id) != keepHistoryTransientIDs.end())
 				{
 					it->second.lifespan.Extend(0xffff, pass->GetExecuteQueue());
-					keepHistoryTransientIDs.push_back(res.id);
+					keepHistoryTransientIDs.emplace(res.id);
 				}
 			}
 		}

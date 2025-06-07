@@ -441,7 +441,7 @@ namespace sl12
 		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state);
 
 		void ResetResource();
-		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::vector<TransientResourceID>& keepHistoryTransientIDs);
+		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs);
 
 		RDGResourceType GetResourceInstance(TransientResourceID id, RDGTransientResourceInstance*& OutTransient, RDGExternalResourceInstance*& OutExternal);
 		RDGTransientResourceInstance* GetTransientResourceInstance(TransientResourceID id);
@@ -454,7 +454,7 @@ namespace sl12
 		std::map<TransientResourceID, RenderGraphResource>									graphResources_;
 		std::map<TransientResourceID, u16>													resourceIDMap_;
 		std::multimap<TransientResourceDesc, std::unique_ptr<RDGTransientResourceInstance>>	unusedResources_;
-		std::vector<TransientResourceID>													keepHistoryIDs_;
+		std::set<TransientResourceID>														keepHistoryIDs_;
 		std::map<TransientResourceID, std::unique_ptr<RDGTransientResourceInstance>>		historyResources_;
 		std::map<TransientResourceID, RDGExternalResourceInstance>							externalResources_;
 

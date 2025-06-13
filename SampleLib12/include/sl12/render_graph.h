@@ -11,6 +11,8 @@
 #include <sl12/fence.h>
 #include <sl12/command_list.h>
 
+#include "timestamp.h"
+
 
 namespace sl12
 {
@@ -474,6 +476,13 @@ namespace sl12
 	};
 
 	//----
+	struct PerformanceResult
+	{
+		std::vector<std::string>	passNames;
+		std::vector<float>			passMicroSecTimes;
+	};
+
+	//----
 	class RenderGraph
 	{
 	private:
@@ -504,7 +513,6 @@ namespace sl12
 			HardwareQueue::Value	queue;
 			RenderPassID			passNodeID;
 			u16						cmdListIndex;
-			//u16						passNodeID;
 			u16						fenceIndex;
 			u16						loaderIndex;
 			std::vector<Barrier>	barriers;
@@ -514,6 +522,14 @@ namespace sl12
 			HardwareQueue::Value	queue;
 			CommandList*			pCmdList;
 			std::vector<u16>		commandIndices;
+			bool					bLastCommand = false;
+		};
+		
+		struct PerformanceCounter
+		{
+			UniqueHandle<Timestamp>		timestamp;
+			std::vector<std::pair<std::string, HardwareQueue::Value>>	passIndices;
+			PerformanceResult			passResults[HardwareQueue::Max];
 		};
 		
 	public:
@@ -527,8 +543,6 @@ namespace sl12
 		RenderPassID AddPass(RenderPassID ID, IRenderPass* pPass);
 		bool AddGraphEdge(RenderPassID ParentID, RenderPassID ChildID);
 		int AddGraphEdges(const std::vector<RenderPassID>& ParentIDs, const std::vector<RenderPassID>& ChildID);
-		// void AddPass(IRenderPass* pPass, IRenderPass* pParent);
-		// void AddPass(IRenderPass* pPass, const std::vector<IRenderPass*>& parents);
 
 		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state);
 		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state);
@@ -537,6 +551,11 @@ namespace sl12
 		void LoadCommand();
 		void Execute();
 
+		const PerformanceResult* GetPerformanceResult() const
+		{
+			return counters_[(countIndex_ + 2) % 3].passResults;
+		}
+
 	private:
 		void PreCompile();
 		void CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap);
@@ -544,16 +563,13 @@ namespace sl12
 
 	private:
 		typedef std::pair<RenderPassID, RenderPassID> GraphEdge;
-		//typedef std::pair<u16, u16> GraphEdge;
 		
 	private:
 		Device*							pDevice_ = nullptr;
 		UniqueHandle<TransientResourceManager>	resManager_;
 		std::map<RenderPassID, IRenderPass*>	renderPasses_;
-		//std::vector<IRenderPass*>		renderPasses_;
 		std::set<GraphEdge>				graphEdges_;
 		std::vector<RenderPassID>		sortedNodeIDs_;
-		//std::vector<u16>				sortedNodeIDs_;
 		std::vector<TransientResource>	transientResources_;
 
 		std::vector<Command>			sortedCommands_;
@@ -565,6 +581,9 @@ namespace sl12
 		std::vector<CommandList*>				commandLists_;
 		std::vector<UniqueHandle<CommandList>>	commandListStorages_[HardwareQueue::Max];
 		u8										commandListFrame_;
+
+		PerformanceCounter				counters_[3];
+		int								countIndex_ = 0;
 	};
 	
 }	// namespace sl12

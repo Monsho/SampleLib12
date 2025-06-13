@@ -5,6 +5,7 @@
 #include "sl12/buffer.h"
 #include "sl12/buffer_view.h"
 #include "sl12/command_list.h"
+#include "sl12/command_queue.h"
 
 
 namespace
@@ -798,7 +799,7 @@ namespace sl12
 
 				// extend lifespan.
 				it->second.lifespan.Extend((u16)(n + 1), pass->GetExecuteQueue());
-				if (res.desc.historyFrame > 0 && keepHistoryTransientIDs.find(res.id) != keepHistoryTransientIDs.end())
+				if (res.desc.historyFrame > 0 && keepHistoryTransientIDs.find(res.id) == keepHistoryTransientIDs.end())
 				{
 					it->second.lifespan.Extend(0xffff, pass->GetExecuteQueue());
 					keepHistoryTransientIDs.emplace(res.id);
@@ -903,7 +904,6 @@ namespace sl12
 			u16 commandIndex;
 			u16 beforeNodeID;
 			std::vector<RenderPassID> relativeNodeIDs;
-			//std::vector<u16> relativeNodeIDs;
 		};
 		std::vector<TransitionBarrier> graphicsTransitions;
 		
@@ -1390,6 +1390,8 @@ namespace sl12
 					loadCmd.queue = loader.queue;
 					loadCmd.loaderIndex = (u16)commandLoaders_.size();
 					execCommands_[loaderCmdIndex] = loadCmd;
+					
+					loader.bLastCommand = false;
 					commandLoaders_.push_back(loader);
 					loader.commandIndices.clear();
 				}
@@ -1401,6 +1403,8 @@ namespace sl12
 				loadCmd.queue = loader.queue;
 				loadCmd.loaderIndex = (u16)commandLoaders_.size();
 				execCommands_.push_back(loadCmd);
+				
+				loader.bLastCommand = true;
 				commandLoaders_.push_back(loader);
 			}
 		}
@@ -1408,6 +1412,31 @@ namespace sl12
 
 	void RenderGraph::LoadCommand()
 	{
+		// ready performance counter.
+		PerformanceCounter* pCounter = counters_ + countIndex_;
+		size_t countSize = renderPasses_.size() * 2;
+		if (!pCounter->timestamp.IsValid() || pCounter->timestamp->GetMaxCount() < countSize)
+		{
+			pCounter->timestamp.Reset();
+			pCounter->timestamp = MakeUnique<Timestamp>(pDevice_);
+			pCounter->timestamp->Initialize(pDevice_, countSize);
+		}
+		pCounter->passIndices.clear();
+		pCounter->timestamp->Reset();
+
+		auto QueryConter = [pCounter](CommandList* pCmdList)
+		{
+			pCounter->timestamp->Query(pCmdList);
+		};
+		auto AddCounterIndex = [pCounter](const std::string name, HardwareQueue::Value queue)
+		{
+			pCounter->passIndices.push_back({name, queue});
+		};
+		auto ResolveCounter = [pCounter](CommandList* pCmdList)
+		{
+			pCounter->timestamp->Resolve(pCmdList);
+		};
+		
 		// TODO: multi thread implement.
 		for (auto&& loader : commandLoaders_)
 		{
@@ -1419,7 +1448,10 @@ namespace sl12
 				{
 					// render pass.
 					auto pass = renderPasses_[cmd.passNodeID];
+					QueryConter(loader.pCmdList);
 					pass->Execute(loader.pCmdList, &resManager_, cmd.passNodeID);
+					QueryConter(loader.pCmdList);
+					AddCounterIndex(cmd.passNodeID.name, loader.queue);
 				}
 				else
 				{
@@ -1464,6 +1496,10 @@ namespace sl12
 					loader.pCmdList->FlushBarriers();
 				}
 			}
+			if (loader.bLastCommand)
+			{
+				ResolveCounter(loader.pCmdList);
+			}
 			loader.pCmdList->Close();
 		}
 	}
@@ -1499,6 +1535,36 @@ namespace sl12
 				fences_[cmd.fenceIndex]->WaitSignal(queue);
 			}
 		}
+
+		// get performance counter from 2 frames ago.
+		PerformanceCounter* pCounter = counters_ + ((countIndex_ + 1) % 3);
+		if (pCounter->timestamp.IsValid())
+		{
+			for (auto&& r : pCounter->passResults)
+			{
+				r.passNames.clear();
+				r.passMicroSecTimes.clear();
+			}
+			
+			size_t count = pCounter->timestamp->GetMaxCount();
+			std::vector<uint64_t> results(count);
+			pCounter->timestamp->GetTimestamp(0, count, results.data());
+
+			uint64_t freq = pDevice_->GetGraphicsQueue().GetTimestampFrequency();
+			auto GetMicroSec = [freq](uint64_t t)
+			{
+				return (float)t / ((float)freq / 1000000.0f);
+			};
+			size_t i = 0;
+			for (auto&& index : pCounter->passIndices)
+			{
+				uint64_t dt = results[i + 1] - results[i];
+				pCounter->passResults[index.second].passNames.push_back(index.first);
+				pCounter->passResults[index.second].passMicroSecTimes.push_back(GetMicroSec(dt));
+				i += 2;
+			}
+		}
+		countIndex_ = (countIndex_ + 1) % 3;
 	}
 
 }	// namespace sl12

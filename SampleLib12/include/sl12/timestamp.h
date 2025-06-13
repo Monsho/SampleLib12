@@ -27,6 +27,10 @@ namespace sl12
 		void Resolve(CommandList* pCmdList);
 
 		size_t GetTimestamp(size_t start_index, size_t count, uint64_t* pOut);
+		size_t GetMaxCount() const
+		{
+			return maxCount_;
+		}
 
 	private:
 		ID3D12QueryHeap*		pQuery_ = nullptr;

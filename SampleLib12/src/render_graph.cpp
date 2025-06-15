@@ -1424,13 +1424,15 @@ namespace sl12
 		pCounter->passIndices.clear();
 		pCounter->timestamp->Reset();
 
-		auto QueryConter = [pCounter](CommandList* pCmdList)
+		auto QueryConter = [pCounter](CommandList* pCmdList, HardwareQueue::Value queue)
 		{
-			pCounter->timestamp->Query(pCmdList);
+			if (queue != HardwareQueue::Copy)
+				pCounter->timestamp->Query(pCmdList);
 		};
 		auto AddCounterIndex = [pCounter](const std::string name, HardwareQueue::Value queue)
 		{
-			pCounter->passIndices.push_back({name, queue});
+			if (queue != HardwareQueue::Copy)
+				pCounter->passIndices.push_back({name, queue});
 		};
 		auto ResolveCounter = [pCounter](CommandList* pCmdList)
 		{
@@ -1448,9 +1450,9 @@ namespace sl12
 				{
 					// render pass.
 					auto pass = renderPasses_[cmd.passNodeID];
-					QueryConter(loader.pCmdList);
+					QueryConter(loader.pCmdList, loader.queue);
 					pass->Execute(loader.pCmdList, &resManager_, cmd.passNodeID);
-					QueryConter(loader.pCmdList);
+					QueryConter(loader.pCmdList, loader.queue);
 					AddCounterIndex(cmd.passNodeID.name, loader.queue);
 				}
 				else

@@ -485,6 +485,43 @@ namespace sl12
 	//----
 	class RenderGraph
 	{
+	public:
+		// add edge helper.
+		class Node
+		{
+			friend class RenderGraph;
+		public:
+			Node()
+				: id_("")
+				, parent_(nullptr)
+			{}
+			Node(const Node& rhs)
+				: id_(rhs.id_)
+				, parent_(rhs.parent_)
+			{}
+			~Node()
+			{}
+
+			Node AddChild(Node& child)
+			{
+				if (parent_ != nullptr && parent_ == child.parent_)
+				{
+					parent_->AddGraphEdge(id_, child.id_);
+				}
+				return child;
+			}
+
+		private:
+			Node(RenderPassID id, RenderGraph* parent)
+				: id_(id)
+				, parent_(parent)
+			{}
+
+		private:
+			RenderPassID		id_;
+			RenderGraph*		parent_ = nullptr;
+		};
+		
 	private:
 		struct CommandType
 		{
@@ -540,7 +577,7 @@ namespace sl12
 
 		void ClearAllPasses();
 		void ClearAllGraphEdges();
-		RenderPassID AddPass(RenderPassID ID, IRenderPass* pPass);
+		Node AddPass(RenderPassID ID, IRenderPass* pPass);
 		bool AddGraphEdge(RenderPassID ParentID, RenderPassID ChildID);
 		int AddGraphEdges(const std::vector<RenderPassID>& ParentIDs, const std::vector<RenderPassID>& ChildID);
 

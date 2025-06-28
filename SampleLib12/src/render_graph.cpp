@@ -595,10 +595,10 @@ namespace sl12
 		graphEdges_.clear();
 	}
 
-	RenderPassID RenderGraph::AddPass(RenderPassID ID, IRenderPass* pPass)
+	RenderGraph::Node RenderGraph::AddPass(RenderPassID ID, IRenderPass* pPass)
 	{
 		renderPasses_[ID] = pPass;
-		return ID;
+		return Node(ID, this);
 	}
 	
 	bool RenderGraph::AddGraphEdge(RenderPassID ParentID, RenderPassID ChildID)

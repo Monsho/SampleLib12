@@ -13,3 +13,6 @@
 [submodule "ThirdParty/tinyexr"]
 	path = ThirdParty/tinyexr
 	url = https://github.com/Monsho/tinyexr.git
+[submodule "ThirdParty/stb"]
+	path = ThirdParty/stb
+	url = https://github.com/Monsho/stb

@@ -850,21 +850,23 @@ void SetupRenderGraph(sl12::Device* pDev, sl12::RenderGraph* pRenderGraph)
 	std::unique_ptr<sl12::IRenderPass> copy_light_pass = std::make_unique<CopyLightDataPass>();
 
 	// register pass.
-	auto DepthPrePassID = pRenderGraph->AddPass("DepthPrePass", depth_pre_pass.get());
-	auto CopyDepthPassID = pRenderGraph->AddPass("CopyDepthPass", copy_depth_pass.get());
-	auto GBufferPassID = pRenderGraph->AddPass("GBufferPass", gbuffer_pass.get());
-	auto CopyLightPassID = pRenderGraph->AddPass("CopyLightPass", copy_light_pass.get());
-	auto AOPassID = pRenderGraph->AddPass("AOPass", ao_pass.get());
-	auto LightingPassID = pRenderGraph->AddPass("LightingPass", lighting_pass.get());
-	auto TonemapPassID = pRenderGraph->AddPass("TonemapPass", tonemap_pass.get());
-	auto NonePassID = pRenderGraph->AddPass("NonePass", ao_pass.get()); // Testing the node not connected to the graph.
+	auto DepthPrePassNode = pRenderGraph->AddPass("DepthPrePass", depth_pre_pass.get());
+	auto CopyDepthPassNode = pRenderGraph->AddPass("CopyDepthPass", copy_depth_pass.get());
+	auto GBufferPassNode = pRenderGraph->AddPass("GBufferPass", gbuffer_pass.get());
+	auto CopyLightPassNode = pRenderGraph->AddPass("CopyLightPass", copy_light_pass.get());
+	auto AOPassNode = pRenderGraph->AddPass("AOPass", ao_pass.get());
+	auto LightingPassNode = pRenderGraph->AddPass("LightingPass", lighting_pass.get());
+	auto TonemapPassNode = pRenderGraph->AddPass("TonemapPass", tonemap_pass.get());
+	auto NonePassNode = pRenderGraph->AddPass("NonePass", ao_pass.get()); // Testing the node not connected to the graph.
 
 	// construct graph.
-	pRenderGraph->AddGraphEdge(DepthPrePassID, CopyDepthPassID);
-	pRenderGraph->AddGraphEdge(CopyDepthPassID, GBufferPassID);
-	pRenderGraph->AddGraphEdge(CopyDepthPassID, AOPassID);
-	pRenderGraph->AddGraphEdges({GBufferPassID, AOPassID, CopyLightPassID}, {LightingPassID});
-	pRenderGraph->AddGraphEdge(LightingPassID, TonemapPassID);
+	DepthPrePassNode.AddChild(CopyDepthPassNode)
+		.AddChild(GBufferPassNode)
+		.AddChild(LightingPassNode)
+		.AddChild(TonemapPassNode);
+	CopyDepthPassNode.AddChild(AOPassNode)
+		.AddChild(LightingPassNode);
+	CopyLightPassNode.AddChild(LightingPassNode);
 	
 	state->AddPass(depth_pre_pass);
 	state->AddPass(copy_depth_pass);

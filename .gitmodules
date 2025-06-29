@@ -1,6 +1,3 @@
-[submodule "ThirdParty/RTXGI-DDGI"]
-	path = ThirdParty/RTXGI-DDGI
-	url = https://github.com/NVIDIAGameWorks/RTXGI-DDGI
 [submodule "ThirdParty/tinyexr"]
 	path = ThirdParty/tinyexr
 	url = https://github.com/Monsho/tinyexr.git
@@ -16,3 +13,6 @@
 [submodule "ThirdParty/meshoptimizer"]
 	path = ThirdParty/meshoptimizer
 	url = https://github.com/Monsho/meshoptimizer.git
+[submodule "ThirdParty/RTXGI-DDGI"]
+	path = ThirdParty/RTXGI-DDGI
+	url = https://github.com/Monsho/RTXGI-DDGI.git

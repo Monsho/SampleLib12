@@ -109,6 +109,76 @@ namespace sl12
 		return &it->second;
 	}
 
+	RenderGraphResource* TransientResourceManager::CreatePassOnlyResource(const TransientResourceDesc& desc)
+	{
+		std::lock_guard<std::mutex> lock(passOnlyMutex_);
+		
+		// search in unused list.
+		auto find_it = unusedResources_.find(desc);
+		if (find_it != unusedResources_.end())
+		{
+			// use cached resource instance.
+			RDGPassOnlyResource passOnly;
+			passOnly.desc = desc;
+			passOnly.instance = std::move(find_it->second);
+			passOnly.graphResource = std::make_unique<RenderGraphResource>();
+			passOnly.graphResource->bIsTexture = desc.bIsTexture;
+			if (desc.bIsTexture)
+			{
+				passOnly.graphResource->pTexture = &passOnly.instance->texture;
+			}
+			else
+			{
+				passOnly.graphResource->pBuffer = &passOnly.instance->buffer;
+			}
+			unusedResources_.erase(find_it);
+			passOnlyResources_.push_back(std::move(passOnly));
+			return passOnlyResources_[passOnlyResources_.size() - 1].graphResource.get();
+		}
+
+		// create new resource instance.
+		std::unique_ptr<RDGTransientResourceInstance> res = std::make_unique<RDGTransientResourceInstance>();
+		res->desc = desc;
+		res->state = TransientState::Common;
+		if (desc.bIsTexture)
+		{
+			// create new texture.
+			res->texture = MakeUnique<Texture>(pDevice_);
+			if (!res->texture->Initialize(pDevice_, desc.textureDesc))
+			{
+				ConsolePrint("Error : Can NOT create transient texture.");
+				assert(false);
+			}
+		}
+		else
+		{
+			// create new buffer.
+			res->buffer = MakeUnique<Buffer>(pDevice_);
+			if (!res->buffer->Initialize(pDevice_, desc.bufferDesc))
+			{
+				ConsolePrint("Error : Can NOT create transient buffer.");
+				assert(false);
+			}
+		}
+
+		// store pass only resource.
+		RDGPassOnlyResource passOnly;
+		passOnly.desc = desc;
+		passOnly.instance = std::move(res);
+		passOnly.graphResource = std::make_unique<RenderGraphResource>();
+		passOnly.graphResource->bIsTexture = desc.bIsTexture;
+		if (desc.bIsTexture)
+		{
+			passOnly.graphResource->pTexture = &passOnly.instance->texture;
+		}
+		else
+		{
+			passOnly.graphResource->pBuffer = &passOnly.instance->buffer;
+		}
+		passOnlyResources_.push_back(std::move(passOnly));
+		return passOnlyResources_[passOnlyResources_.size() - 1].graphResource.get();
+	}
+	
 	TextureView* TransientResourceManager::CreateOrGetTextureView(RenderGraphResource* pResource, u32 firstMip, u32 mipCount, u32 firstArray, u32 arraySize)
 	{
 		if (!pResource->bIsTexture)
@@ -458,6 +528,16 @@ namespace sl12
 		}
 		committedResources_.clear();
 
+		// transition pass only resources to unused.
+		for (auto&& res : passOnlyResources_)
+		{
+			if (res.instance.get())
+			{
+				res.instance->unusedFrame = 0;
+				unusedResources_.insert(std::make_pair(res.desc, std::move(res.instance)));
+			}
+		}
+		passOnlyResources_.clear();
 	}
 
 	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs)
@@ -468,12 +548,13 @@ namespace sl12
 			auto find_it = unusedResources_.find(desc);
 			if (find_it != unusedResources_.end())
 			{
-				// use cached texture.
+				// use cached resource instance.
 				committedResources_.push_back(std::move(find_it->second));
 				unusedResources_.erase(find_it);
 			}
 			else
 			{
+				// create new resource instance.
 				std::unique_ptr<RDGTransientResourceInstance> res = std::make_unique<RDGTransientResourceInstance>();
 				res->desc = desc;
 				res->state = TransientState::Common;

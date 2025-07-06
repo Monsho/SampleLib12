@@ -422,6 +422,30 @@ namespace sl12
 			RDGResourceViewInstance(RDGResourceViewInstance& rhs) = delete;
 			RDGResourceViewInstance& operator=(RDGResourceViewInstance& rhs) = delete;
 		};
+
+		struct RDGPassOnlyResource
+		{
+			TransientResourceDesc							desc;
+			std::unique_ptr<RDGTransientResourceInstance>	instance;
+			std::unique_ptr<RenderGraphResource>			graphResource;
+
+			RDGPassOnlyResource()
+			{}
+			RDGPassOnlyResource(RDGPassOnlyResource&& rhs) noexcept
+				: desc(rhs.desc)
+				, instance(std::move(rhs.instance))
+				, graphResource(std::move(rhs.graphResource))
+			{}
+			RDGPassOnlyResource& operator=(RDGPassOnlyResource&& rhs) noexcept
+			{
+				desc = rhs.desc;
+				instance = std::move(rhs.instance);
+				graphResource = std::move(rhs.graphResource);
+				return *this;
+			}
+			RDGPassOnlyResource(RDGPassOnlyResource& rhs) = delete;
+			RDGPassOnlyResource& operator=(RDGPassOnlyResource& rhs) = delete;
+		};
 		
 	public:
 		TransientResourceManager(Device* pDev)
@@ -430,6 +454,8 @@ namespace sl12
 		~TransientResourceManager();
 
 		RenderGraphResource* GetRenderGraphResource(TransientResourceID id);
+
+		RenderGraphResource* CreatePassOnlyResource(const TransientResourceDesc& desc);
 
 		TextureView* CreateOrGetTextureView(RenderGraphResource* pResource, u32 firstMip = 0, u32 mipCount = 0, u32 firstArray = 0, u32 arraySize = 0);
 		BufferView* CreateOrGetBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride);
@@ -462,6 +488,9 @@ namespace sl12
 
 		std::mutex																			viewMutex_;
 		std::multimap<void*, std::unique_ptr<RDGResourceViewInstance>>						viewInstances_;
+
+		std::mutex																			passOnlyMutex_;
+		std::vector<RDGPassOnlyResource>													passOnlyResources_;
 	};
 
 	//----

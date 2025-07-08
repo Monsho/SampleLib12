@@ -16,3 +16,6 @@
 [submodule "ThirdParty/RTXGI-DDGI"]
 	path = ThirdParty/RTXGI-DDGI
 	url = https://github.com/Monsho/RTXGI-DDGI.git
+[submodule "ThirdParty/glTF-SDK"]
+	path = ThirdParty/glTF-SDK
+	url = https://github.com/microsoft/glTF-SDK.git

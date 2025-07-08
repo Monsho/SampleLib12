@@ -188,6 +188,10 @@ public:
 	{
 		return name_;
 	}
+	const std::string& GetFormat() const
+	{
+		return format_;
+	}
 	const std::vector<uint8_t>& GetBinary() const
 	{
 		return binary_;
@@ -195,6 +199,7 @@ public:
 
 private:
 	std::string				name_;
+	std::string				format_;
 	std::vector<uint8_t>	binary_;
 };	// class TextureWork
 

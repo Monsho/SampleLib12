@@ -241,8 +241,7 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 
 	auto document = Deserialize(manifest);
 
-	// if file is .glb, read texture images.
-	if (is_glb)
+	// read texture images.
 	{
 		textures_.reserve(document.images.Size());
 		for (auto&& image : document.images.Elements())
@@ -252,6 +251,15 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 			auto data = resource_reader->ReadBinaryData(document, image);
 			work->binary_.swap(data);
 
+			// get image format from mimeType.
+			static const std::string kImage("image/");
+			size_t p = image.mimeType.find_first_of(kImage);
+			if (p != std::string::npos)
+			{
+				std::string format = image.mimeType.substr(p + kImage.length());
+				work->format_ = format;
+			}
+			
 			textures_.push_back(std::move(work));
 		}
 	}
@@ -274,7 +282,6 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 			auto tex_index = std::stoi(tex.first);
 			auto image_index = std::stoi(document.textures.Get(tex_index).imageId);
 			auto tex_name = document.images.Get(image_index).uri;
-			if (is_glb)
 			{
 				tex_name = textures_[image_index]->name_;
 				if (tex_name.empty())
@@ -409,13 +416,13 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 			std::string accessorId;
 			if (prim.TryGetAttributeAccessorId("POSITION", accessorId))
 			{
-				auto&& accessor = document.accessors.Get(accessorId);
-				auto data = resource_reader->ReadBinaryData<float>(document, accessor);
-				size_t vertex_count = data.size() / 3;
+				auto&& posAccessor = document.accessors.Get(accessorId);
+				auto posData = resource_reader->ReadBinaryData<float>(document, posAccessor);
+				size_t vertex_count = posData.size() / 3;
 				work->vertexBuffer_.resize(vertex_count);
 				for (size_t i = 0; i < vertex_count; ++i)
 				{
-					DirectX::XMFLOAT3 v(data[i * 3 + 0], data[i * 3 + 1], data[i * 3 + 2]);
+					DirectX::XMFLOAT3 v(posData[i * 3 + 0], posData[i * 3 + 1], posData[i * 3 + 2]);
 					DirectX::XMVECTOR V = DirectX::XMLoadFloat3(&v);
 					V = DirectX::XMVector3TransformCoord(V, transform);
 					DirectX::XMStoreFloat3(&work->vertexBuffer_[i].pos, V);
@@ -423,11 +430,11 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 
 				if (prim.TryGetAttributeAccessorId("NORMAL", accessorId))
 				{
-					auto&& accessor = document.accessors.Get(accessorId);
-					auto data = resource_reader->ReadBinaryData<float>(document, accessor);
+					auto&& normalAccessor = document.accessors.Get(accessorId);
+					auto normalData = resource_reader->ReadBinaryData<float>(document, normalAccessor);
 					for (size_t i = 0; i < vertex_count; ++i)
 					{
-						DirectX::XMFLOAT3 n(data[i * 3 + 0], data[i * 3 + 1], data[i * 3 + 2]);
+						DirectX::XMFLOAT3 n(normalData[i * 3 + 0], normalData[i * 3 + 1], normalData[i * 3 + 2]);
 						DirectX::XMVECTOR N = DirectX::XMLoadFloat3(&n);
 						N = DirectX::XMVector3Normalize(DirectX::XMVector3TransformNormal(N, transform));
 						DirectX::XMStoreFloat3(&work->vertexBuffer_[i].normal, N);
@@ -435,12 +442,12 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 				}
 				if (prim.TryGetAttributeAccessorId("TEXCOORD_0", accessorId))
 				{
-					auto&& accessor = document.accessors.Get(accessorId);
-					auto data = resource_reader->ReadBinaryData<float>(document, accessor);
+					auto&& uvAccessor = document.accessors.Get(accessorId);
+					auto uvData = resource_reader->ReadBinaryData<float>(document, uvAccessor);
 					for (size_t i = 0; i < vertex_count; ++i)
 					{
-						work->vertexBuffer_[i].uv.x = data[i * 2 + 0];
-						work->vertexBuffer_[i].uv.y = data[i * 2 + 1];
+						work->vertexBuffer_[i].uv.x = uvData[i * 2 + 0];
+						work->vertexBuffer_[i].uv.y = uvData[i * 2 + 1];
 					}
 				}
 			}

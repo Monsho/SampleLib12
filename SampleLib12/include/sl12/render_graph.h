@@ -621,6 +621,10 @@ namespace sl12
 		{
 			return counters_[(countIndex_ + 2) % 3].passResults;
 		}
+		float GetAllPassMicroSec() const
+		{
+			return allPassMicroSec_;
+		}
 
 	private:
 		void PreCompile();
@@ -647,9 +651,10 @@ namespace sl12
 		std::vector<CommandList*>				commandLists_;
 		std::vector<UniqueHandle<CommandList>>	commandListStorages_[HardwareQueue::Max];
 		u8										commandListFrame_;
-
+		
 		PerformanceCounter				counters_[3];
 		int								countIndex_ = 0;
+		float							allPassMicroSec_ = 0.0f;
 	};
 	
 }	// namespace sl12

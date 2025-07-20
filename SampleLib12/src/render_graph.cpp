@@ -1623,6 +1623,7 @@ namespace sl12
 		PerformanceCounter* pCounter = counters_ + ((countIndex_ + 1) % 3);
 		if (pCounter->timestamp.IsValid())
 		{
+			uint64_t frameStart = 0 - 1, frameEnd = 0;
 			for (auto&& r : pCounter->passResults)
 			{
 				r.passNames.clear();
@@ -1638,14 +1639,20 @@ namespace sl12
 			{
 				return (float)t / ((float)freq / 1000000.0f);
 			};
+
 			size_t i = 0;
 			for (auto&& index : pCounter->passIndices)
 			{
+				frameStart = std::min(frameStart, results[i]);
+				frameEnd = std::max(frameEnd, results[i + 1]);
+				
 				uint64_t dt = results[i + 1] - results[i];
 				pCounter->passResults[index.second].passNames.push_back(index.first);
 				pCounter->passResults[index.second].passMicroSecTimes.push_back(GetMicroSec(dt));
 				i += 2;
 			}
+
+			allPassMicroSec_ = GetMicroSec(frameEnd - frameStart);
 		}
 		countIndex_ = (countIndex_ + 1) % 3;
 	}

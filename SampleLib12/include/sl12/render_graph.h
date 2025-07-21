@@ -628,6 +628,10 @@ namespace sl12
 
 	private:
 		void PreCompile();
+		std::vector<RenderPassID> BuildSortedDependencyGraph();
+		void ProcessPassDependencies(const std::vector<RenderPassID>& sortedNodes, size_t passIdx, CrossQueueDepsType& dependencies);
+		CrossQueueDepsType BuildCrossQueueDependencies(const std::vector<RenderPassID>& sortedNodes);
+		void ProcessNodeResources(RenderPassID nodeID, size_t nodeIdx, std::map<TransientResource, TransientResource>& transients, std::set<TransientResourceID>& historyResources);
 		void CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap);
 		void CreateCommands(const CrossQueueDepsType& CrossQueueDeps);
 

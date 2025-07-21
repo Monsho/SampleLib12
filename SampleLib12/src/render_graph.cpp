@@ -10,6 +10,9 @@
 
 namespace
 {
+	static const sl12::u16 kPermanentLifespan = 0xFFFF;
+	static const sl12::u16 kInitialPassNo = 1;
+
 	enum class EOverlapResult
 	{
 		Overlapped,
@@ -60,14 +63,14 @@ namespace
 		return kD3D12States[state];
 	}
 
-	sl12::u16 NodeID2PassNo(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::RenderPassID nodeID)
+	[[nodiscard]] sl12::u16 NodeID2PassNo(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::RenderPassID nodeID) noexcept
 	{
 		auto dist = std::distance(sortedNodeIDs.begin(), std::find(sortedNodeIDs.begin(), sortedNodeIDs.end(), nodeID));
 		assert(dist >= 0);
 		return (sl12::u16)(dist + 1);
 	};
 
-	sl12::RenderPassID PassNo2NodeID(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::u16 passNo)
+	[[nodiscard]] sl12::RenderPassID PassNo2NodeID(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::u16 passNo) noexcept
 	{
 		return sortedNodeIDs[passNo - 1];
 	};
@@ -732,172 +735,211 @@ namespace sl12
 		commandListFrame_ = (commandListFrame_ + 1) % 3;
 	}
 
+	std::vector<RenderPassID> RenderGraph::BuildSortedDependencyGraph()
+	{
+		std::set<GraphEdge> edges = graphEdges_;
+		std::map<RenderPassID, std::vector<RenderPassID>> inputEdges, outputEdges;
+		std::vector<RenderPassID> sourceNodes, remainingNodes;
+    
+		// Build edge maps
+		for (const auto& edge : edges)
+		{
+			inputEdges[edge.second].push_back(edge.first);
+			outputEdges[edge.first].push_back(edge.second);
+        
+			if (inputEdges.find(edge.first) == inputEdges.end())
+			{
+				inputEdges[edge.first] = std::vector<RenderPassID>();
+			}
+		}
+
+		// Classify nodes
+		for (const auto& [nodeId, inputs] : inputEdges)
+		{
+			(inputs.empty() ? sourceNodes : remainingNodes).push_back(nodeId);
+		}
+
+		// Perform topological sort
+		std::vector<RenderPassID> sortedNodes;
+		while (!sourceNodes.empty())
+		{
+			RenderPassID currentNode = sourceNodes.front();
+			sourceNodes.erase(sourceNodes.begin());
+			sortedNodes.push_back(currentNode);
+
+			for (RenderPassID childNode : outputEdges[currentNode])
+			{
+				auto& childInputs = inputEdges[childNode];
+				auto it = std::find(childInputs.begin(), childInputs.end(), currentNode);
+				childInputs.erase(it);
+            
+				if (childInputs.empty())
+				{
+					sourceNodes.push_back(childNode);
+				}
+			}
+		}
+
+		return sortedNodes;
+	}
+
+	void RenderGraph::ProcessPassDependencies(
+		const std::vector<RenderPassID>& sortedNodes,
+		size_t passIdx,
+		CrossQueueDepsType& dependencies) 
+	{
+		std::set<GraphEdge> edges = graphEdges_;
+		auto getParentNodes = [&edges](RenderPassID nodeID)
+		{
+			std::vector<RenderPassID> parentNodes;
+			for (const auto& edge : edges)
+			{
+				if (edge.second == nodeID)
+				{
+					parentNodes.push_back(edge.first);
+				}
+			}
+			return parentNodes;
+		};
+    
+		u16 childPassNo = static_cast<u16>(passIdx + kInitialPassNo);
+		RenderPassID childNodeID = PassNo2NodeID(sortedNodes, childPassNo);
+    
+		// get parent nodes
+		auto parentNodeIDs = getParentNodes(childNodeID);
+		if (parentNodeIDs.empty())
+		{
+			return;
+		}
+
+		// Process dependencies from parent nodes.
+		for (RenderPassID parentNodeID : parentNodeIDs)
+		{
+			IRenderPass* parentNode = renderPasses_[parentNodeID];
+			u16 parentPassNo = NodeID2PassNo(sortedNodes, parentNodeID);
+			dependencies[childPassNo][parentNode->GetExecuteQueue()] = parentPassNo;
+		}
+
+		// Process queue dependencies of child nodes.
+		auto childNode = renderPasses_[childNodeID];
+		if (dependencies[childPassNo][childNode->GetExecuteQueue()] != 0)
+		{
+			auto parentPassNo = dependencies[childPassNo][childNode->GetExecuteQueue()];
+        
+			// Propagate dependencies between queues.
+			for (size_t queueIdx = 0; queueIdx < HardwareQueue::Max; queueIdx++)
+			{
+				if (dependencies[childPassNo][queueIdx] == 0)
+				{
+					dependencies[childPassNo][queueIdx] = dependencies[parentPassNo][queueIdx];
+				}
+			}
+		}
+	}
+
+	CrossQueueDepsType RenderGraph::BuildCrossQueueDependencies(const std::vector<RenderPassID>& sortedNodes)
+	{
+		CrossQueueDepsType dependencies;
+		dependencies.resize(sortedNodes.size() + 1);
+    
+		// initialize.
+		for (size_t passIdx = 0; passIdx < sortedNodes.size() + 1; passIdx++)
+		{
+			for (size_t queueIdx = 0; queueIdx < HardwareQueue::Max; queueIdx++)
+			{
+				dependencies[passIdx][queueIdx] = 0;
+			}
+		}
+    
+		// build dependencies.
+		for (size_t passIdx = 0; passIdx < sortedNodes.size(); passIdx++)
+		{
+			ProcessPassDependencies(sortedNodes, passIdx, dependencies);
+		}
+    
+		return dependencies;
+	}
+
+	void RenderGraph::ProcessNodeResources(RenderPassID nodeID, size_t nodeIdx, std::map<TransientResource, TransientResource>& transients, std::set<TransientResourceID>& historyResources)
+	{
+		IRenderPass* pass = renderPasses_[nodeID];
+		auto resources = pass->GetInputResources(nodeID);
+		auto outres = pass->GetOutputResources(nodeID);
+		resources.insert(resources.end(), outres.begin(), outres.end());
+
+		for (auto&& res : resources)
+		{
+			if (resManager_->GetExternalResourceInstance(res.id))
+			{
+				continue;
+			}
+			if (res.id.history > 0)
+			{
+				continue;
+			}
+				
+			auto it = transients.find(res);
+			if (it == transients.end())
+			{
+				// add new transient resource.
+				auto r = res;
+				r.lifespan = TransientResourceLifespan();
+				it = transients.emplace(res, res).first;
+			}
+
+			// and resource usage.
+			if (it->second.desc.bIsTexture)
+			{
+				it->second.desc.textureDesc.usage |= StateToUsage(res.state);
+			}
+			else
+			{
+				it->second.desc.bufferDesc.usage |= StateToUsage(res.state);
+			}
+
+			// extend lifespan.
+			it->second.lifespan.Extend((u16)(nodeIdx + kInitialPassNo), pass->GetExecuteQueue());
+			if (res.desc.historyFrame > 0 && historyResources.find(res.id) == historyResources.end())
+			{
+				it->second.lifespan.Extend(kPermanentLifespan, pass->GetExecuteQueue());
+				historyResources.emplace(res.id);
+			}
+		}
+	}
+	
 	bool RenderGraph::Compile()
 	{
 		PreCompile();
 
-		// ready graph sorting.
-		std::set<GraphEdge> edges = graphEdges_;
-		std::map<RenderPassID, std::vector<RenderPassID>> inputEdgeIDs, outputEdgeIDs;
-		std::vector<RenderPassID> nodeS, nodeR;
-		for (auto edge : edges)
+		// Build and sort the dependency graph
+		auto sortedNodeIDs = BuildSortedDependencyGraph();
+		if (sortedNodeIDs.empty())
 		{
-			inputEdgeIDs[edge.second].push_back(edge.first);
-			outputEdgeIDs[edge.first].push_back(edge.second);
-
-			if (inputEdgeIDs.find(edge.first) == inputEdgeIDs.end())
-			{
-				inputEdgeIDs[edge.first] = std::vector<RenderPassID>();
-			}
-		}
-		for (auto inputEdgeID : inputEdgeIDs)
-		{
-			if (inputEdgeID.second.empty())
-			{
-				nodeS.push_back(inputEdgeID.first);
-			}
-			else
-			{
-				nodeR.push_back(inputEdgeID.first);
-			}
-		}
-
-		// sort graph.
-		std::vector<RenderPassID> sortedNodeIDs;
-		while (!nodeS.empty())
-		{
-			RenderPassID node = nodeS[0];
-			nodeS.erase(nodeS.begin());
-			sortedNodeIDs.push_back(node);
-
-			auto&& oEdgeIDs = outputEdgeIDs[node];
-			for (auto oEdgeID : oEdgeIDs)
-			{
-				auto parentNode = node;
-				auto childNode = oEdgeID;
-
-				auto&& iEdgeIDs = inputEdgeIDs[childNode];
-				auto it = std::find(iEdgeIDs.begin(), iEdgeIDs.end(), parentNode);
-				iEdgeIDs.erase(it);
-				if (iEdgeIDs.empty())
-				{
-					nodeS.push_back(childNode);
-				}
-			}
+			return false;
 		}
 
 		// create cross queue deps.
-		// NodeID : RenderPassID
-		// PassNo : Sorted pass index
-		CrossQueueDepsType CrossQueueDeps;
-		CrossQueueDeps.resize(sortedNodeIDs.size() + 1);
-		for (size_t p = 0; p < sortedNodeIDs.size() + 1; p++)
-		{
-			for (size_t q = 0; q < HardwareQueue::Max; q++)
-			{
-				CrossQueueDeps[p][q] = 0;
-			}
-		}
-		auto GetParentNodeIDs = [&edges](RenderPassID nodeID)
-		{
-			std::vector<RenderPassID> IDs;
-			for (auto&& edge : edges)
-			{
-				if (edge.second == nodeID)
-				{
-					IDs.push_back(edge.first);
-				}
-			}
-			return IDs;
-		};
-		for (size_t p = 0; p < sortedNodeIDs.size(); p++)
-		{
-			u16 childPassNo = (u16)(p + 1);
-			auto childNodeID = PassNo2NodeID(sortedNodeIDs, childPassNo);
-			auto parentNodeIDs = GetParentNodeIDs(childNodeID);
-			if (parentNodeIDs.empty()) continue;
-
-			for (RenderPassID parentNodeID : parentNodeIDs)
-			{
-				auto parentNode = renderPasses_[parentNodeID];
-				auto parentPassNo = NodeID2PassNo(sortedNodeIDs, parentNodeID);
-				CrossQueueDeps[childPassNo][parentNode->GetExecuteQueue()] = parentPassNo;
-			}
-			auto childNode = renderPasses_[childNodeID];
-			if (CrossQueueDeps[childPassNo][childNode->GetExecuteQueue()] != 0)
-			{
-				auto parentPassNo = CrossQueueDeps[childPassNo][childNode->GetExecuteQueue()];
-				for (size_t q = 0; q < HardwareQueue::Max; q++)
-				{
-					if (CrossQueueDeps[childPassNo][q] == 0)
-					{
-						CrossQueueDeps[childPassNo][q] = CrossQueueDeps[parentPassNo][q];
-					}
-				}
-			}
-		}
+		auto crossQueueDependencies = BuildCrossQueueDependencies(sortedNodeIDs);
 
 		// gather transient resources and set lifespan.
 		std::map<TransientResource, TransientResource> transients;
 		std::set<TransientResourceID> keepHistoryTransientIDs;
-		for (size_t n = 0; n < sortedNodeIDs.size(); n++)
+		for (size_t nodeIdx = 0; nodeIdx < sortedNodeIDs.size(); nodeIdx++)
 		{
-			RenderPassID nodeID = sortedNodeIDs[n];
-			IRenderPass* pass = renderPasses_[nodeID];
-			auto resources = pass->GetInputResources(nodeID);
-			auto outres = pass->GetOutputResources(nodeID);
-			resources.insert(resources.end(), outres.begin(), outres.end());
-
-			for (auto&& res : resources)
-			{
-				if (resManager_->GetExternalResourceInstance(res.id))
-				{
-					continue;
-				}
-				if (res.id.history > 0)
-				{
-					continue;
-				}
-				
-				auto it = transients.find(res);
-				if (it == transients.end())
-				{
-					// add new transient resource.
-					auto r = res;
-					r.lifespan = TransientResourceLifespan();
-					it = transients.emplace(res, res).first;
-				}
-
-				// and resource usage.
-				if (it->second.desc.bIsTexture)
-				{
-					it->second.desc.textureDesc.usage |= StateToUsage(res.state);
-				}
-				else
-				{
-					it->second.desc.bufferDesc.usage |= StateToUsage(res.state);
-				}
-
-				// extend lifespan.
-				it->second.lifespan.Extend((u16)(n + 1), pass->GetExecuteQueue());
-				if (res.desc.historyFrame > 0 && keepHistoryTransientIDs.find(res.id) == keepHistoryTransientIDs.end())
-				{
-					it->second.lifespan.Extend(0xffff, pass->GetExecuteQueue());
-					keepHistoryTransientIDs.emplace(res.id);
-				}
-			}
+			ProcessNodeResources(sortedNodeIDs[nodeIdx], nodeIdx, transients, keepHistoryTransientIDs);
 		}
+
+		// store transient resources and sorted nodes.
 		for (auto&& r : transients)
 		{
 			transientResources_.push_back(r.second);
 		}
-		
 		sortedNodeIDs_ = sortedNodeIDs;
 
 		// compile reuse resources.
 		std::vector<TransientResourceDesc> commitResourceDescs;
 		std::map<TransientResourceID, u16> commitResIDs;
-		CompileReuseResources(CrossQueueDeps, commitResourceDescs, commitResIDs);
+		CompileReuseResources(crossQueueDependencies, commitResourceDescs, commitResIDs);
 
 		// commit resources.
 		resManager_->ResetResource();
@@ -908,7 +950,7 @@ namespace sl12
 		}
 
 		// create commands.
-		CreateCommands(CrossQueueDeps);
+		CreateCommands(crossQueueDependencies);
 
 		return true;
 	}
@@ -1002,7 +1044,7 @@ namespace sl12
 			{
 				continue;
 			}
-			auto passNo = NodeID2PassNo(sortedNodeIDs_, id);
+			u16 passNo = NodeID2PassNo(sortedNodeIDs_, id);
 			if (CrossQueueDeps[passNo][HardwareQueue::Graphics] == 0)
 			{
 				nodeIDsWithoutParentGraphics.push_back(id);

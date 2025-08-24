@@ -541,6 +541,8 @@ namespace sl12
 			}
 		}
 		passOnlyResources_.clear();
+
+		graphResources_.clear();
 	}
 
 	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs)

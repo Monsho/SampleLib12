@@ -21,22 +21,27 @@ namespace sl12
 			: pParentDevice_(pDev)
 			, pObject_(p)
 		{}
+		UniqueHandle(const UniqueHandle<T>&) = delete;
 		UniqueHandle(UniqueHandle<T>&& t) noexcept
+			: pParentDevice_(t.pParentDevice_)
+			, pObject_(t.Release())
 		{
-			pParentDevice_ = t.pParentDevice_;
-			pObject_ = t.Release();
+			t.pParentDevice_ = nullptr;
 		}
+
 		~UniqueHandle()
 		{
 			Reset(nullptr);
 		}
 
+		UniqueHandle& operator=(const UniqueHandle<T>&) = delete;
 		UniqueHandle& operator=(UniqueHandle<T>&& t) noexcept
 		{
 			if (this != std::addressof(t))
 			{
 				Reset(t.Release());
 				pParentDevice_ = t.pParentDevice_;
+				t.pParentDevice_ = nullptr;
 			}
 			return *this;
 		}

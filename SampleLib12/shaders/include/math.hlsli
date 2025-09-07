@@ -1,7 +1,7 @@
 #ifndef MATH_HLSLI
 #define MATH_HLSLI
 
-#define PI			3.1415926
+#define PI			3.14159265358979323846
 #define Epsilon		1e-4
 
 float ToLinearDepth(float perspDepth, float n, float f)
@@ -221,6 +221,26 @@ float ComputeMiplevelCS(float2 uv, float2 dFx, float2 dFy, float TexSize)
 	float2 dy = dFy * TexSize;
 	float v = max(dot(dx, dx), dot(dy, dy));
 	return max(log2(sqrt(v)), 0);
+}
+
+float2 CartesianToLatLong(float3 p)
+{
+	float u = (1.0f + atan2(p.x, -p.z) / PI);
+	float v = acos(p.y) / PI;
+
+	return float2(u * 0.5f, v);
+}
+
+float3 LatLongToCartesian(float2 uv)
+{
+	float theta = PI * (uv.x * 2.0f - 1.0f);
+	float phi = PI * uv.y;
+
+	float x = sin(phi) * sin(theta);
+	float y = cos(phi);
+	float z = -sin(phi) * cos(theta);
+
+	return float3(x, y, z);
 }
 
 

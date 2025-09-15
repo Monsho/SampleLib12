@@ -9,6 +9,14 @@ using namespace Microsoft::glTF;
 
 namespace
 {
+	static const sl12::ResourceMeshMaterialBlendType kBlendTypes[] =
+	{
+		sl12::ResourceMeshMaterialBlendType::Opaque,
+		sl12::ResourceMeshMaterialBlendType::Opaque,
+		sl12::ResourceMeshMaterialBlendType::Translucent,
+		sl12::ResourceMeshMaterialBlendType::Masked,
+	};
+	
 	std::string ConvYenToSlash(const std::string& path)
 	{
 		std::string ret;
@@ -309,7 +317,8 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 		work->emissiveColor_ = DirectX::XMFLOAT3(mat.emissiveFactor.r, mat.emissiveFactor.g, mat.emissiveFactor.b);
 		work->roughness_ = PBR.roughnessFactor;
 		work->metallic_ = PBR.metallicFactor;
-		work->isOpaque_ = mat.alphaMode == AlphaMode::ALPHA_OPAQUE;
+		work->blendType_ = kBlendTypes[mat.alphaMode];
+		work->cullMode_ = mat.doubleSided ? sl12::ResourceMeshMaterialCullMode::None : sl12::ResourceMeshMaterialCullMode::Back;
 
 		materials_.push_back(std::move(work));
 	}

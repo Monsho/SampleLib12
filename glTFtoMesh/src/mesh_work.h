@@ -6,6 +6,9 @@
 #include "GLTFSDK/Deserialize.h"
 #include "meshoptimizer.h"
 #include "mikktspace.h"
+#define private public
+#include "sl12/resource_mesh.h"
+#undef private
 #include <DirectXMath.h>
 
 
@@ -159,9 +162,13 @@ public:
 	{
 		return metallic_;
 	}
-	bool IsOpaque() const
+	sl12::ResourceMeshMaterialBlendType GetBlendType() const
 	{
-		return isOpaque_;
+		return blendType_;
+	}
+	sl12::ResourceMeshMaterialCullMode GetCullMode() const
+	{
+		return cullMode_;
 	}
 
 private:
@@ -171,7 +178,8 @@ private:
 	DirectX::XMFLOAT3	emissiveColor_ = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 	float				roughness_ = 1.0f;
 	float				metallic_ = 1.0f;
-	bool				isOpaque_;
+	sl12::ResourceMeshMaterialBlendType	blendType_ = sl12::ResourceMeshMaterialBlendType::Opaque;
+	sl12::ResourceMeshMaterialCullMode	cullMode_ = sl12::ResourceMeshMaterialCullMode::Back;
 };	// class MaterialWork
 
 class TextureWork

@@ -158,7 +158,8 @@ namespace sl12
 			ret->mateirals_[i].emissiveColor = src_materials[i].GetEmissiveColor();
 			ret->mateirals_[i].roughness = src_materials[i].GetRoughness();
 			ret->mateirals_[i].metallic = src_materials[i].GetMetallic();
-			ret->mateirals_[i].isOpaque = src_materials[i].IsOpaque();
+			ret->mateirals_[i].blendType = src_materials[i].GetBlendType();
+			ret->mateirals_[i].cullMode = src_materials[i].GetCullMode();
 		}
 
 		// create submeshes.

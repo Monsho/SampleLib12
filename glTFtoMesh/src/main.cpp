@@ -22,10 +22,6 @@
 #include "mesh_work.h"
 #include "texture_convert.h"
 
-#define private public
-#include "sl12/resource_mesh.h"
-#undef private
-
 #define NOMINMAX
 #include <windows.h>
 #include <imagehlp.h>
@@ -392,7 +388,8 @@ int main(int argv, char* argc[])
 		out_mat.emissiveColorB_ = mat->GetEmissiveColor().z;
 		out_mat.roughness_ = mat->GetRoughness();
 		out_mat.metallic_ = mat->GetMetallic();
-		out_mat.isOpaque_ = mat->IsOpaque();
+		out_mat.blendType_ = mat->GetBlendType();
+		out_mat.cullMode_ = mat->GetCullMode();
 		out_resource->materials_.push_back(out_mat);
 	}
 	uint32_t vb_offset = 0;

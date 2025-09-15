@@ -53,6 +53,21 @@ namespace sl12
 		}
 	};	// struct ResourceMeshMeshletCone
 
+	enum class ResourceMeshMaterialBlendType : u8
+	{
+		Opaque,
+		Masked,
+		Translucent,
+		Additive,
+	};
+	
+	enum class ResourceMeshMaterialCullMode : u8
+	{
+		None,
+		Back,
+		Front,
+	};
+	
 	class ResourceMeshMaterial
 	{
 		friend class cereal::access;
@@ -87,9 +102,13 @@ namespace sl12
 		{
 			return metallic_;
 		}
-		bool IsOpaque() const
+		ResourceMeshMaterialBlendType GetBlendType() const
 		{
-			return isOpaque_;
+			return blendType_;
+		}
+		ResourceMeshMaterialCullMode GetCullMode() const
+		{
+			return cullMode_;
 		}
 
 	private:
@@ -99,7 +118,8 @@ namespace sl12
 		float						emissiveColorR_, emissiveColorG_, emissiveColorB_;
 		float						roughness_;
 		float						metallic_;
-		bool						isOpaque_;
+		ResourceMeshMaterialBlendType	blendType_;
+		ResourceMeshMaterialCullMode	cullMode_;
 
 
 		template <class Archive>
@@ -108,7 +128,7 @@ namespace sl12
 			ar(CEREAL_NVP(name_), CEREAL_NVP(textureNames_),
 				CEREAL_NVP(baseColorR_), CEREAL_NVP(baseColorG_), CEREAL_NVP(baseColorB_), CEREAL_NVP(baseColorA_),
 				CEREAL_NVP(emissiveColorR_), CEREAL_NVP(emissiveColorG_), CEREAL_NVP(emissiveColorB_),
-				CEREAL_NVP(roughness_), CEREAL_NVP(metallic_), CEREAL_NVP(isOpaque_));
+				CEREAL_NVP(roughness_), CEREAL_NVP(metallic_), CEREAL_NVP(blendType_), CEREAL_NVP(cullMode_));
 		}
 	};	// class ResourceMeshMaterial
 
@@ -399,7 +419,8 @@ namespace sl12
 			DirectX::XMFLOAT3	emissiveColor;
 			float				roughness;
 			float				metallic;
-			bool				isOpaque;
+			ResourceMeshMaterialBlendType	blendType;
+			ResourceMeshMaterialCullMode	cullMode;
 		};	// struct Material
 
 		struct Meshlet

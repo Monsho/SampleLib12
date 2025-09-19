@@ -230,6 +230,8 @@ namespace sl12
 
 		void CopyToBuffer(CommandList* pCmdList, Buffer* pDstBuffer, u32 dstOffset, const void* pSrcData, u32 srcSize);
 
+		void CaptureGPUonPIX(const std::string& filename);
+
 	private:
 		IDXGIFactory7*	pFactory_{ nullptr };
 		IDXGIAdapter4*	pAdapter_{ nullptr };

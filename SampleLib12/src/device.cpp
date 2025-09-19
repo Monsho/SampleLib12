@@ -1,5 +1,7 @@
 ﻿#include <sl12/device.h>
 
+#include <string>
+#include "pix3.h"
 #include <sl12/util.h>
 #include <sl12/swapchain.h>
 #include <sl12/command_queue.h>
@@ -7,9 +9,8 @@
 #include <sl12/texture.h>
 #include <sl12/command_list.h>
 #include <sl12/ring_buffer.h>
-#include <string>
-
-#include "sl12/texture_streamer.h"
+#include <sl12/texture_streamer.h>
+#include <sl12/string_util.h>
 
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 614; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
@@ -33,6 +34,10 @@ namespace sl12
 	{
 		uint32_t factoryFlags = 0;
 #ifdef _DEBUG
+		// PIXの初期化
+		PIXLoadLatestWinPixGpuCapturerLibrary();
+		PIXSetTargetWindow(devDesc.hWnd);
+
 		// enable d3d debug layer.
 		if (devDesc.enableDebugLayer)
 		{
@@ -576,6 +581,14 @@ namespace sl12
 	void Device::CopyToBuffer(CommandList* pCmdList, Buffer* pDstBuffer, u32 dstOffset, const void* pSrcData, u32 srcSize)
 	{
 		pRingBuffer_->CopyToBuffer(pCmdList, pDstBuffer, dstOffset, pSrcData, srcSize);
+	}
+
+	//----
+	void Device::CaptureGPUonPIX(const std::string& filename)
+	{
+#ifdef _DEBUG
+		PIXGpuCaptureNextFrames(StringToWString(filename).c_str(), 1);
+#endif
 	}
 
 }	// namespace sl12

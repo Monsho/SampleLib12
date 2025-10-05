@@ -49,6 +49,10 @@ namespace sl12
 			assert(currTextureView_.IsValid());
 			return *(&currTextureView_);
 		}
+		bool IsViewValid() const override
+		{
+			return currTextureView_.IsValid();
+		}
 
 		u32 GetCurrMipLevel() const
 		{

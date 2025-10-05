@@ -70,6 +70,7 @@ namespace sl12
 
 		// getter
 		const BufferDesc& GetBufferDesc() const { return bufferDesc_; }
+		ID3D12Resource* GetResourceDep() const { return pResource_; }
 		ID3D12Resource* GetResourceDep() { return pResource_; }
 		const D3D12_RESOURCE_DESC& GetResourceDesc() const { return resourceDesc_; }
 

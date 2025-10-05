@@ -22,6 +22,7 @@ namespace sl12
 		virtual const Texture& GetTexture() const = 0;
 		virtual TextureView& GetTextureView() = 0;
 		virtual const TextureView& GetTextureView() const = 0;
+		virtual bool IsViewValid() const = 0;
 
 		bool IsSameSubType(u32 subID) const
 		{

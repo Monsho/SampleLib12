@@ -34,6 +34,10 @@ namespace sl12
 		{
 			return textureView_;
 		}
+		bool IsViewValid() const override
+		{
+			return true;
+		}
 
 
 		static ResourceItemBase* LoadFunction(ResourceLoader* pLoader, ResourceHandle handle, const std::string& filepath);

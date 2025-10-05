@@ -898,6 +898,7 @@ namespace sl12
 			{
 				it->second.desc.bufferDesc.usage |= StateToUsage(res.state);
 			}
+			it->second.desc.historyFrame = std::max(it->second.desc.historyFrame, res.desc.historyFrame);
 
 			// extend lifespan.
 			it->second.lifespan.Extend((u16)(nodeIdx + kInitialPassNo), pass->GetExecuteQueue());

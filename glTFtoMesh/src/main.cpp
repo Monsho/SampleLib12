@@ -361,17 +361,20 @@ int main(int argv, char* argc[])
 		auto bcName = mat->GetTextrues()[MaterialWork::TextureKind::BaseColor];
 		auto nName = mat->GetTextrues()[MaterialWork::TextureKind::Normal];
 		auto ormName = mat->GetTextrues()[MaterialWork::TextureKind::ORM];
+		auto emmName = mat->GetTextrues()[MaterialWork::TextureKind::Emissive];
 		if (options.streamingTex > 0)
 		{
 			bcName = PNGtoExt(bcName, ".stex");
 			nName = PNGtoExt(nName, ".stex");
 			ormName = PNGtoExt(ormName, ".stex");
+			emmName = PNGtoExt(emmName, ".stex");
 		}
 		else if (options.textureDDS)
 		{
 			bcName = PNGtoExt(bcName, ".dds");
 			nName = PNGtoExt(nName, ".dds");
 			ormName = PNGtoExt(ormName, ".dds");
+			emmName = PNGtoExt(emmName, ".dds");
 		}
 
 		sl12::ResourceMeshMaterial out_mat;
@@ -379,6 +382,7 @@ int main(int argv, char* argc[])
 		out_mat.textureNames_.push_back(bcName);
 		out_mat.textureNames_.push_back(nName);
 		out_mat.textureNames_.push_back(ormName);
+		out_mat.textureNames_.push_back(emmName);
 		out_mat.baseColorR_ = mat->GetBaseColor().x;
 		out_mat.baseColorG_ = mat->GetBaseColor().y;
 		out_mat.baseColorB_ = mat->GetBaseColor().z;

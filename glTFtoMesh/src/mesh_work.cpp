@@ -300,6 +300,7 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 					case TextureType::BaseColor:			tex_name += ".bc.png"; break;
 					case TextureType::Normal:				tex_name += ".n.png"; break;
 					case TextureType::MetallicRoughness:	tex_name += ".orm.png"; break;
+					case TextureType::Emissive:				tex_name += ".em.png"; break;
 					}
 					textures_[image_index]->name_ = tex_name;
 				}
@@ -309,6 +310,7 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 			case TextureType::BaseColor:			work->textures_[MaterialWork::TextureKind::BaseColor] = tex_name; break;
 			case TextureType::Normal:				work->textures_[MaterialWork::TextureKind::Normal] = tex_name; break;
 			case TextureType::MetallicRoughness:	work->textures_[MaterialWork::TextureKind::ORM] = tex_name; break;
+			case TextureType::Emissive:				work->textures_[MaterialWork::TextureKind::Emissive] = tex_name; break;
 			}
 		}
 

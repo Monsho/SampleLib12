@@ -415,6 +415,7 @@ namespace sl12
 			ResourceHandle		baseColorTex;
 			ResourceHandle		normalTex;
 			ResourceHandle		ormTex;
+			ResourceHandle		emissiveTex;
 			DirectX::XMFLOAT4	baseColor;
 			DirectX::XMFLOAT3	emissiveColor;
 			float				roughness;

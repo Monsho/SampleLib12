@@ -127,6 +127,7 @@ public:
 			BaseColor,
 			Normal,
 			ORM,
+			Emissive,
 
 			Max
 		};

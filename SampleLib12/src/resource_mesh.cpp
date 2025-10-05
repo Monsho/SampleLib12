@@ -139,20 +139,26 @@ namespace sl12
 		for (size_t i = 0; i < mat_count; i++)
 		{
 			ret->mateirals_[i].name = src_materials[i].GetName();
-			if (!src_materials[i].GetTextureNames()[0].empty())
+			auto& texNames = src_materials[i].GetTextureNames();
+			if (texNames.size() > 0 && !texNames[0].empty())
 			{
-				std::string f = path + src_materials[i].GetTextureNames()[0];
+				std::string f = path + texNames[0];
 				ret->mateirals_[i].baseColorTex = IsStreamingTexture(f) ? pLoader->LoadRequest<ResourceItemStreamingTexture>(f) : pLoader->LoadRequest<ResourceItemTexture>(f);
 			}
-			if (!src_materials[i].GetTextureNames()[1].empty())
+			if (texNames.size() > 1 && !texNames[1].empty())
 			{
-				std::string f = path + src_materials[i].GetTextureNames()[1];
+				std::string f = path + texNames[1];
 				ret->mateirals_[i].normalTex = IsStreamingTexture(f) ? pLoader->LoadRequest<ResourceItemStreamingTexture>(f) : pLoader->LoadRequest<ResourceItemTexture>(f);
 			}
-			if (!src_materials[i].GetTextureNames()[2].empty())
+			if (texNames.size() > 2 && !texNames[2].empty())
 			{
-				std::string f = path + src_materials[i].GetTextureNames()[2];
+				std::string f = path + texNames[2];
 				ret->mateirals_[i].ormTex = IsStreamingTexture(f) ? pLoader->LoadRequest<ResourceItemStreamingTexture>(f) : pLoader->LoadRequest<ResourceItemTexture>(f);
+			}
+			if (texNames.size() > 3 && !texNames[3].empty())
+			{
+				std::string f = path + texNames[3];
+				ret->mateirals_[i].emissiveTex = IsStreamingTexture(f) ? pLoader->LoadRequest<ResourceItemStreamingTexture>(f) : pLoader->LoadRequest<ResourceItemTexture>(f);
 			}
 			ret->mateirals_[i].baseColor = src_materials[i].GetBaseColor();
 			ret->mateirals_[i].emissiveColor = src_materials[i].GetEmissiveColor();

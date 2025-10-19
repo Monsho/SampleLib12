@@ -92,7 +92,7 @@ namespace sl12
 		inst.state = state;
 		externalResources_[id] = inst;
 	}
-	
+
 	void TransientResourceManager::AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state)
 	{
 		RDGExternalResourceInstance inst;
@@ -115,7 +115,7 @@ namespace sl12
 	RenderGraphResource* TransientResourceManager::CreatePassOnlyResource(const TransientResourceDesc& desc)
 	{
 		std::lock_guard<std::mutex> lock(passOnlyMutex_);
-		
+
 		// search in unused list.
 		auto find_it = unusedResources_.find(desc);
 		if (find_it != unusedResources_.end())
@@ -181,7 +181,7 @@ namespace sl12
 		passOnlyResources_.push_back(std::move(passOnly));
 		return passOnlyResources_[passOnlyResources_.size() - 1].graphResource.get();
 	}
-	
+
 	TextureView* TransientResourceManager::CreateOrGetTextureView(RenderGraphResource* pResource, u32 firstMip, u32 mipCount, u32 firstArray, u32 arraySize)
 	{
 		if (!pResource->bIsTexture)
@@ -190,7 +190,7 @@ namespace sl12
 		}
 
 		std::lock_guard<std::mutex> lock(viewMutex_);
-		
+
 		// find cache.
 		RDGTextureViewDesc desc{ firstMip, mipCount, firstArray, arraySize };
 		auto ret = viewInstances_.equal_range(pResource->pTexture);
@@ -218,7 +218,7 @@ namespace sl12
 		viewInstances_.insert(std::make_pair(pResource->pTexture, std::move(inst)));
 		return view;
 	}
-	
+
 	BufferView* TransientResourceManager::CreateOrGetBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride)
 	{
 		if (pResource->bIsTexture)
@@ -255,7 +255,7 @@ namespace sl12
 		viewInstances_.insert(std::make_pair(pResource->pBuffer, std::move(inst)));
 		return view;
 	}
-	
+
 	RenderTargetView* TransientResourceManager::CreateOrGetRenderTargetView(RenderGraphResource* pResource, u32 mipSlice, u32 firstArray, u32 arraySize)
 	{
 		if (!pResource->bIsTexture)
@@ -292,7 +292,7 @@ namespace sl12
 		viewInstances_.insert(std::make_pair(pResource->pTexture, std::move(inst)));
 		return view;
 	}
-	
+
 	DepthStencilView* TransientResourceManager::CreateOrGetDepthStencilView(RenderGraphResource* pResource, u32 mipSlice, u32 firstArray, u32 arraySize)
 	{
 		if (!pResource->bIsTexture)
@@ -329,7 +329,7 @@ namespace sl12
 		viewInstances_.insert(std::make_pair(pResource->pTexture, std::move(inst)));
 		return view;
 	}
-	
+
 	UnorderedAccessView* TransientResourceManager::CreateOrGetUnorderedAccessTextureView(RenderGraphResource* pResource, u32 mipSlice, u32 firstArray, u32 arraySize)
 	{
 		if (!pResource->bIsTexture)
@@ -449,7 +449,7 @@ namespace sl12
 	void TransientResourceManager::ResetResource()
 	{
 		static const u8 kMaxStorageFrame = 3;
-		
+
 		// delete unused resources.
 		auto it = unusedResources_.begin();
 		while (it != unusedResources_.end())
@@ -485,7 +485,7 @@ namespace sl12
 				++viewIt;
 			}
 		}
-		
+
 		// manage history buffers.
 		std::map<TransientResourceID, std::unique_ptr<RDGTransientResourceInstance>> tmpHistories;
 		for (auto&& res : historyResources_)
@@ -641,11 +641,11 @@ namespace sl12
 
 		// store history buffer IDs.
 		keepHistoryIDs_ = keepHistoryTransientIDs;
-		
+
 		return true;
 	}
 
-	
+
 	RenderGraph::RenderGraph()
 		: pDevice_(nullptr)
 	{}
@@ -686,7 +686,7 @@ namespace sl12
 		renderPasses_[ID] = pPass;
 		return Node(ID, this);
 	}
-	
+
 	bool RenderGraph::AddGraphEdge(RenderPassID ParentID, RenderPassID ChildID)
 	{
 		GraphEdge edge(ParentID, ChildID);
@@ -699,7 +699,7 @@ namespace sl12
 		graphEdges_.emplace(edge);
 		return true;
 	}
-	
+
 	int RenderGraph::AddGraphEdges(const std::vector<RenderPassID>& ParentIDs, const std::vector<RenderPassID>& ChildIDs)
 	{
 		int count = 0;
@@ -718,7 +718,7 @@ namespace sl12
 	{
 		resManager_->AddExternalTexture(id, pTexture, state);
 	}
-	
+
 	void RenderGraph::AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state)
 	{
 		resManager_->AddExternalBuffer(id, pBuffer, state);
@@ -727,7 +727,7 @@ namespace sl12
 	void RenderGraph::PreCompile()
 	{
 		transientResources_.clear();
-		
+
 		sortedCommands_.clear();
 		execCommands_.clear();
 		commandLoaders_.clear();
@@ -843,7 +843,7 @@ namespace sl12
 	{
 		CrossQueueDepsType dependencies;
 		dependencies.resize(sortedNodes.size() + 1);
-    
+
 		// initialize.
 		for (size_t passIdx = 0; passIdx < sortedNodes.size() + 1; passIdx++)
 		{
@@ -852,13 +852,13 @@ namespace sl12
 				dependencies[passIdx][queueIdx] = 0;
 			}
 		}
-    
+
 		// build dependencies.
 		for (size_t passIdx = 0; passIdx < sortedNodes.size(); passIdx++)
 		{
 			ProcessPassDependencies(sortedNodes, passIdx, dependencies);
 		}
-    
+
 		return dependencies;
 	}
 
@@ -867,10 +867,13 @@ namespace sl12
 		IRenderPass* pass = renderPasses_[nodeID];
 		auto resources = pass->GetInputResources(nodeID);
 		auto outres = pass->GetOutputResources(nodeID);
+		size_t inputResourceCount = resources.size();
 		resources.insert(resources.end(), outres.begin(), outres.end());
 
+		size_t resCount = 0;
 		for (auto&& res : resources)
 		{
+			size_t resNo = resCount++;
 			if (resManager_->GetExternalResourceInstance(res.id))
 			{
 				continue;
@@ -879,10 +882,16 @@ namespace sl12
 			{
 				continue;
 			}
-				
+
+			bool bInputRes = resNo < inputResourceCount;
 			auto it = transients.find(res);
 			if (it == transients.end())
 			{
+				if (bInputRes)
+				{
+					continue;
+				}
+
 				// add new transient resource.
 				auto r = res;
 				r.lifespan = TransientResourceLifespan();
@@ -909,7 +918,7 @@ namespace sl12
 			}
 		}
 	}
-	
+
 	bool RenderGraph::Compile()
 	{
 		PreCompile();
@@ -1032,12 +1041,12 @@ namespace sl12
 			std::vector<RenderPassID> relativeNodeIDs;
 		};
 		std::vector<TransitionBarrier> graphicsTransitions;
-		
+
 		u16 fenceCount = 0;
 		std::map<u16, u16> fenceCmds[HardwareQueue::Max]; // passNo to command index.
 
 		std::vector<Command> tempCommands[HardwareQueue::Max];
-		
+
 		// If there is no parent GraphicsQueue in ComputeQueue or CopyQueue,
 		// barrier command is loaded first.
 		std::vector<RenderPassID> nodeIDsWithoutParentGraphics;
@@ -1125,7 +1134,7 @@ namespace sl12
 				{
 					u16 cmdIndex = fenceCmds[HardwareQueue::Copy][copyPrevPassNo];
 					assert(tempCommands[HardwareQueue::Copy][cmdIndex].type == CommandType::Fence);
-						
+
 					Command waitCmd;
 					waitCmd.type = CommandType::Wait;
 					waitCmd.fenceIndex = tempCommands[HardwareQueue::Copy][cmdIndex].fenceIndex;
@@ -1187,7 +1196,7 @@ namespace sl12
 
 					SetFenceWait(HardwareQueue::Compute, 0);
 				}
-				
+
 				// add fence wait command.
 				u16 graphicsPrevPassNo = CrossQueueDeps[passNo][HardwareQueue::Graphics];
 				u16 copyPrevPassNo = CrossQueueDeps[passNo][HardwareQueue::Copy];
@@ -1195,7 +1204,7 @@ namespace sl12
 				{
 					u16 cmdIndex = fenceCmds[HardwareQueue::Graphics][graphicsPrevPassNo];
 					assert(tempCommands[HardwareQueue::Graphics][cmdIndex].type == CommandType::Fence);
-						
+
 					Command waitCmd;
 					waitCmd.type = CommandType::Wait;
 					waitCmd.fenceIndex = tempCommands[HardwareQueue::Graphics][cmdIndex].fenceIndex;
@@ -1286,7 +1295,7 @@ namespace sl12
 				{
 					u16 cmdIndex = fenceCmds[HardwareQueue::Graphics][graphicsPrevPassNo];
 					assert(tempCommands[HardwareQueue::Graphics][cmdIndex].type == CommandType::Fence);
-						
+
 					Command waitCmd;
 					waitCmd.type = CommandType::Wait;
 					waitCmd.fenceIndex = tempCommands[HardwareQueue::Graphics][cmdIndex].fenceIndex;
@@ -1298,7 +1307,7 @@ namespace sl12
 				{
 					u16 cmdIndex = fenceCmds[HardwareQueue::Compute][computePrevPassNo];
 					assert(tempCommands[HardwareQueue::Compute][cmdIndex].type == CommandType::Fence);
-						
+
 					Command waitCmd;
 					waitCmd.type = CommandType::Wait;
 					waitCmd.fenceIndex = tempCommands[HardwareQueue::Compute][cmdIndex].fenceIndex;
@@ -1379,7 +1388,10 @@ namespace sl12
 				default:
 					if (res.first.history == 0)
 					{
-						assert(result != TransientResourceManager::RDGResourceType::None);
+						// 通常ここには来ないが、出力されていないリソースを入力にしようとするとここにくる
+						// このようなリソースを利用しているパスはNULLリソースに対する対応を行う必要がある
+						ConsolePrint("Warning! : %s resource is used for input, but NOT output.\n", res.first.name.c_str());
+						ConsolePrint("    This is OK, but render pass must support NULL resource.\n", res.first.name.c_str());
 					}
 					break;
 				}

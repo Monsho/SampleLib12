@@ -13,6 +13,7 @@ namespace sl12
 	namespace detail
 	{
 		struct UpdateTileQueueCommand
+			: public IQueueCommand
 		{
 			Texture*										pTexture = nullptr;
 			ID3D12Heap*										pHeap = nullptr;
@@ -23,14 +24,12 @@ namespace sl12
 			std::vector<UINT>								heapRangeStartOffsets;
 			std::vector<UINT>								rangeTileCounts;
 
-			~UpdateTileQueueCommand()
-			{
-			}
+			IRenderCommand*									pRenderCommand = nullptr;
 
-			void ExecuteCommand(Device* pDevice)
+			void ExecuteCommand(CommandQueue* pGraphicsQueue) override
 			{
-				ID3D12CommandQueue* pGraphicsQueue = pDevice->GetGraphicsQueue().GetQueueDep();
-				pGraphicsQueue->UpdateTileMappings(
+				ID3D12CommandQueue* pQueueDep = pGraphicsQueue->GetQueueDep();
+				pQueueDep->UpdateTileMappings(
 					pTexture->GetResourceDep(),
 					updatedRegions,
 					&startCoordinates[0],
@@ -42,9 +41,15 @@ namespace sl12
 					&rangeTileCounts[0],
 					D3D12_TILE_MAPPING_FLAG_NONE
 					);
+
+				if (pRenderCommand)
+				{
+					std::unique_ptr<IRenderCommand> ptr(pRenderCommand);
+					pGraphicsQueue->GetParentDevice()->AddRenderCommand(ptr);
+				}
 			}
 		};
-		
+
 		struct TailMipInitRenderCommand
 			: public IRenderCommand
 		{
@@ -53,10 +58,6 @@ namespace sl12
 			Texture*				pTexture;
 			u32						firstMipLevel;
 			u32						numMiplevels;
-
-			~TailMipInitRenderCommand()
-			{
-			}
 
 			void LoadCommand(CommandList* pCmdlist) override
 			{
@@ -105,7 +106,7 @@ namespace sl12
 				const u8* texPtr = reinterpret_cast<u8*>(texBin->GetData());
 				const StreamingTextureHeader* pHeader = reinterpret_cast<const StreamingTextureHeader*>(texPtr);
 				const StreamingSubresourceHeader* pSubHeader = reinterpret_cast<const StreamingSubresourceHeader*>(pHeader + 1);
-				
+
 				// ready copy source.
 				u8* pData{ nullptr };
 				hr = pSrcImage->Map(0, nullptr, reinterpret_cast<void**>(&pData));
@@ -162,14 +163,18 @@ namespace sl12
 			u32			prevMiplevel;
 			u32			nextMiplevel;
 
-			~MiplevelUpRenderCommand()
-			{
-			}
+			IQueueCommand*		pQueueCommand = nullptr;
 
 			void LoadCommand(CommandList* pCmdlist) override
 			{
 				// swap texture view.
 				pResource->currTextureView_ = std::move(pResource->nextTextureView_);
+
+				if (pQueueCommand)
+				{
+					std::unique_ptr<IQueueCommand> ptr(pQueueCommand);
+					pCmdlist->GetParentDevice()->AddQueueCommand(ptr);
+				}
 			}
 		};	// struct MiplevelUpRenderCommand
 
@@ -184,14 +189,10 @@ namespace sl12
 			u32			prevMiplevel;
 			u32			nextMiplevel;
 
-			~MiplevelDownRenderCommand()
-			{
-			}
-
 			void LoadCommand(CommandList* pCmdlist) override
 			{
 				Texture* pTexture = &pResource->currTexture_;
-				
+
 				// get texture footprint.
 				auto resDesc = pTexture->GetResourceDesc();
 				u32 firstSubresource = resDesc.DepthOrArraySize * nextMiplevel;
@@ -234,7 +235,7 @@ namespace sl12
 					nullptr,
 					IID_PPV_ARGS(&pSrcImage));
 				assert(SUCCEEDED(hr));
-				
+
 				// ready copy source.
 				u8* pData{ nullptr };
 				hr = pSrcImage->Map(0, nullptr, reinterpret_cast<void**>(&pData));
@@ -416,12 +417,24 @@ namespace sl12
 		// init texture view.
 		ret->currTextureView_->Initialize(device, &ret->currTexture_, pHeader->topMipCount, pHeader->tailMipCount);
 
+		// resource copy command.
+		IRenderCommand* pRenderCommand = nullptr;
+		{
+			detail::TailMipInitRenderCommand* command = new detail::TailMipInitRenderCommand();
+			command->texBin = std::move(texBin);
+			command->pDevice = device;
+			command->pTexture = &ret->currTexture_;
+			command->firstMipLevel = pHeader->topMipCount;
+			command->numMiplevels = pHeader->tailMipCount;
+			pRenderCommand = command;
+		}
+
 		// execute update tile command.
 		{
-			detail::UpdateTileQueueCommand command;
-			command.pTexture = &ret->currTexture_;
-			command.pHeap = ret->tailHeap_;
-			
+			detail::UpdateTileQueueCommand* command = new detail::UpdateTileQueueCommand();
+			command->pTexture = &ret->currTexture_;
+			command->pHeap = ret->tailHeap_;
+
 			u32 updateMip = pHeader->topMipCount;
 			UINT tileCount = 0;
 			// standard mips tile.
@@ -429,20 +442,20 @@ namespace sl12
 			{
 				D3D12_TILED_RESOURCE_COORDINATE coord = {};
 				coord.Subresource = updateMip;
-				command.startCoordinates.push_back(coord);
-				
+				command->startCoordinates.push_back(coord);
+
 				D3D12_TILE_REGION_SIZE regionSize = {};
 				regionSize.Width = ret->standardTiles_[updateMip].WidthInTiles;
 				regionSize.Height = ret->standardTiles_[updateMip].HeightInTiles;
 				regionSize.Depth = ret->standardTiles_[updateMip].DepthInTiles;
 				regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
 				regionSize.UseBox = TRUE;
-				command.regionSizes.push_back(regionSize);
+				command->regionSizes.push_back(regionSize);
 
-				command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
-				command.heapRangeStartOffsets.push_back(tileCount);
-				command.rangeTileCounts.push_back(regionSize.NumTiles);
-				command.updatedRegions++;
+				command->rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+				command->heapRangeStartOffsets.push_back(tileCount);
+				command->rangeTileCounts.push_back(regionSize.NumTiles);
+				command->updatedRegions++;
 
 				tileCount += regionSize.NumTiles;
 			}
@@ -451,32 +464,22 @@ namespace sl12
 			{
 				D3D12_TILED_RESOURCE_COORDINATE coord = {};
 				coord.Subresource = updateMip;
-				command.startCoordinates.push_back(coord);
-				
+				command->startCoordinates.push_back(coord);
+
 				D3D12_TILE_REGION_SIZE regionSize = {};
 				regionSize.NumTiles = ret->packedMipInfo_.NumTilesForPackedMips;
 				regionSize.UseBox = FALSE;
-				command.regionSizes.push_back(regionSize);
+				command->regionSizes.push_back(regionSize);
 
-				command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
-				command.heapRangeStartOffsets.push_back(tileCount);
-				command.rangeTileCounts.push_back(regionSize.NumTiles);
-				command.updatedRegions++;
+				command->rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+				command->heapRangeStartOffsets.push_back(tileCount);
+				command->rangeTileCounts.push_back(regionSize.NumTiles);
+				command->updatedRegions++;
 			}
 
-			command.ExecuteCommand(device);
-		}
-		
-		// load resource copy command.
-		{
-			detail::TailMipInitRenderCommand* command = new detail::TailMipInitRenderCommand();
-			command->texBin = std::move(texBin);
-			command->pDevice = device;
-			command->pTexture = &ret->currTexture_;
-			command->firstMipLevel = pHeader->topMipCount;
-			command->numMiplevels = pHeader->tailMipCount;
-			
-			device->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
+			command->pRenderCommand = pRenderCommand;
+			std::unique_ptr<IQueueCommand> ptr(command);
+			device->AddQueueCommand(ptr);
 		}
 
 		return ret.release();
@@ -520,9 +523,10 @@ namespace sl12
 		if (prevMiplevel < nextMiplevel)
 		{
 			// load update tile command.
+			IQueueCommand* pQueueCommand = nullptr;
 			{
-				detail::UpdateTileQueueCommand command;
-				command.pTexture = &pSTex->currTexture_;
+				detail::UpdateTileQueueCommand* command = new detail::UpdateTileQueueCommand();
+				command->pTexture = &pSTex->currTexture_;
 
 				for (u32 updateMip = prevMiplevel; updateMip < nextMiplevel; updateMip++)
 				{
@@ -535,80 +539,43 @@ namespace sl12
 
 					D3D12_TILED_RESOURCE_COORDINATE coord = {};
 					coord.Subresource = updateMip;
-					command.startCoordinates.push_back(coord);
-				
+					command->startCoordinates.push_back(coord);
+
 					D3D12_TILE_REGION_SIZE regionSize = {};
 					regionSize.Width = pSTex->standardTiles_[updateMip].WidthInTiles;
 					regionSize.Height = pSTex->standardTiles_[updateMip].HeightInTiles;
 					regionSize.Depth = pSTex->standardTiles_[updateMip].DepthInTiles;
 					regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
 					regionSize.UseBox = TRUE;
-					command.regionSizes.push_back(regionSize);
+					command->regionSizes.push_back(regionSize);
 
-					command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NULL);
-					command.heapRangeStartOffsets.push_back(0);
-					command.rangeTileCounts.push_back(regionSize.NumTiles);
-					command.updatedRegions++;
+					command->rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NULL);
+					command->heapRangeStartOffsets.push_back(0);
+					command->rangeTileCounts.push_back(regionSize.NumTiles);
+					command->updatedRegions++;
 				}
-
-				command.ExecuteCommand(pDevice);
+				pQueueCommand = command;
 			}
-			
+
 			// load upword command.
 			{
 				detail::MiplevelUpRenderCommand* command = new detail::MiplevelUpRenderCommand();
 				command->pResource = pSTex;
 				command->prevMiplevel = prevMiplevel;
 				command->nextMiplevel = nextMiplevel;
-		
+				command->pQueueCommand = pQueueCommand;
+
 				pDevice->AddRenderCommand(std::unique_ptr<IRenderCommand>(command));
 			}
 		}
 		// miplevel down.
 		else
 		{
-			// allocate memory and update tile.
 			u32 updateMiplevel = prevMiplevel - 1;
 			u32 numUpdateMips = prevMiplevel - nextMiplevel;
-			for (u32 i = 0; i < numUpdateMips; i++, updateMiplevel--)
-			{
-				detail::UpdateTileQueueCommand command;
 
-				D3D12_TILED_RESOURCE_COORDINATE coord = {};
-				coord.Subresource = updateMiplevel;
-				command.startCoordinates.push_back(coord);
-			
-				D3D12_TILE_REGION_SIZE regionSize = {};
-				regionSize.Width = pSTex->standardTiles_[updateMiplevel].WidthInTiles;
-				regionSize.Height = pSTex->standardTiles_[updateMiplevel].HeightInTiles;
-				regionSize.Depth = pSTex->standardTiles_[updateMiplevel].DepthInTiles;
-				regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
-				regionSize.UseBox = TRUE;
-				command.regionSizes.push_back(regionSize);
-
-				if (!pSTex->heapHandles_[updateMiplevel].IsValid())
-				{
-					auto heapHandle = allocator->Allocate(pSTex->GetHandle(), regionSize.NumTiles * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
-					if (!heapHandle.IsValid())
-					{
-						numUpdateMips = i;
-						nextMiplevel = prevMiplevel - i;
-						break;
-					}
-					pSTex->heapHandles_[updateMiplevel] = heapHandle;
-				}
-				command.pTexture = &pSTex->currTexture_;
-				command.pHeap = pSTex->heapHandles_[updateMiplevel].GetHeapDep();
-
-				command.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
-				command.heapRangeStartOffsets.push_back(pSTex->heapHandles_[updateMiplevel].GetTileOffset());
-				command.rangeTileCounts.push_back(regionSize.NumTiles);
-				command.updatedRegions++;
-				
-				command.ExecuteCommand(pDevice);
-			}
-
-			// load miplevel down command.
+			// miplevel down command.
+			IRenderCommand* pRenderCommand = nullptr;
 			if (numUpdateMips > 0)
 			{
 				detail::MiplevelDownRenderCommand* command = new detail::MiplevelDownRenderCommand();
@@ -617,7 +584,6 @@ namespace sl12
 				command->texBins.resize(prevMiplevel - nextMiplevel);
 				command->prevMiplevel = prevMiplevel;
 				command->nextMiplevel = nextMiplevel;
-				auto cmd = std::unique_ptr<IRenderCommand>(command);
 
 				// file read.
 				for (u32 i = 0; i < command->texBins.size(); i++)
@@ -634,8 +600,52 @@ namespace sl12
 
 					command->texBins[i] = std::move(file);
 				}
-		
-				pDevice->AddRenderCommand(cmd);
+				pRenderCommand = command;
+			}
+
+			// allocate memory and update tile.
+			for (u32 i = 0; i < numUpdateMips; i++, updateMiplevel--)
+			{
+				detail::UpdateTileQueueCommand* command = new detail::UpdateTileQueueCommand();
+
+				D3D12_TILED_RESOURCE_COORDINATE coord = {};
+				coord.Subresource = updateMiplevel;
+				command->startCoordinates.push_back(coord);
+
+				D3D12_TILE_REGION_SIZE regionSize = {};
+				regionSize.Width = pSTex->standardTiles_[updateMiplevel].WidthInTiles;
+				regionSize.Height = pSTex->standardTiles_[updateMiplevel].HeightInTiles;
+				regionSize.Depth = pSTex->standardTiles_[updateMiplevel].DepthInTiles;
+				regionSize.NumTiles = regionSize.Width * regionSize.Height * regionSize.Depth;
+				regionSize.UseBox = TRUE;
+				command->regionSizes.push_back(regionSize);
+
+				if (!pSTex->heapHandles_[updateMiplevel].IsValid())
+				{
+					auto heapHandle = allocator->Allocate(pSTex->GetHandle(), regionSize.NumTiles * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+					if (!heapHandle.IsValid())
+					{
+						numUpdateMips = i;
+						nextMiplevel = prevMiplevel - i;
+						break;
+					}
+					pSTex->heapHandles_[updateMiplevel] = heapHandle;
+				}
+				command->pTexture = &pSTex->currTexture_;
+				command->pHeap = pSTex->heapHandles_[updateMiplevel].GetHeapDep();
+
+				command->rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+				command->heapRangeStartOffsets.push_back(pSTex->heapHandles_[updateMiplevel].GetTileOffset());
+				command->rangeTileCounts.push_back(regionSize.NumTiles);
+				command->updatedRegions++;
+
+				if (i == 0)
+				{
+					command->pRenderCommand = pRenderCommand;
+				}
+
+				std::unique_ptr<IQueueCommand> ptr(command);
+				pDevice->AddQueueCommand(ptr);
 			}
 		}
 

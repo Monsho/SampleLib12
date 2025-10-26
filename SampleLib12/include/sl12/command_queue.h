@@ -24,9 +24,11 @@ namespace sl12
 
 		uint64_t GetTimestampFrequency() const;
 
+		Device* GetParentDevice() { return pParentDevice_; }
 		ID3D12CommandQueue* GetQueueDep() { return pQueue_; }
 
 	private:
+		Device*					pParentDevice_{ nullptr };
 		ID3D12CommandQueue*		pQueue_{ nullptr };
 		D3D12_COMMAND_LIST_TYPE listType_{ D3D12_COMMAND_LIST_TYPE_DIRECT };
 	};	// class CommandQueue

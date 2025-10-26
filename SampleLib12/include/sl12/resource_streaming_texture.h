@@ -85,7 +85,6 @@ namespace sl12
 		ID3D12Heap*					tailHeap_ = nullptr;
 		std::vector<TextureStreamHeapHandle>	heapHandles_;
 
-		UniqueHandle<Texture>		nextTexture_;
 		UniqueHandle<TextureView>	nextTextureView_;
 	};	// class ResourceItemStreamingTexture
 

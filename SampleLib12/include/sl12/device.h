@@ -31,6 +31,14 @@ namespace sl12
 		virtual void LoadCommand(CommandList* pCmdlist) = 0;
 	};	// struct IRenderCommand
 
+	struct IQueueCommand
+	{
+		virtual ~IQueueCommand()
+		{}
+
+		virtual void ExecuteCommand(CommandQueue* pGraphicsQueue) = 0;
+	};	// struct IQueueCommand
+
 	struct DummyTex
 	{
 		enum Type
@@ -118,6 +126,21 @@ namespace sl12
 				rc->LoadCommand(pCmdlist);
 			}
 			renderCommands_.clear();
+		}
+
+		void AddQueueCommand(std::unique_ptr<IQueueCommand>& rc)
+		{
+			std::lock_guard<std::mutex> lock(queueCommandMutex_);
+			queueCommands_.push_back(std::move(rc));
+		}
+		void ExecuteQueueCommands()
+		{
+			std::lock_guard<std::mutex> lock(queueCommandMutex_);
+			for (auto&& qc : queueCommands_)
+			{
+				qc->ExecuteCommand(pGraphicsQueue_);
+			}
+			queueCommands_.clear();
 		}
 
 		// getter
@@ -280,6 +303,9 @@ namespace sl12
 
 		std::mutex									renderCommandMutex_;
 		std::list<std::unique_ptr<IRenderCommand>>	renderCommands_;
+
+		std::mutex									queueCommandMutex_;
+		std::list<std::unique_ptr<IQueueCommand>>	queueCommands_;
 
 		std::unique_ptr<CopyRingBuffer>				pRingBuffer_;
 		std::unique_ptr<TextureStreamAllocator>		pTextureStreamAllocator_;

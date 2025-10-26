@@ -122,6 +122,7 @@ namespace sl12
 		void PopMarker();
 
 		// getter
+		Device* GetParentDevice() { return pParentDevice_; }
 		CommandQueue* GetParentQueue() { return pParentQueue_; }
 		DescriptorStackList* GetViewDescriptorStack() { return pViewDescStack_; }
 		SamplerDescriptorCache* GetSamplerDescriptorCache() { return pSamplerDescCache_; }

@@ -315,7 +315,7 @@ namespace sl12
 		{
 			return;
 		}
-		
+
 		RequestItem item;
 		item.handle = handle;
 		item.targetWidth = targetWidth;

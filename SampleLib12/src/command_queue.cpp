@@ -19,6 +19,7 @@ namespace sl12
 		}
 
 		listType_ = type;
+		pParentDevice_ = pDev;
 		return true;
 	}
 

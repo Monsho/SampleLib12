@@ -8,6 +8,8 @@
 #include <sl12/descriptor_heap.h>
 #include <sl12/death_list.h>
 
+#include "string_util.h"
+
 #define LatestDevice	ID3D12Device14
 
 namespace sl12

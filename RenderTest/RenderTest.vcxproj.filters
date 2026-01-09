@@ -24,10 +24,16 @@
     <ClCompile Include="src\sample_application.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\sample_render_pass.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\sample_application.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sample_render_pass.h">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -50,5 +56,6 @@
     <None Include="shaders\tonemap.p.hlsl">
       <Filter>shaders</Filter>
     </None>
+    <None Include="shaders\depth_ao.c.hlsl" />
   </ItemGroup>
 </Project>

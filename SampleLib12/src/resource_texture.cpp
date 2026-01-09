@@ -98,7 +98,9 @@ namespace sl12
 		{
 			return nullptr;
 		}
-		if (!ret->texture_.InitializeFromDXImage(device, *image, isSrgb))
+
+		std::string debugName = GetFileNameWithoutExtent(filepath);
+		if (!ret->texture_.InitializeFromDXImage(device, *image, isSrgb, false, debugName.c_str()))
 		{
 			return nullptr;
 		}

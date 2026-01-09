@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <sl12/util.h>
+#include <sl12/debug.h>
 #include <DirectXTex.h>
 #include <memory>
 
@@ -40,6 +41,7 @@ namespace sl12
 		u8						clearStencil			= 0;
 		bool					forceSysRam				= false;
 		bool					deviceShared			= false;
+		const char*				debugName				= nullptr;
 
 		void Initialize1D(DXGI_FORMAT _format, u32 _width, u32 _mip, u32 _array, u32 _usage)
 		{
@@ -83,6 +85,7 @@ namespace sl12
 	};	// struct TextureDesc
 
 	class Texture
+		: public DebugName
 	{
 		friend class CommandList;
 
@@ -95,7 +98,7 @@ namespace sl12
 		}
 
 		bool Initialize(Device* pDev, const TextureDesc& desc);
-		bool InitializeFromDXImage(Device* pDev, const DirectX::ScratchImage& image, bool isForceSRGB, bool forceSysRam = false);
+		bool InitializeFromDXImage(Device* pDev, const DirectX::ScratchImage& image, bool isForceSRGB, bool forceSysRam = false, const char* debugName = nullptr);
 		bool InitializeFromDDS(Device* pDev, CommandList* pCmdList, const void* pDdsBin, size_t size, sl12::u32 mipLevels, bool isForceSRGB, bool forceSysRam = false);
 		bool InitializeFromTGA(Device* pDev, CommandList* pCmdList, const void* pTgaBin, size_t size, sl12::u32 mipLevels, bool isForceSRGB, bool forceSysRam = false);
 		bool InitializeFromPNG(Device* pDev, CommandList* pCmdList, const void* pPngBin, size_t size, sl12::u32 mipLevels, bool isForceSRGB, bool forceSysRam = false);

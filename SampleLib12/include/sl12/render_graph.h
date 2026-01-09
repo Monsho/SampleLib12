@@ -469,7 +469,7 @@ namespace sl12
 		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state);
 
 		void ResetResource();
-		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs);
+		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs, const std::vector<std::string>& debugNames);
 
 		RDGResourceType GetResourceInstance(TransientResourceID id, RDGTransientResourceInstance*& OutTransient, RDGExternalResourceInstance*& OutExternal);
 		RDGTransientResourceInstance* GetTransientResourceInstance(TransientResourceID id);
@@ -632,7 +632,7 @@ namespace sl12
 		void ProcessPassDependencies(const std::vector<RenderPassID>& sortedNodes, size_t passIdx, CrossQueueDepsType& dependencies);
 		CrossQueueDepsType BuildCrossQueueDependencies(const std::vector<RenderPassID>& sortedNodes);
 		void ProcessNodeResources(RenderPassID nodeID, size_t nodeIdx, std::map<TransientResource, TransientResource>& transients, std::set<TransientResourceID>& historyResources);
-		void CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap);
+		void CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap, std::vector<std::string>& OutDebugNames);
 		void CreateCommands(const CrossQueueDepsType& CrossQueueDeps);
 
 	private:

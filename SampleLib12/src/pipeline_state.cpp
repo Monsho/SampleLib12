@@ -203,6 +203,11 @@ namespace sl12
 			return false;
 		}
 
+		static u64 sID = 0;
+		std::wstring name = L"GraphicsPipelineState_" + std::to_wstring(sID);
+		pPipelineState_->SetName(name.c_str());
+		sID++;
+
 		return true;
 	}
 
@@ -243,6 +248,11 @@ namespace sl12
 		{
 			return false;
 		}
+
+		static u64 sID = 0;
+		std::wstring name = L"ComputePipelineState_" + std::to_wstring(sID);
+		pPipelineState_->SetName(name.c_str());
+		sID++;
 
 		return true;
 	}

@@ -18,6 +18,8 @@ namespace sl12
 
 
 	//------------
+	std::function<CbvHandle(SceneMesh*, CbvManager*)> MeshRenderCommand::sCreateCbvFn_ = nullptr;
+
 	//----
 	MeshRenderCommand::MeshRenderCommand(SceneMesh* pMesh, CbvManager* pCbvMan)
 		: pParentMesh_(pMesh)
@@ -25,16 +27,10 @@ namespace sl12
 		isUnbound_ = false;
 
 		// ready constant buffer.
-		struct
+		if (sCreateCbvFn_)
 		{
-			DirectX::XMFLOAT4X4	curr;
-			DirectX::XMFLOAT4X4	prev;
-		} cb;
-
-		cb.curr = pMesh->GetMtxLocalToWorld();
-		cb.prev = pMesh->GetMtxPrevLocalToWorld();
-
-		cbHandle_ = pCbvMan->GetTemporal(&cb, sizeof(cb));
+			cbHandle_ = sCreateCbvFn_(pMesh, pCbvMan);
+		}
 
 		// create submesh commands.
 		auto sbCount = pMesh->GetSubmeshCount();
@@ -46,10 +42,10 @@ namespace sl12
 
 		// calc bounding sphere.
 		auto&& bounding = pMesh->GetParentResource()->GetBoundingInfo();
-		
+
 		DirectX::XMVECTOR aabbMin = DirectX::XMLoadFloat3(&bounding.box.aabbMin);
 		DirectX::XMVECTOR aabbMax = DirectX::XMLoadFloat3(&bounding.box.aabbMax);
-		DirectX::XMMATRIX tr = DirectX::XMLoadFloat4x4(&cb.curr);
+		DirectX::XMMATRIX tr = DirectX::XMLoadFloat4x4(&pMesh->GetMtxLocalToWorld());
 		aabbMin = DirectX::XMVector3TransformCoord(aabbMin, tr);
 		aabbMax = DirectX::XMVector3TransformCoord(aabbMax, tr);
 		DirectX::XMVECTOR center = DirectX::XMVectorScale(DirectX::XMVectorAdd(aabbMax, aabbMin), 0.5f);

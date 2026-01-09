@@ -271,8 +271,14 @@ namespace sl12
 	//----
 	BvhGeometryWeakPtr BvhManager::AddGeometry(MeshRenderCommand* pCmd)
 	{
-		// find created item.
 		auto key = GetGeometryKey(pCmd);
+		return AddGeometry(key);
+	}
+
+	//----
+	BvhGeometryWeakPtr BvhManager::AddGeometry(const ResourceItemMesh* pRes)
+	{
+		auto key = pRes;
 		auto find_it = staticGeomMap_.find(key);
 		if (find_it != staticGeomMap_.end())
 		{
@@ -281,7 +287,7 @@ namespace sl12
 
 		// create new geometry.
 		auto geom = std::make_shared<BvhGeometry>();
-		geom->Initialize(pCmd->GetParentMesh()->GetParentResource());
+		geom->Initialize(pRes);
 		staticGeomMap_[key] = geom;
 		waitItems_.push_back(geom);
 		return geom;

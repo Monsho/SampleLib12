@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <sl12/util.h>
+#include <sl12/debug.h>
 
 
 namespace sl12
@@ -29,6 +30,7 @@ namespace sl12
 		D3D12_RESOURCE_STATES	initialState = D3D12_RESOURCE_STATE_COMMON;
 		bool					forceSysRam = false;
 		bool					deviceShared = false;
+		const char*				debugName = nullptr;
 
 		void InitializeStructured(size_t _stride, size_t _count, u32 _usage, BufferHeap::Type _heap = BufferHeap::Default)
 		{
@@ -47,6 +49,7 @@ namespace sl12
 	};	// struct BufferDesc
 
 	class Buffer
+		: public DebugName
 	{
 		friend class CommandList;
 

@@ -109,6 +109,7 @@ dxc $(ProjectDir)src\shader\PSGui.hlsl /E main /O3 /Vn kPSGui /T ps_6_0 /Fh $(Pr
     <ClInclude Include="include\sl12\command_queue.h" />
     <ClInclude Include="include\sl12\crc.h" />
     <ClInclude Include="include\sl12\death_list.h" />
+    <ClInclude Include="include\sl12\debug.h" />
     <ClInclude Include="include\sl12\default_states.h" />
     <ClInclude Include="include\sl12\descriptor.h" />
     <ClInclude Include="include\sl12\descriptor_heap.h" />

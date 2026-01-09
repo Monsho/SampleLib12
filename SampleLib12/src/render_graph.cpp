@@ -545,9 +545,10 @@ namespace sl12
 		graphResources_.clear();
 	}
 
-	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs)
+	bool TransientResourceManager::CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs, const std::vector<std::string>& debugNames)
 	{
 		// create or cache transient resources.
+		int index = 0;
 		for (auto desc : descs)
 		{
 			auto find_it = unusedResources_.find(desc);
@@ -567,7 +568,9 @@ namespace sl12
 				{
 					// create new texture.
 					res->texture = MakeUnique<Texture>(pDevice_);
-					if (!res->texture->Initialize(pDevice_, desc.textureDesc))
+					auto copyDesc = desc.textureDesc;
+					copyDesc.debugName = debugNames[index].c_str();
+					if (!res->texture->Initialize(pDevice_, copyDesc))
 					{
 						ConsolePrint("Error : Can NOT create transient texture.");
 						assert(false);
@@ -577,7 +580,9 @@ namespace sl12
 				{
 					// create new buffer.
 					res->buffer = MakeUnique<Buffer>(pDevice_);
-					if (!res->buffer->Initialize(pDevice_, desc.bufferDesc))
+					auto copyDesc = desc.bufferDesc;
+					copyDesc.debugName = debugNames[index].c_str();
+					if (!res->buffer->Initialize(pDevice_, copyDesc))
 					{
 						ConsolePrint("Error : Can NOT create transient buffer.");
 						assert(false);
@@ -585,6 +590,7 @@ namespace sl12
 				}
 				committedResources_.push_back(std::move(res));
 			}
+			index++;
 		}
 
 		// external resource to graph resource.
@@ -951,11 +957,12 @@ namespace sl12
 		// compile reuse resources.
 		std::vector<TransientResourceDesc> commitResourceDescs;
 		std::map<TransientResourceID, u16> commitResIDs;
-		CompileReuseResources(crossQueueDependencies, commitResourceDescs, commitResIDs);
+		std::vector<std::string> debugNames;
+		CompileReuseResources(crossQueueDependencies, commitResourceDescs, commitResIDs, debugNames);
 
 		// commit resources.
 		resManager_->ResetResource();
-		if (!resManager_->CommitResources(commitResourceDescs, commitResIDs, keepHistoryTransientIDs))
+		if (!resManager_->CommitResources(commitResourceDescs, commitResIDs, keepHistoryTransientIDs, debugNames))
 		{
 			ConsolePrint("Error : Failed to commit transient resources.");
 			return false;
@@ -967,7 +974,7 @@ namespace sl12
 		return true;
 	}
 
-	void RenderGraph::CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap)
+	void RenderGraph::CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap, std::vector<std::string>& OutDebugNames)
 	{
 		// This structure contains a cached resource desc and a set of IDs to use this resource.
 		struct CachedResource
@@ -1029,6 +1036,7 @@ namespace sl12
 			{
 				OutIDMap[id] = no;
 			}
+			OutDebugNames.emplace_back(it->second.ids.begin()->name);
 		}
 	}
 

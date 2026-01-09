@@ -5,6 +5,16 @@
 #include <sl12/fence.h>
 
 
+namespace
+{
+	static sl12::u64 sUniqueId = 0;
+	std::string GetUniqueName()
+	{
+		std::string ret = "Buffer_" + std::to_string(sUniqueId++);
+		return ret;
+	}
+}
+
 namespace sl12
 {
 	//----
@@ -14,7 +24,7 @@ namespace sl12
 		{
 			return false;
 		}
-		
+
 		static const D3D12_HEAP_TYPE kHeapTypes[] = {
 			D3D12_HEAP_TYPE_DEFAULT,
 			D3D12_HEAP_TYPE_UPLOAD,
@@ -55,7 +65,7 @@ namespace sl12
 		{
 			flags = D3D12_HEAP_FLAG_SHARED;
 		}
-		
+
 		D3D12_RESOURCE_DESC resDesc{};
 		resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 		resDesc.Alignment = 0;
@@ -78,6 +88,9 @@ namespace sl12
 		bufferDesc_ = desc;
 		resourceDesc_ = resDesc;
 		heapProp_ = heapProp;
+
+		SetDebugName(desc.debugName ? desc.debugName : GetUniqueName(), pResource_);
+
 		return true;
 	}
 
@@ -128,7 +141,6 @@ namespace sl12
 			pCmdList->GetCommandList()->CopyBufferRegion(pResource_, offset, src->pResource_, 0, size);
 			pDev->KillObject(src);
 		}
-
 	}
 
 	//----

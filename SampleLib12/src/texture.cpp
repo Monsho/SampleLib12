@@ -19,6 +19,19 @@
 #include "tinyexr.h"
 
 
+namespace
+{
+	static sl12::u64 sUniqueID = 0;
+	std::string GetUniqueName()
+	{
+		std::string ret = "Texture_" + std::to_string(sUniqueID++);
+		return ret;
+	}
+}
+#define SET_DEBUG_NAME(n, p)					\
+	if (!n) SetDebugName(GetUniqueName(), p);	\
+	else SetDebugName(n, p);
+
 namespace sl12
 {
 	//----
@@ -96,9 +109,6 @@ namespace sl12
 			pClearValue = &clearValue_;
 			clearValue_.Format = desc.format;
 			memcpy(clearValue_.Color, desc.clearColor, sizeof(clearValue_.Color));
-
-			// if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
-			// 	init_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		}
 		else if (isDepthStencil)
 		{
@@ -106,14 +116,6 @@ namespace sl12
 			clearValue_.Format = desc.format;
 			clearValue_.DepthStencil.Depth = desc.clearDepth;
 			clearValue_.DepthStencil.Stencil = desc.clearStencil;
-
-			// if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
-			// 	init_state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-		}
-		else
-		{
-			// if (init_state == D3D12_RESOURCE_STATE_COMMON && !desc.deviceShared)
-			// 	init_state = D3D12_RESOURCE_STATE_COPY_DEST;
 		}
 
 		HRESULT hr = E_FAIL;
@@ -138,11 +140,13 @@ namespace sl12
 
 		textureDesc_ = desc;
 
+		SET_DEBUG_NAME(desc.debugName, pResource_)
+
 		return true;
 	}
 
 	//----
-	bool Texture::InitializeFromDXImage(Device* pDev, const DirectX::ScratchImage& image, bool isForceSRGB, bool forceSysRam)
+	bool Texture::InitializeFromDXImage(Device* pDev, const DirectX::ScratchImage& image, bool isForceSRGB, bool forceSysRam, const char* debugName)
 	{
 		if (!pDev)
 		{
@@ -230,6 +234,8 @@ namespace sl12
 		case DirectX::TEX_DIMENSION_TEXTURE3D: textureDesc_.dimension = TextureDimension::Texture3D; break;
 		default: textureDesc_.dimension = TextureDimension::Max;
 		}
+
+		SET_DEBUG_NAME(debugName, pResource_)
 
 		return true;
 	}

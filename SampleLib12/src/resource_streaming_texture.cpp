@@ -365,6 +365,7 @@ namespace sl12
 		};
 
 		// init texture.
+		std::string debugName = GetFileNameWithoutExtent(filepath);
 		TextureDesc desc{};
 		desc.allocation = ResourceHeapAllocation::Reserved;
 		desc.dimension = kDimension[static_cast<int>(pHeader->dimension)];
@@ -375,6 +376,7 @@ namespace sl12
 		desc.mipLevels = pHeader->mipLevels;
 		desc.usage = ResourceUsage::ShaderResource;
 		desc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+		desc.debugName = debugName.c_str();
 		if (!ret->currTexture_->Initialize(device, desc))
 		{
 			return false;

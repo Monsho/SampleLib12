@@ -67,6 +67,7 @@ namespace sl12
 	//----
 	void SceneRoot::GatherRenderCommands(CbvManager* pCbvMan, RenderCommandsList& outRenderCmds)
 	{
+		outRenderCmds.clear();
 		for (auto&& node : nodes_)
 		{
 			if (auto r = node.lock())

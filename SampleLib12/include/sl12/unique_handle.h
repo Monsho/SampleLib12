@@ -97,7 +97,7 @@ namespace sl12
 			{
 				return;
 			}
-			
+
 			std::swap(pParentDevice_, Right.pParentDevice_);
 			std::swap(pObject_, Right.pObject_);
 		}

@@ -146,6 +146,7 @@ namespace sl12
 		~BvhManager();
 
 		BvhGeometryWeakPtr AddGeometry(MeshRenderCommand* pCmd);
+		BvhGeometryWeakPtr AddGeometry(const ResourceItemMesh* pRes);
 
 		void BuildGeometry(CommandList* pCmdList);
 		BvhScene* BuildScene(

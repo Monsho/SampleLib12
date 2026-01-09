@@ -12,6 +12,10 @@
 #include <sl12/texture_streamer.h>
 #include <sl12/string_util.h>
 
+#ifdef _DEBUG
+#include <dxgidebug.h>
+#endif
+
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 614; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
@@ -424,6 +428,19 @@ namespace sl12
 		SafeRelease(pOutput_);
 		SafeRelease(pAdapter_);
 		SafeRelease(pFactory_);
+
+#ifdef _DEBUG
+		typedef HRESULT(__stdcall *fPtr)(const IID&, void**); 
+		HMODULE hDll = GetModuleHandleW(L"dxgidebug.dll");
+		fPtr DXGIGetDebugInterface = (fPtr)GetProcAddress(hDll, "DXGIGetDebugInterface"); 
+
+		IDXGIDebug* dxgiDebug;
+		if (SUCCEEDED(DXGIGetDebugInterface(IID_PPV_ARGS(&dxgiDebug))))
+		{
+			dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+			dxgiDebug->Release();
+		}
+#endif
 	}
 
 	//----

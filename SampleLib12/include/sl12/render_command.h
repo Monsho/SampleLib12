@@ -113,6 +113,15 @@ namespace sl12
 		CbvHandle	cbHandle_;
 
 		std::vector<std::unique_ptr<SubmeshRenderCommand>>	submeshCommands_;
+
+	private:
+		static std::function<CbvHandle(SceneMesh*, CbvManager*)> sCreateCbvFn_;
+
+	public:
+		static void SetCreateCbvFn(std::function<CbvHandle(SceneMesh*, CbvManager*)> fn)
+		{
+			sCreateCbvFn_ = fn;
+		}
 	};	// class MeshRenderCommand
 
 }	// namespace sl12

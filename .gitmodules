@@ -13,9 +13,9 @@
 [submodule "ThirdParty/meshoptimizer"]
 	path = ThirdParty/meshoptimizer
 	url = https://github.com/Monsho/meshoptimizer.git
-[submodule "ThirdParty/RTXGI-DDGI"]
-	path = ThirdParty/RTXGI-DDGI
-	url = https://github.com/Monsho/RTXGI-DDGI.git
 [submodule "ThirdParty/glTF-SDK"]
 	path = ThirdParty/glTF-SDK
 	url = https://github.com/microsoft/glTF-SDK.git
+[submodule "ThirdParty/RTXGI-DDGI"]
+	path = ThirdParty/RTXGI-DDGI
+	url = https://github.com/Monsho/RTXGI-DDGI.git

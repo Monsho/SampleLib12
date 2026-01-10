@@ -230,7 +230,7 @@ public:
 		sl12::TransientResource depth(kDepthCopyID, sl12::TransientState::CopyDst);
 
 		depth.desc.textureDesc.Initialize2D(kDepthFormat, state->GetScreenWidth(), state->GetScreenHeight(), 1, 1, 0);
-		
+
 		ret.push_back(depth);
 		return ret;
 	}

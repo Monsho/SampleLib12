@@ -341,14 +341,12 @@ bool SampleApplication::Execute()
 	SceneRenderState::GetInstance()->SetFrameResource(hSceneCB.GetCBV());
 	frameStartCmdList_->Close();
 
-	
 	// render graph commands.
 	renderGraph_->LoadCommand();
 
-
 	// frame end commands.
 	pCmdList = &frameEndCmdList_->Reset();
-	
+
 	// draw GUI.
 	{
 		auto&& rtv = device_.GetSwapchain().GetCurrentRenderTargetView(kSwapchainBufferOffset)->GetDescInfo().cpuHandle;
@@ -372,7 +370,7 @@ bool SampleApplication::Execute()
 
 		gui_->LoadDrawCommands(pCmdList);
 	}
-	
+
 	// barrier swapchain.
 	pCmdList->TransitionBarrier(pSwapchainTex, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
@@ -383,6 +381,9 @@ bool SampleApplication::Execute()
 
 	// present swapchain.
 	device_.Present(0);
+
+	// execute queue commands.
+	device_.ExecuteQueueCommands();
 
 	// execute current frame render.
 	frameStartCmdList_->Execute();

@@ -22,7 +22,7 @@ float3 Lighting(uint2 pixelPos, float depth)
 	Texture2D texGBufferC = ResourceDescriptorHeap[cbResIndex.texGBufferC];
 	Texture2D texAO = ResourceDescriptorHeap[cbResIndex.texAO];
 	StructuredBuffer<LightData> rLight = ResourceDescriptorHeap[cbResIndex.rLight];
-	
+
 	// get gbuffer.
 	float4 color = texGBufferA[pixelPos];
 	float3 orm = texGBufferB[pixelPos].xyz;

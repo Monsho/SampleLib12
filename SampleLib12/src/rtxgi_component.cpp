@@ -16,7 +16,7 @@ namespace
 	static const char*	kRadianceDefine = "RTXGI_DDGI_BLEND_RADIANCE";
 	static const char*	kSharedMemoryDefine = "RTXGI_DDGI_BLEND_SHARED_MEMORY";
 	static const char*	kOutputRegDefine = "OUTPUT_REGISTER";
-	
+
 	static const char*	kBlendingShaderFile = "ProbeBlendingCS.hlsl";
 	static const char*	kBorderUpdateShaderFile = "ProbeBorderUpdateCS.hlsl";
 	static const char*	kClassificationShaderFile = "ProbeClassificationCS.hlsl";
@@ -25,15 +25,15 @@ namespace
 	static const char*	kShaderEntryPoints[] = {
 		"DDGIProbeBlendingCS",
 		"DDGIProbeBlendingCS",
-		"DDGIProbeBorderRowUpdateCS",
-		"DDGIProbeBorderColumnUpdateCS",
-		"DDGIProbeBorderRowUpdateCS",
-		"DDGIProbeBorderColumnUpdateCS",
 		"DDGIProbeRelocationCS",
 		"DDGIProbeRelocationResetCS",
 		"DDGIProbeClassificationCS",
 		"DDGIProbeClassificationResetCS",
+		"DDGIReductionCS",
+		"DDGIExtraReductionCS",
 	};
+
+	static const UINT kSRVStartInDescriptorHeap = 2;
 }
 
 namespace sl12
@@ -68,36 +68,60 @@ namespace sl12
 		rtxgi::DDGIVolumeDesc ddgiDesc;
 		name_ = descs->name;
 		ddgiDesc.name = const_cast<char*>(name_.c_str());
-		ddgiDesc.index = 0;
-		ddgiDesc.rngSeed = 0;
-		ddgiDesc.origin = { descs->origin.x, descs->origin.y, descs->origin.z };
-		ddgiDesc.eulerAngles = { descs->angle.x, descs->angle.y, descs->angle.z };
-		ddgiDesc.probeSpacing = { descs->probeSpacing.x, descs->probeSpacing.y, descs->probeSpacing.z };
-		ddgiDesc.probeCounts = { descs->probeCount.x, descs->probeCount.y, descs->probeCount.z };
-		ddgiDesc.probeNumRays = descs->numRays;
-		ddgiDesc.probeNumIrradianceTexels = descs->numIrradianceTexels;
-		ddgiDesc.probeNumDistanceTexels = descs->numDistanceTexels;
-		ddgiDesc.probeMaxRayDistance = descs->maxRayDistance;
-		ddgiDesc.probeDistanceExponent = descs->distanceExponent;
-		ddgiDesc.probeIrradianceThreshold = descs->irradianceThreshold;
-		ddgiDesc.probeBrightnessThreshold = descs->brightnessThreshold;
+		ddgiDesc.index = 0; // ボリュームのインデックス番号
+		ddgiDesc.rngSeed = 0; // ランダムシード
+		ddgiDesc.origin = { descs->origin.x, descs->origin.y, descs->origin.z }; // 中心座標
+		ddgiDesc.eulerAngles = { descs->angle.x, descs->angle.y, descs->angle.z }; // オイラー角
+		ddgiDesc.probeSpacing = { descs->probeSpacing.x, descs->probeSpacing.y, descs->probeSpacing.z }; // プローブの間隔
+		ddgiDesc.probeCounts = { descs->probeCount.x, descs->probeCount.y, descs->probeCount.z }; // プローブの数
+		ddgiDesc.probeNumRays = descs->numRays; // プローブのレイの数
+		ddgiDesc.probeNumIrradianceTexels = descs->numIrradianceTexels; // Irradianceテクスチャのテクセル数
+		ddgiDesc.probeNumIrradianceInteriorTexels = (ddgiDesc.probeNumIrradianceTexels - 2);
+		ddgiDesc.probeNumDistanceTexels = descs->numDistanceTexels; // Distanceテクスチャのテクセル数
+		ddgiDesc.probeNumDistanceInteriorTexels = (ddgiDesc.probeNumDistanceTexels - 2);
+		ddgiDesc.probeHysteresis = 0.97f; // ヒステリシスのデフォルト値
+		ddgiDesc.probeNormalBias = 0.1f; // ノーマルバイアスのデフォルト値
+		ddgiDesc.probeViewBias = 0.1f; // ビューバイアスのデフォルト値
+		ddgiDesc.probeMaxRayDistance = descs->maxRayDistance; // 最大レイ距離
+		ddgiDesc.probeDistanceExponent = descs->distanceExponent; // 深度テストのExponent
+		ddgiDesc.probeIrradianceThreshold = descs->irradianceThreshold; // Irradianceしきい値
+		ddgiDesc.probeBrightnessThreshold = descs->brightnessThreshold; // Brightnessしきい値
 
-		ddgiDesc.showProbes = true;
+		ddgiDesc.showProbes = true; // プローブ表示フラグ
+		ddgiDesc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Default;
 
-		ddgiDesc.probeRayDataFormat = 1;
-		ddgiDesc.probeIrradianceFormat = 0;
-		ddgiDesc.probeDistanceFormat = 0;
-		ddgiDesc.probeDataFormat = 0;;
+		if (!descs->enableHighPrecisionFormat)
+		{
+			// 標準精度フォーマット
+			ddgiDesc.probeRayDataFormat = rtxgi::EDDGIVolumeTextureFormat::F32x2;
+			ddgiDesc.probeIrradianceFormat = rtxgi::EDDGIVolumeTextureFormat::U32;
+			ddgiDesc.probeDistanceFormat = rtxgi::EDDGIVolumeTextureFormat::F16x2;
+			ddgiDesc.probeDataFormat = rtxgi::EDDGIVolumeTextureFormat::F16x4;
+			ddgiDesc.probeVariabilityFormat = rtxgi::EDDGIVolumeTextureFormat::F16;
+		}
+		else
+		{
+			// 高精度フォーマット
+			ddgiDesc.probeRayDataFormat = rtxgi::EDDGIVolumeTextureFormat::F32x4;
+			ddgiDesc.probeIrradianceFormat = rtxgi::EDDGIVolumeTextureFormat::F32x4;
+			ddgiDesc.probeDistanceFormat = rtxgi::EDDGIVolumeTextureFormat::F16x2;
+			ddgiDesc.probeDataFormat = rtxgi::EDDGIVolumeTextureFormat::F16x4;
+			ddgiDesc.probeVariabilityFormat = rtxgi::EDDGIVolumeTextureFormat::F16;
+		}
 
 		ddgiDesc.probeRelocationEnabled = descs->enableRelocation;
 		ddgiDesc.probeMinFrontfaceDistance = 0.1f;
 		ddgiDesc.probeClassificationEnabled = descs->enableClassification;
+		ddgiDesc.probeVariabilityEnabled = descs->enableVariability;
 
 		ddgiDesc.movementType = rtxgi::EDDGIVolumeMovementType::Default;
 
 		// initialize shaders.
 		if (!InitializeShaders(pManager, ddgiDesc))
+		{
+			sl12::ConsolePrint("[RTXGI Error] shader compile error.");
 			return false;
+		}
 
 		// new volume instance.
 		ddgiVolume_.reset(new rtxgi::d3d12::DDGIVolume());
@@ -109,13 +133,16 @@ namespace sl12
 			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			desc.NumDescriptors =
 				1			// constants structured buffer count
-				+ rtxgi::GetDDGIVolumeNumUAVDescriptors() * numVolumes
-				+ rtxgi::GetDDGIVolumeNumSRVDescriptors() * numVolumes;
+				+ 1			// resource indices index count
+				+ rtxgi::GetDDGIVolumeNumTex2DArrayDescriptors() * numVolumes * 2; // SRV + UAV
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			desc.NodeMask = 0x01;
 			auto hr = p_device_dep->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pSrvDescriptorHeap_));
 			if (FAILED(hr))
+			{
+				sl12::ConsolePrint("[RTXGI Error] failed to create CBV/SRV descriptor heap.");
 				return false;
+			}
 
 			desc.NumDescriptors = rtxgi::GetDDGIVolumeNumRTVDescriptors() * numVolumes;
 			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -124,21 +151,40 @@ namespace sl12
 			// Create the RTV heap
 			hr = p_device_dep->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pRtvDescriptorHeap_));
 			if (FAILED(hr))
+			{
+				sl12::ConsolePrint("[RTXGI Error] failed to create RTV descriptor heap.");
 				return false;
+			}
 		}
 
 		// DDGI resources
 		ddgiVolumeResource_ = std::make_unique<rtxgi::d3d12::DDGIVolumeResources>();
-		ddgiVolumeResource_->descriptorHeapDesc.heap = pSrvDescriptorHeap_;
-		ddgiVolumeResource_->descriptorHeapDesc.constsOffset = 0;														// constants structured buffer start index.
-		ddgiVolumeResource_->descriptorHeapDesc.uavOffset = 1;															// uav start index.
-		ddgiVolumeResource_->descriptorHeapDesc.srvOffset = 1 + rtxgi::GetDDGIVolumeNumUAVDescriptors() * numVolumes;	// srv start index.
+		auto& descHeap = ddgiVolumeResource_->descriptorHeap;
+		descHeap.resources = pSrvDescriptorHeap_;
+		descHeap.entrySize = p_device_dep->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		descHeap.constantsIndex = 0;
+		descHeap.resourceIndicesIndex = 1;
+		static const UINT kSRVStart = kSRVStartInDescriptorHeap;
+		static const UINT kUAVStart = kSRVStart + rtxgi::GetDDGIVolumeNumTex2DArrayDescriptors();
+		descHeap.resourceIndices.rayDataSRVIndex = kSRVStart + 0;
+		descHeap.resourceIndices.rayDataUAVIndex = kUAVStart + 0;
+		descHeap.resourceIndices.probeIrradianceSRVIndex = kSRVStart + 1;
+		descHeap.resourceIndices.probeIrradianceUAVIndex = kUAVStart + 1;
+		descHeap.resourceIndices.probeDistanceSRVIndex = kSRVStart + 2;
+		descHeap.resourceIndices.probeDistanceUAVIndex = kUAVStart + 2;
+		descHeap.resourceIndices.probeDataSRVIndex = kSRVStart + 3;
+		descHeap.resourceIndices.probeDataUAVIndex = kUAVStart + 3;
+		descHeap.resourceIndices.probeVariabilitySRVIndex = kSRVStart + 4;
+		descHeap.resourceIndices.probeVariabilityUAVIndex = kUAVStart + 4;
+		descHeap.resourceIndices.probeVariabilityAverageSRVIndex = kSRVStart + 5;
+		descHeap.resourceIndices.probeVariabilityAverageUAVIndex = kUAVStart + 5;
 
 		// unmanaged mode + no bindless.
 		ddgiVolumeResource_->managed.enabled = false;
+		ddgiVolumeResource_->bindless.enabled = false;
 		ddgiVolumeResource_->unmanaged.enabled = true;
 		ddgiVolumeResource_->unmanaged.rootParamSlotRootConstants = 0;
-		ddgiVolumeResource_->unmanaged.rootParamSlotDescriptorTable = 1;
+		ddgiVolumeResource_->unmanaged.rootParamSlotResourceDescriptorTable = 1;
 
 		// constant buffer.
 		{
@@ -184,8 +230,8 @@ namespace sl12
 			UINT srvDescSize = p_device_dep->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 			D3D12_CPU_DESCRIPTOR_HANDLE handle;
-			handle = ddgiVolumeResource_->descriptorHeapDesc.heap->GetCPUDescriptorHandleForHeapStart();
-			handle.ptr += (ddgiVolumeResource_->descriptorHeapDesc.constsOffset * srvDescSize);
+			handle = ddgiVolumeResource_->descriptorHeap.resources->GetCPUDescriptorHandleForHeapStart();
+			handle.ptr += (ddgiVolumeResource_->descriptorHeap.constantsIndex * srvDescSize);
 			p_device_dep->CreateShaderResourceView(constantSTB_.GetResourceDep(), &srvDesc, handle);
 		}
 
@@ -234,10 +280,20 @@ namespace sl12
 		baseDefines.push_back(ShaderDefine("OUTPUT_SPACE", "space1"));
 		baseDefines.push_back(ShaderDefine("PROBE_DATA_REGISTER", "u3"));
 		baseDefines.push_back(ShaderDefine("PROBE_DATA_SPACE", "space1"));
+		baseDefines.push_back(ShaderDefine("PROBE_VARIABILITY_SPACE", "space1"));
+		baseDefines.push_back(ShaderDefine("PROBE_VARIABILITY_REGISTER", "u4"));
+		baseDefines.push_back(ShaderDefine("PROBE_VARIABILITY_AVERAGE_REGISTER", "u5"));
+
+#define RTXGI_DDGI_BLEND_SHARED_MEMORY 0
 
 		std::string rays_text = std::to_string(ddgiDesc.probeNumRays);
 		std::string irr_text = std::to_string(ddgiDesc.probeNumIrradianceTexels);
+		std::string irr_int_text = std::to_string(ddgiDesc.probeNumIrradianceInteriorTexels);
 		std::string dist_text = std::to_string(ddgiDesc.probeNumDistanceTexels);
+		std::string dist_int_text = std::to_string(ddgiDesc.probeNumDistanceInteriorTexels);
+		std::string sh_mem_text = std::to_string(RTXGI_DDGI_BLEND_SHARED_MEMORY);
+		std::string scl_sh_mem_text = std::to_string(ddgiDesc.probeBlendingUseScrollSharedMemory);
+		std::string wave_lane_text = std::to_string(32);
 
 		std::string file_dir = shaderDirectory_;
 		if (file_dir[file_dir.length() - 1] != '\\' || file_dir[file_dir.length() - 1] != '/')
@@ -245,66 +301,43 @@ namespace sl12
 			file_dir += "/";
 		}
 
-		// blending shader.
+
+		// blending irradiance shader.
 		{
 			auto defines = baseDefines;
-			defines.push_back(ShaderDefine(kRaysPerProbeDefine, rays_text.c_str()));
-			defines.push_back(ShaderDefine(kProbeNumTexelDefine, irr_text.c_str()));
-			defines.push_back(ShaderDefine(kRadianceDefine, "1"));
-			defines.push_back(ShaderDefine(kSharedMemoryDefine, "1"));
-			defines.push_back(ShaderDefine(kOutputRegDefine, "u1"));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_RADIANCE", "1"));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_PROBE_NUM_TEXELS", irr_text.c_str()));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS", irr_int_text.c_str()));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_SHARED_MEMORY", sh_mem_text.c_str()));
+#if RTXGI_DDGI_BLEND_SHARED_MEMORY
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_RAYS_PER_PROBE", rays_text.c_str()));
+#endif
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_SCROLL_SHARED_MEMORY", scl_sh_mem_text.c_str()));
+			defines.push_back(ShaderDefine("OUTPUT_REGISTER", "u1"));
 
 			handles[EShaderType::IrradianceBlending] = pManager->CompileFromFile(
 				file_dir + kBlendingShaderFile,
 				kShaderEntryPoints[EShaderType::IrradianceBlending],
-				ShaderType::Compute, 6, 1, nullptr, &defines);
+				ShaderType::Compute, 6, 6, nullptr, &defines);
 		}
+
+		// blending distance shader.
 		{
 			auto defines = baseDefines;
-			defines.push_back(ShaderDefine(kRaysPerProbeDefine, rays_text.c_str()));
-			defines.push_back(ShaderDefine(kProbeNumTexelDefine, dist_text.c_str()));
-			defines.push_back(ShaderDefine(kRadianceDefine, "0"));
-			defines.push_back(ShaderDefine(kSharedMemoryDefine, "1"));
-			defines.push_back(ShaderDefine(kOutputRegDefine, "u2"));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_RADIANCE", "0"));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_PROBE_NUM_TEXELS", dist_text.c_str()));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS", dist_int_text.c_str()));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_SHARED_MEMORY", sh_mem_text.c_str()));
+#if RTXGI_DDGI_BLEND_SHARED_MEMORY
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_RAYS_PER_PROBE", numRays.c_str()));
+#endif
+			defines.push_back(ShaderDefine("RTXGI_DDGI_BLEND_SCROLL_SHARED_MEMORY", scl_sh_mem_text.c_str()));
+			defines.push_back(ShaderDefine("OUTPUT_REGISTER", "u2"));
 
 			handles[EShaderType::DistanceBlending] = pManager->CompileFromFile(
 				file_dir + kBlendingShaderFile,
 				kShaderEntryPoints[EShaderType::DistanceBlending],
-				ShaderType::Compute, 6, 1, nullptr, &defines);
-		}
-
-		// border update shader.
-		{
-			auto defines = baseDefines;
-			defines.push_back(ShaderDefine(kProbeNumTexelDefine, irr_text.c_str()));
-			defines.push_back(ShaderDefine(kRadianceDefine, "1"));
-			defines.push_back(ShaderDefine(kOutputRegDefine, "u1"));
-
-			handles[EShaderType::BorderRowUpdateIrradiance] = pManager->CompileFromFile(
-				file_dir + kBorderUpdateShaderFile,
-				kShaderEntryPoints[EShaderType::BorderRowUpdateIrradiance],
-				ShaderType::Compute, 6, 1, nullptr, &defines);
-
-			handles[EShaderType::BorderClmUpdateIrradiance] = pManager->CompileFromFile(
-				file_dir + kBorderUpdateShaderFile,
-				kShaderEntryPoints[EShaderType::BorderClmUpdateIrradiance],
-				ShaderType::Compute, 6, 1, nullptr, &defines);
-		}
-		{
-			auto defines = baseDefines;
-			defines.push_back(ShaderDefine(kProbeNumTexelDefine, dist_text.c_str()));
-			defines.push_back(ShaderDefine(kRadianceDefine, "0"));
-			defines.push_back(ShaderDefine(kOutputRegDefine, "u2"));
-
-			handles[EShaderType::BorderRowUpdateDistance] = pManager->CompileFromFile(
-				file_dir + kBorderUpdateShaderFile,
-				kShaderEntryPoints[EShaderType::BorderRowUpdateDistance],
-				ShaderType::Compute, 6, 1, nullptr, &defines);
-
-			handles[EShaderType::BorderClmUpdateDistance] = pManager->CompileFromFile(
-				file_dir + kBorderUpdateShaderFile,
-				kShaderEntryPoints[EShaderType::BorderClmUpdateDistance],
-				ShaderType::Compute, 6, 1, nullptr, &defines);
+				ShaderType::Compute, 6, 6, nullptr, &defines);
 		}
 
 		// relocation shader.
@@ -312,12 +345,12 @@ namespace sl12
 			handles[EShaderType::ProbeRelocation] = pManager->CompileFromFile(
 				file_dir + kRelocationShaderFile,
 				kShaderEntryPoints[EShaderType::ProbeRelocation],
-				ShaderType::Compute, 6, 1, nullptr, &baseDefines);
+				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
 
 			handles[EShaderType::ProbeRelocationReset] = pManager->CompileFromFile(
 				file_dir + kRelocationShaderFile,
 				kShaderEntryPoints[EShaderType::ProbeRelocationReset],
-				ShaderType::Compute, 6, 1, nullptr, &baseDefines);
+				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
 		}
 
 		// classification shader.
@@ -325,12 +358,36 @@ namespace sl12
 			handles[EShaderType::ProbeClassification] = pManager->CompileFromFile(
 				file_dir + kClassificationShaderFile,
 				kShaderEntryPoints[EShaderType::ProbeClassification],
-				ShaderType::Compute, 6, 1, nullptr, &baseDefines);
+				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
 
 			handles[EShaderType::ProbeClassificationReset] = pManager->CompileFromFile(
 				file_dir + kClassificationShaderFile,
 				kShaderEntryPoints[EShaderType::ProbeClassificationReset],
-				ShaderType::Compute, 6, 1, nullptr, &baseDefines);
+				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
+		}
+
+		// variability reduction shader.
+		{
+			auto defines = baseDefines;
+			defines.push_back(ShaderDefine("RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS", irr_int_text.c_str()));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_WAVE_LANE_COUNT", wave_lane_text.c_str()));
+
+			handles[EShaderType::VariabilityReduction] = pManager->CompileFromFile(
+				file_dir + kBlendingShaderFile,
+				kShaderEntryPoints[EShaderType::VariabilityReduction],
+				ShaderType::Compute, 6, 6, nullptr, &defines);
+		}
+
+		// extra reduction shader.
+		{
+			auto defines = baseDefines;
+			defines.push_back(ShaderDefine("RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS", irr_int_text.c_str()));
+			defines.push_back(ShaderDefine("RTXGI_DDGI_WAVE_LANE_COUNT", wave_lane_text.c_str()));
+
+			handles[EShaderType::ExtraReduction] = pManager->CompileFromFile(
+				file_dir + kBlendingShaderFile,
+				kShaderEntryPoints[EShaderType::ExtraReduction],
+				ShaderType::Compute, 6, 6, nullptr, &defines);
 		}
 
 		// wait compile.
@@ -359,98 +416,150 @@ namespace sl12
 		desc.sampleCount = 1;
 
 		// create texture resources.
-		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::RayData, desc.width, desc.height);
-		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::RayData, ddgiDesc.probeRayDataFormat);
-		desc.initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		desc.usage = ResourceUsage::UnorderedAccess;
-		if (!textures_[ETextureType::RayData].Initialize(pParentDevice_, desc))
 		{
-			return false;
-		}
-		ddgiResource->unmanaged.probeRayData = textures_[ETextureType::RayData].GetResourceDep();
+			// ray data.
+			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::RayData, desc.width, desc.height, desc.depth);
+			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::RayData, ddgiDesc.probeRayDataFormat);
+			desc.initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			desc.usage = ResourceUsage::UnorderedAccess;
+			if (!textures_[ETextureType::RayData].Initialize(pParentDevice_, desc))
+			{
+				return false;
+			}
+			ddgiResource->unmanaged.probeRayData = textures_[ETextureType::RayData].GetResourceDep();
 
-		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Irradiance, desc.width, desc.height);
-		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Irradiance, ddgiDesc.probeIrradianceFormat);
-		desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
-		if (!textures_[ETextureType::Irradiance].Initialize(pParentDevice_, desc))
-		{
-			return false;
-		}
-		ddgiResource->unmanaged.probeIrradiance = textures_[ETextureType::Irradiance].GetResourceDep();
+			// irradiance.
+			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Irradiance, desc.width, desc.height, desc.depth);
+			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Irradiance, ddgiDesc.probeIrradianceFormat);
+			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
+			if (!textures_[ETextureType::Irradiance].Initialize(pParentDevice_, desc))
+			{
+				return false;
+			}
+			ddgiResource->unmanaged.probeIrradiance = textures_[ETextureType::Irradiance].GetResourceDep();
 
-		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Distance, desc.width, desc.height);
-		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Distance, ddgiDesc.probeDistanceFormat);
-		desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
-		if (!textures_[ETextureType::Distance].Initialize(pParentDevice_, desc))
-		{
-			return false;
-		}
-		ddgiResource->unmanaged.probeDistance = textures_[ETextureType::Distance].GetResourceDep();
+			// distance.
+			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Distance, desc.width, desc.height, desc.depth);
+			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Distance, ddgiDesc.probeDistanceFormat);
+			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
+			if (!textures_[ETextureType::Distance].Initialize(pParentDevice_, desc))
+			{
+				return false;
+			}
+			ddgiResource->unmanaged.probeDistance = textures_[ETextureType::Distance].GetResourceDep();
 
-		rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Data, desc.width, desc.height);
-		desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Data, ddgiDesc.probeDataFormat);
-		desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		desc.usage = ResourceUsage::UnorderedAccess;
-		if (!textures_[ETextureType::ProbeData].Initialize(pParentDevice_, desc))
-		{
-			return false;
+			// data.
+			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Data, desc.width, desc.height, desc.depth);
+			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Data, ddgiDesc.probeDataFormat);
+			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.usage = ResourceUsage::UnorderedAccess;
+			if (!textures_[ETextureType::ProbeData].Initialize(pParentDevice_, desc))
+			{
+				return false;
+			}
+			ddgiResource->unmanaged.probeData = textures_[ETextureType::ProbeData].GetResourceDep();
+
+			// variability.
+			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Variability, desc.width, desc.height, desc.depth);
+			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Variability, ddgiDesc.probeVariabilityFormat);
+			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.usage = ResourceUsage::UnorderedAccess;
+			if (!textures_[ETextureType::Variability].Initialize(pParentDevice_, desc))
+			{
+				return false;
+			}
+			ddgiResource->unmanaged.probeVariability = textures_[ETextureType::Variability].GetResourceDep();
+
+			// variability average.
+			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::VariabilityAverage, desc.width, desc.height, desc.depth);
+			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::VariabilityAverage, ddgiDesc.probeVariabilityFormat);
+			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.usage = ResourceUsage::UnorderedAccess;
+			if (!textures_[ETextureType::VariabilityAverage].Initialize(pParentDevice_, desc))
+			{
+				return false;
+			}
+			ddgiResource->unmanaged.probeVariabilityAverage = textures_[ETextureType::VariabilityAverage].GetResourceDep();
+
+			// variability readback.
+			sl12::BufferDesc bufferDesc;
+			bufferDesc.heap = BufferHeap::ReadBack;
+			bufferDesc.size = sizeof(float) * 2;
+			bufferDesc.stride = 0;
+			bufferDesc.usage = ResourceUsage::Unknown;
+			bufferDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+			if (!buffers_[EBufferType::VariabilityReadBack].Initialize(pParentDevice_, bufferDesc))
+			{
+				return false;
+			}
+			ddgiResource->unmanaged.probeVariabilityReadback = buffers_[EBufferType::VariabilityReadBack].GetResourceDep();
 		}
-		ddgiResource->unmanaged.probeData = textures_[ETextureType::ProbeData].GetResourceDep();
 
 		// store descriptor heap.
 		{
 			auto p_device_dep = pParentDevice_->GetDeviceDep();
 
-			D3D12_CPU_DESCRIPTOR_HANDLE srvHandle, uavHandle, rtvHandle;
-			srvHandle = uavHandle = ddgiResource->descriptorHeapDesc.heap->GetCPUDescriptorHandleForHeapStart();
+			static const SIZE_T kSRVStart = kSRVStartInDescriptorHeap;
+			static const SIZE_T kUAVStart = kSRVStart + rtxgi::GetDDGIVolumeNumTex2DArrayDescriptors();
+
+			D3D12_CPU_DESCRIPTOR_HANDLE resHandle, srvHandle, uavHandle, rtvHandle;
+			resHandle = ddgiResource->descriptorHeap.resources->GetCPUDescriptorHandleForHeapStart();
 			rtvHandle = pRtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
 			UINT srvDescSize = p_device_dep->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			UINT rtvDescSize = p_device_dep->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-			uavHandle.ptr += (ddgiResource->descriptorHeapDesc.uavOffset * srvDescSize);
-			srvHandle.ptr += (ddgiResource->descriptorHeapDesc.srvOffset * srvDescSize);
-
 			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = 1;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+			srvDesc.Texture2DArray.MipLevels = 1;
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+
+			auto& resourceIndices = ddgiResource->descriptorHeap.resourceIndices;
+			uint32_t width, height;
 
 			// ray data.
 			{
+				srvHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.rayDataSRVIndex * srvDescSize);
+				uavHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.rayDataUAVIndex * srvDescSize);
+
+				rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::RayData, width, height, srvDesc.Texture2DArray.ArraySize);
+				uavDesc.Texture2DArray.ArraySize = srvDesc.Texture2DArray.ArraySize;
 				srvDesc.Format = uavDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::RayData, ddgiDesc.probeRayDataFormat);
 				p_device_dep->CreateUnorderedAccessView(ddgiResource->unmanaged.probeRayData, nullptr, &uavDesc, uavHandle);
 				p_device_dep->CreateShaderResourceView(ddgiResource->unmanaged.probeRayData, &srvDesc, srvHandle);
 			}
 
-			uavHandle.ptr += srvDescSize;
-			srvHandle.ptr += srvDescSize;
-
 			// irradiance.
 			{
-				srvDesc.Format = uavDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Irradiance, ddgiDesc.probeIrradianceFormat);
+				srvHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeIrradianceSRVIndex * srvDescSize);
+				uavHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeIrradianceUAVIndex * srvDescSize);
+
+				rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Irradiance, width, height, srvDesc.Texture2DArray.ArraySize);
+				uavDesc.Texture2DArray.ArraySize = rtvDesc.Texture2DArray.ArraySize = srvDesc.Texture2DArray.ArraySize;
+				srvDesc.Format = uavDesc.Format = rtvDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Irradiance, ddgiDesc.probeIrradianceFormat);
 				p_device_dep->CreateUnorderedAccessView(ddgiResource->unmanaged.probeIrradiance, nullptr, &uavDesc, uavHandle);
 				p_device_dep->CreateShaderResourceView(ddgiResource->unmanaged.probeIrradiance, &srvDesc, srvHandle);
 
-				ddgiResource->unmanaged.probeIrradianceRTV.ptr = rtvHandle.ptr + (ddgiDesc.index * rtxgi::GetDDGIVolumeNumRTVDescriptors() * rtvDescSize);
+				ddgiResource->unmanaged.probeIrradianceRTV.ptr = rtvHandle.ptr + static_cast<SIZE_T>(ddgiDesc.index * rtxgi::GetDDGIVolumeNumRTVDescriptors() * rtvDescSize);
 				p_device_dep->CreateRenderTargetView(ddgiResource->unmanaged.probeIrradiance, &rtvDesc, ddgiResource->unmanaged.probeIrradianceRTV);
 			}
 
-			uavHandle.ptr += srvDescSize;
-			srvHandle.ptr += srvDescSize;
-			rtvHandle.ptr += rtvDescSize;
-
 			// distance.
 			{
-				srvDesc.Format = uavDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Distance, ddgiDesc.probeDistanceFormat);
+				srvHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeDistanceSRVIndex * srvDescSize);
+				uavHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeDistanceUAVIndex * srvDescSize);
+
+				rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Distance, width, height, srvDesc.Texture2DArray.ArraySize);
+				uavDesc.Texture2DArray.ArraySize = rtvDesc.Texture2DArray.ArraySize = srvDesc.Texture2DArray.ArraySize;
+				srvDesc.Format = uavDesc.Format = rtvDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Distance, ddgiDesc.probeDistanceFormat);
 				p_device_dep->CreateUnorderedAccessView(ddgiResource->unmanaged.probeDistance, nullptr, &uavDesc, uavHandle);
 				p_device_dep->CreateShaderResourceView(ddgiResource->unmanaged.probeDistance, &srvDesc, srvHandle);
 
@@ -458,14 +567,40 @@ namespace sl12
 				p_device_dep->CreateRenderTargetView(ddgiResource->unmanaged.probeDistance, &rtvDesc, ddgiResource->unmanaged.probeDistanceRTV);
 			}
 
-			uavHandle.ptr += srvDescSize;
-			srvHandle.ptr += srvDescSize;
-
 			// Probe data texture descriptors
 			{
+				srvHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeDataSRVIndex * srvDescSize);
+				uavHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeDataUAVIndex * srvDescSize);
+
+				rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Data, width, height, srvDesc.Texture2DArray.ArraySize);
+				uavDesc.Texture2DArray.ArraySize = srvDesc.Texture2DArray.ArraySize;
 				srvDesc.Format = uavDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Data, ddgiDesc.probeDataFormat);
 				p_device_dep->CreateUnorderedAccessView(ddgiResource->unmanaged.probeData, nullptr, &uavDesc, uavHandle);
 				p_device_dep->CreateShaderResourceView(ddgiResource->unmanaged.probeData, &srvDesc, srvHandle);
+			}
+
+			// Probe variability texture descriptors
+			{
+				srvHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeVariabilitySRVIndex * srvDescSize);
+				uavHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeVariabilityUAVIndex * srvDescSize);
+
+				rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Variability, width, height, srvDesc.Texture2DArray.ArraySize);
+				uavDesc.Texture2DArray.ArraySize = srvDesc.Texture2DArray.ArraySize;
+				srvDesc.Format = uavDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Variability, ddgiDesc.probeVariabilityFormat);
+				p_device_dep->CreateUnorderedAccessView(ddgiResource->unmanaged.probeVariability, nullptr, &uavDesc, uavHandle);
+				p_device_dep->CreateShaderResourceView(ddgiResource->unmanaged.probeVariability, &srvDesc, srvHandle);
+			}
+
+			// Probe variability average texture descriptors
+			{
+				srvHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeVariabilityAverageSRVIndex * srvDescSize);
+				uavHandle.ptr = resHandle.ptr + static_cast<SIZE_T>(resourceIndices.probeVariabilityAverageUAVIndex * srvDescSize);
+
+				rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::VariabilityAverage, width, height, srvDesc.Texture2DArray.ArraySize);
+				uavDesc.Texture2DArray.ArraySize = srvDesc.Texture2DArray.ArraySize;
+				srvDesc.Format = uavDesc.Format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::VariabilityAverage, ddgiDesc.probeVariabilityFormat);
+				p_device_dep->CreateUnorderedAccessView(ddgiResource->unmanaged.probeVariabilityAverage, nullptr, &uavDesc, uavHandle);
+				p_device_dep->CreateShaderResourceView(ddgiResource->unmanaged.probeVariabilityAverage, &srvDesc, srvHandle);
 			}
 		}
 
@@ -493,7 +628,7 @@ namespace sl12
 		// create root signature.
 		{
 			ID3DBlob* signature;
-			if (!rtxgi::d3d12::GetDDGIVolumeRootSignatureDesc(ddgiResource->descriptorHeapDesc.constsOffset, ddgiResource->descriptorHeapDesc.uavOffset, signature))
+			if (!rtxgi::d3d12::GetDDGIVolumeRootSignatureDesc(ddgiResource->descriptorHeap, signature))
 				return false;
 			if (signature == nullptr)
 				return false;
@@ -530,42 +665,6 @@ namespace sl12
 			}
 
 			{
-				psoDesc.CS.BytecodeLength = shaders_[EShaderType::BorderRowUpdateIrradiance]->GetSize();
-				psoDesc.CS.pShaderBytecode = shaders_[EShaderType::BorderRowUpdateIrradiance]->GetData();
-				auto hr = p_device_dep->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&psos_[EShaderType::BorderRowUpdateIrradiance]));
-				if (FAILED(hr))
-					return false;
-				ddgiResource->unmanaged.probeBorderRowUpdateIrradiancePSO = psos_[EShaderType::BorderRowUpdateIrradiance];
-			}
-
-			{
-				psoDesc.CS.BytecodeLength = shaders_[EShaderType::BorderClmUpdateIrradiance]->GetSize();
-				psoDesc.CS.pShaderBytecode = shaders_[EShaderType::BorderClmUpdateIrradiance]->GetData();
-				auto hr = p_device_dep->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&psos_[EShaderType::BorderClmUpdateIrradiance]));
-				if (FAILED(hr))
-					return false;
-				ddgiResource->unmanaged.probeBorderColumnUpdateIrradiancePSO = psos_[EShaderType::BorderClmUpdateIrradiance];
-			}
-
-			{
-				psoDesc.CS.BytecodeLength = shaders_[EShaderType::BorderRowUpdateDistance]->GetSize();
-				psoDesc.CS.pShaderBytecode = shaders_[EShaderType::BorderRowUpdateDistance]->GetData();
-				auto hr = p_device_dep->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&psos_[EShaderType::BorderRowUpdateDistance]));
-				if (FAILED(hr))
-					return false;
-				ddgiResource->unmanaged.probeBorderRowUpdateDistancePSO = psos_[EShaderType::BorderRowUpdateDistance];
-			}
-
-			{
-				psoDesc.CS.BytecodeLength = shaders_[EShaderType::BorderClmUpdateDistance]->GetSize();
-				psoDesc.CS.pShaderBytecode = shaders_[EShaderType::BorderClmUpdateDistance]->GetData();
-				auto hr = p_device_dep->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&psos_[EShaderType::BorderClmUpdateDistance]));
-				if (FAILED(hr))
-					return false;
-				ddgiResource->unmanaged.probeBorderColumnUpdateDistancePSO = psos_[EShaderType::BorderClmUpdateDistance];
-			}
-
-			{
 				psoDesc.CS.BytecodeLength = shaders_[EShaderType::ProbeRelocation]->GetSize();
 				psoDesc.CS.pShaderBytecode = shaders_[EShaderType::ProbeRelocation]->GetData();
 				auto hr = p_device_dep->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&psos_[EShaderType::ProbeRelocation]));
@@ -599,6 +698,24 @@ namespace sl12
 				if (FAILED(hr))
 					return false;
 				ddgiResource->unmanaged.probeClassification.resetPSO = psos_[EShaderType::ProbeClassificationReset];
+			}
+
+			{
+				psoDesc.CS.BytecodeLength = shaders_[EShaderType::VariabilityReduction]->GetSize();
+				psoDesc.CS.pShaderBytecode = shaders_[EShaderType::VariabilityReduction]->GetData();
+				auto hr = p_device_dep->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&psos_[EShaderType::VariabilityReduction]));
+				if (FAILED(hr))
+					return false;
+				ddgiResource->unmanaged.probeVariabilityPSOs.reductionPSO = psos_[EShaderType::VariabilityReduction];
+			}
+
+			{
+				psoDesc.CS.BytecodeLength = shaders_[EShaderType::ExtraReduction]->GetSize();
+				psoDesc.CS.pShaderBytecode = shaders_[EShaderType::ExtraReduction]->GetData();
+				auto hr = p_device_dep->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&psos_[EShaderType::ExtraReduction]));
+				if (FAILED(hr))
+					return false;
+				ddgiResource->unmanaged.probeVariabilityPSOs.extraReductionPSO = psos_[EShaderType::ExtraReduction];
 			}
 		}
 
@@ -677,17 +794,6 @@ namespace sl12
 	int RtxgiComponent::GetNumRaysPerProbe() const
 	{
 		return ddgiVolume_->GetNumRaysPerProbe();
-	}
-
-	//----
-	CbvHandle RtxgiComponent::CreateConstantBuffer(CbvManager* pCbvMan, int volumeIndex)
-	{
-		// TODO: need implement multi volume.
-		rtxgi::DDGIConstants cb;
-		cb.volumeIndex = volumeIndex;
-		cb.uavOffset = 0;
-		cb.srvOffset = 0;
-		return pCbvMan->GetTemporal(&cb, sizeof(cb));
 	}
 
 	//----

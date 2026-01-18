@@ -43,6 +43,8 @@ namespace sl12
 		float				brightnessThreshold = 0.1f;
 		bool				enableRelocation = true;
 		bool				enableClassification = true;
+		bool				enableVariability = false;
+		bool				enableHighPrecisionFormat = false;
 	};	// struct RtxgiVolumeDesc
 
 	class RtxgiComponent
@@ -53,14 +55,12 @@ namespace sl12
 			{
 				IrradianceBlending,
 				DistanceBlending,
-				BorderRowUpdateIrradiance,
-				BorderClmUpdateIrradiance,
-				BorderRowUpdateDistance,
-				BorderClmUpdateDistance,
 				ProbeRelocation,
 				ProbeRelocationReset,
 				ProbeClassification,
 				ProbeClassificationReset,
+				VariabilityReduction,
+				ExtraReduction,
 
 				Max
 			};
@@ -74,6 +74,18 @@ namespace sl12
 				Irradiance,
 				Distance,
 				ProbeData,
+				Variability,
+				VariabilityAverage,
+
+				Max
+			};
+		};
+
+		struct EBufferType
+		{
+			enum Type
+			{
+				VariabilityReadBack,
 
 				Max
 			};
@@ -132,8 +144,6 @@ namespace sl12
 		int GetNumProbes() const;
 		int GetNumRaysPerProbe() const;
 
-		CbvHandle CreateConstantBuffer(CbvManager* pCbvMan, int volumeIndex);
-
 		void SetDescHysteresis(float v);
 		void SetDescIrradianceThreshold(float v);
 		void SetDescBrightnessThreshold(float v);
@@ -161,6 +171,7 @@ namespace sl12
 		Texture						textures_[ETextureType::Max];
 		TextureView					textureSrvs_[ETextureType::Max];
 		UnorderedAccessView			textureUavs_[ETextureType::Max];
+		Buffer						buffers_[EBufferType::Max];
 		ID3D12RootSignature*		pRootSignature_ = nullptr;
 		ID3D12PipelineState*		psos_[EShaderType::Max]{};
 

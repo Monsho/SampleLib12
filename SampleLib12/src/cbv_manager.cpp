@@ -258,7 +258,7 @@ namespace sl12
 	}
 
 	//----
-	void CbvManager::ExecuteCopy(CommandList* pCmdList)
+	void CbvManager::ExecuteCopy(CommandList* pCmdList, bool bTransition)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 
@@ -270,24 +270,27 @@ namespace sl12
 		transitions.reserve(copyRequests_.size());
 		for (auto&& req : copyRequests_)
 		{
-			if (prev != req.copyDst->memInfo_.GetBuffer())
+			if (prev != req.copyDst->memInfo_.GetBuffer() && bTransition)
 			{
 				prev = req.copyDst->memInfo_.GetBuffer();
 				transitions.push_back(prev);
 
 				pCmdList->TransitionBarrier(req.copyDst->memInfo_.GetBuffer(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
 			}
-			
+
 			pCmdList->GetLatestCommandList()->CopyBufferRegion(
 				req.copyDst->memInfo_.GetBuffer()->GetResourceDep(), req.copyDst->memInfo_.GetOffset(),
 				req.copySrc.pBuffer->GetResourceDep(), req.copySrc.offset, req.copySrc.size);
 		}
 
-		for (auto&& t : transitions)
+		if (bTransition)
 		{
-			pCmdList->AddTransitionBarrier(t, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+			for (auto&& t : transitions)
+			{
+				pCmdList->AddTransitionBarrier(t, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+			}
+			pCmdList->FlushBarriers();
 		}
-		pCmdList->FlushBarriers();
 	}
 
 }   // namespace sl12

@@ -9,5 +9,8 @@
 // no bindless.
 #define RTXGI_DDGI_BINDLESS_RESOURCES	0
 
-#include "RTXGI/rtxgi-sdk/shaders/ddgi/Irradiance.hlsl"
-#include "RTXGI/rtxgi-sdk/include/rtxgi/ddgi/DDGIVolumeDescGPU.h"
+#include "RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/Irradiance.hlsl"
+#define HLSL
+#include "RTXGI-DDGI/rtxgi-sdk/include/rtxgi/ddgi/DDGIRootConstants.h"
+#undef HLSL
+#include "RTXGI-DDGI/rtxgi-sdk/include/rtxgi/ddgi/DDGIVolumeDescGPU.h"

@@ -888,6 +888,7 @@ namespace sl12
 		sl12::u32 globalSrvCount,
 		sl12::u32 globalUavCount,
 		sl12::u32 globalSamplerCount,
+		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS)
 	{
@@ -902,7 +903,7 @@ namespace sl12
 		localCount.uav = sl12::kUavMax - globalUavCount;
 		localCount.sampler = sl12::kSamplerMax - globalSamplerCount;
 
-		return CreateRaytracingRootSignature(pDevice, asCount, globalCount, localCount, pGlobalRS, pLocalRS);
+		return CreateRaytracingRootSignature(pDevice, asCount, globalCount, localCount, localSpaceId, pGlobalRS, pLocalRS);
 	}
 
 	//----
@@ -911,6 +912,7 @@ namespace sl12
 		sl12::u32 asCount,
 		const RaytracingDescriptorCount& globalCount,
 		const RaytracingDescriptorCount& localCount,
+		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS)
 	{
@@ -1009,7 +1011,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 				r.NumDescriptors = localCount.cbv;
 				r.BaseShaderRegister = 0;
-				r.RegisterSpace = 1;
+				r.RegisterSpace = localSpaceId;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (localCount.srv > 0)
@@ -1018,7 +1020,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 				r.NumDescriptors = localCount.srv;
 				r.BaseShaderRegister = 0;
-				r.RegisterSpace = 1;
+				r.RegisterSpace = localSpaceId;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (localCount.uav > 0)
@@ -1027,7 +1029,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 				r.NumDescriptors = localCount.uav;
 				r.BaseShaderRegister = 0;
-				r.RegisterSpace = 1;
+				r.RegisterSpace = localSpaceId;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 			if (localCount.sampler > 0)
@@ -1036,7 +1038,7 @@ namespace sl12
 				r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 				r.NumDescriptors = localCount.sampler;
 				r.BaseShaderRegister = 0;
-				r.RegisterSpace = 1;
+				r.RegisterSpace = localSpaceId;
 				r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
 
@@ -1071,13 +1073,16 @@ namespace sl12
 		sl12::u32 asCount,
 		sl12::u32 globalIndices,
 		sl12::u32 localIndices,
+		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS)
 	{
+		assert(localSpaceId != 0);
+
 		{
 			D3D12_ROOT_PARAMETER params[16];
 			u32 paramCount = 0;
-			
+
 			for (sl12::u32 i = 0; i < asCount; i++)
 			{
 				auto&& p = params[paramCount++];
@@ -1111,8 +1116,8 @@ namespace sl12
 			D3D12_ROOT_PARAMETER param;
 			param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			param.Constants.ShaderRegister = 1;
-			param.Constants.RegisterSpace = 0;
+			param.Constants.ShaderRegister = 0;
+			param.Constants.RegisterSpace = localSpaceId;
 			param.Constants.Num32BitValues = localIndices;
 
 			D3D12_ROOT_SIGNATURE_DESC sigDesc{};

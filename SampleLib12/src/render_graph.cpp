@@ -748,13 +748,13 @@ namespace sl12
 		std::set<GraphEdge> edges = graphEdges_;
 		std::map<RenderPassID, std::vector<RenderPassID>> inputEdges, outputEdges;
 		std::vector<RenderPassID> sourceNodes, remainingNodes;
-    
+
 		// Build edge maps
 		for (const auto& edge : edges)
 		{
 			inputEdges[edge.second].push_back(edge.first);
 			outputEdges[edge.first].push_back(edge.second);
-        
+
 			if (inputEdges.find(edge.first) == inputEdges.end())
 			{
 				inputEdges[edge.first] = std::vector<RenderPassID>();
@@ -780,7 +780,7 @@ namespace sl12
 				auto& childInputs = inputEdges[childNode];
 				auto it = std::find(childInputs.begin(), childInputs.end(), currentNode);
 				childInputs.erase(it);
-            
+
 				if (childInputs.empty())
 				{
 					sourceNodes.push_back(childNode);
@@ -833,7 +833,7 @@ namespace sl12
 		if (dependencies[childPassNo][childNode->GetExecuteQueue()] != 0)
 		{
 			auto parentPassNo = dependencies[childPassNo][childNode->GetExecuteQueue()];
-        
+
 			// Propagate dependencies between queues.
 			for (size_t queueIdx = 0; queueIdx < HardwareQueue::Max; queueIdx++)
 			{

@@ -224,7 +224,7 @@ namespace sl12
 			{
 				arg_array.push_back(a.c_str());
 			}
-			
+
 			DxcBuffer Source;
 			Source.Ptr = pSrcBlob->GetBufferPointer();
 			Source.Size = pSrcBlob->GetBufferSize();
@@ -249,7 +249,7 @@ namespace sl12
 			{
 				pCompileResult->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(ppPDB), ppPDBName);
 			}
-			
+
 			pCompileResult->GetResult(ppResult);
 			pCompileResult->Release();
 			return true;

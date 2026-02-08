@@ -7,6 +7,7 @@
 #include <sl12/descriptor_heap.h>
 #include <sl12/descriptor_set.h>
 #include <sl12/root_signature.h>
+#include <sl12/pipeline_state.h>
 
 #define USE_PIX 1
 #include <pix3.h>
@@ -873,6 +874,25 @@ namespace sl12
 		// set root constant.
 		if (!rootIndices.empty())
 			pCmdList->SetComputeRoot32BitConstants(asAddressCount, (UINT)rootIndices.size(), rootIndices.data(), 0);
+	}
+
+	//----
+	void CommandList::DispatchRays(const DispatchRaysDesc& desc)
+	{
+		D3D12_DISPATCH_RAYS_DESC dxrDesc{};
+		dxrDesc.HitGroupTable.StartAddress = desc.hitGroupTable->GetResourceDep()->GetGPUVirtualAddress();
+		dxrDesc.HitGroupTable.SizeInBytes = desc.hitGroupTable->GetBufferDesc().size;
+		dxrDesc.HitGroupTable.StrideInBytes = desc.hitGroupRecordSize;
+		dxrDesc.MissShaderTable.StartAddress = desc.missTable->GetResourceDep()->GetGPUVirtualAddress();
+		dxrDesc.MissShaderTable.SizeInBytes = desc.missTable->GetBufferDesc().size;
+		dxrDesc.MissShaderTable.StrideInBytes = desc.missRecordSize;
+		dxrDesc.RayGenerationShaderRecord.StartAddress = desc.rayGenTable->GetResourceDep()->GetGPUVirtualAddress();
+		dxrDesc.RayGenerationShaderRecord.SizeInBytes = desc.rayGenTable->GetBufferDesc().size;
+		dxrDesc.Width = desc.width;
+		dxrDesc.Height = desc.height;
+		dxrDesc.Depth = desc.depth;
+		GetDxrCommandList()->SetPipelineState1(desc.pso->GetPSO());
+		GetDxrCommandList()->DispatchRays(&dxrDesc);
 	}
 
 	//----

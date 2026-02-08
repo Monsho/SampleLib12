@@ -102,7 +102,7 @@ namespace sl12
 		void ClearProbes(CommandList* pCmdList);
 		void UploadConstants(CommandList* pCmdList, u32 frameIndex);
 		void UpdateProbes(CommandList* pCmdList);
-		void RelocateProbes(CommandList* pCmdList, float distanceScale);
+		void RelocateProbes(CommandList* pCmdList);
 		void ClassifyProbes(CommandList* pCmdList);
 
 		BufferView* GetConstantSTBView()

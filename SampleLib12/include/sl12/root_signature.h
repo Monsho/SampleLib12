@@ -149,6 +149,7 @@ namespace sl12
 		sl12::u32 globalSrvCount,
 		sl12::u32 globalUavCount,
 		sl12::u32 globalSamplerCount,
+		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS);
 	bool CreateRaytracingRootSignature(
@@ -156,6 +157,7 @@ namespace sl12
 		sl12::u32 asCount,
 		const RaytracingDescriptorCount& globalCount,
 		const RaytracingDescriptorCount& localCount,
+		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS);
 	bool CreateRayTracingRootSignatureWithDynamicResource(
@@ -163,6 +165,7 @@ namespace sl12
 		sl12::u32 asCount,
 		sl12::u32 globalIndices,
 		sl12::u32 localIndices,
+		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS);
 

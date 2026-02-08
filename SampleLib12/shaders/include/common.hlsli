@@ -3,6 +3,9 @@
 
 #define LANE_COUNT_IN_WAVE	32
 
+#define REG_SPACE(r, s) register(r, space##s)
+#define REG(r) REG_SPACE(r, 0)
+
 float4 RotateGridSuperSample(Texture2D tex, SamplerState sam, float2 uv, float bias)
 {
 	float2 dx = ddx(uv);

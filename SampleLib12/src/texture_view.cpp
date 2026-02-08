@@ -303,6 +303,16 @@ namespace sl12
 	bool UnorderedAccessView::Initialize(Device* pDev, Texture* pTex, u32 mipSlice, u32 firstArray, u32 arraySize)
 	{
 		const D3D12_RESOURCE_DESC& resDesc = pTex->GetResourceDesc();
+		if (firstArray >= resDesc.DepthOrArraySize)
+		{
+			firstArray = resDesc.DepthOrArraySize - 1;
+			arraySize = 1;
+		}
+		else if ((arraySize == 0) || (arraySize > resDesc.DepthOrArraySize - firstArray))
+		{
+			arraySize = resDesc.DepthOrArraySize - firstArray;
+		}
+
 		D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc{};
 		viewDesc.Format = resDesc.Format;
 		if (resDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE1D)

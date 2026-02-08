@@ -47,7 +47,7 @@ namespace sl12
 
 		void Reset();
 
-		ConstantBufferView* GetCBV()
+		ConstantBufferView* GetCBV() const
 		{
 			return (pInstance_ != nullptr) ? &pInstance_->view_ : nullptr;
 		}
@@ -88,7 +88,7 @@ namespace sl12
 		CbvHandle GetTemporal(const void* pData, size_t size);
 
 		void RequestResidentCopy(CbvHandle& Handle, const void* pData, size_t size);
-		void ExecuteCopy(CommandList* pCmdList);
+		void ExecuteCopy(CommandList* pCmdList, bool bTransition = true);
 
 	private:
 		void ReturnInstance(CbvInstance* Instance);

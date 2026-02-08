@@ -17,6 +17,18 @@ namespace sl12
 	class RootSignature;
 	class DescriptorSet;
 	class RaytracingDescriptorManager;
+	class DxrPipelineState;
+
+	struct DispatchRaysDesc
+	{
+		DxrPipelineState*	pso = nullptr;
+		Buffer*				rayGenTable = nullptr;
+		Buffer*				missTable = nullptr;
+		u64					missRecordSize = 0;
+		Buffer*				hitGroupTable = nullptr;
+		u64					hitGroupRecordSize = 0;
+		u32					width, height, depth;
+	};
 
 	class CommandList
 	{
@@ -116,6 +128,9 @@ namespace sl12
 			D3D12_GPU_VIRTUAL_ADDRESS* asAddress,
 			u32 asAddressCount,
 			const std::vector<u32>& rootIndices);
+
+		// Draw/Dispatch
+		void DispatchRays(const DispatchRaysDesc& desc);
 
 		// GPU events
 		void PushMarker(u8 colorIndex, char const* format, ...);

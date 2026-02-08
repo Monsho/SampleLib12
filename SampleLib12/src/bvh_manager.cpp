@@ -204,7 +204,7 @@ namespace sl12
 
 			auto vbv = MeshManager::CreateVertexView(hPos, submesh.positionOffsetBytes, submesh.positionSizeBytes, ResourceItemMesh::GetPositionStride());
 			auto ibv = MeshManager::CreateIndexView(hIndex, submesh.indexOffsetBytes, submesh.indexSizeBytes, ResourceItemMesh::GetIndexStride());
-			
+
 			auto flags = material.blendType == ResourceMeshMaterialBlendType::Opaque ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 			desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 			desc.Flags = flags;

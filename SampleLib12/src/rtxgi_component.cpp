@@ -18,9 +18,9 @@ namespace
 	static const char*	kOutputRegDefine = "OUTPUT_REGISTER";
 
 	static const char*	kBlendingShaderFile = "ProbeBlendingCS.hlsl";
-	static const char*	kBorderUpdateShaderFile = "ProbeBorderUpdateCS.hlsl";
 	static const char*	kClassificationShaderFile = "ProbeClassificationCS.hlsl";
 	static const char*	kRelocationShaderFile = "ProbeRelocationCS.hlsl";
+	static const char*	kReductionShaderFile = "ReductionCS.hlsl";
 
 	static const char*	kShaderEntryPoints[] = {
 		"DDGIProbeBlendingCS",
@@ -190,7 +190,7 @@ namespace sl12
 		{
 			auto stride = sizeof(rtxgi::DDGIVolumeDescGPUPacked);
 			auto size = stride * numVolumes;
-			
+
 			BufferDesc creationDesc{};
 			creationDesc.size = size;
 			creationDesc.stride = stride;
@@ -295,13 +295,6 @@ namespace sl12
 		std::string scl_sh_mem_text = std::to_string(ddgiDesc.probeBlendingUseScrollSharedMemory);
 		std::string wave_lane_text = std::to_string(32);
 
-		std::string file_dir = shaderDirectory_;
-		if (file_dir[file_dir.length() - 1] != '\\' || file_dir[file_dir.length() - 1] != '/')
-		{
-			file_dir += "/";
-		}
-
-
 		// blending irradiance shader.
 		{
 			auto defines = baseDefines;
@@ -316,7 +309,7 @@ namespace sl12
 			defines.push_back(ShaderDefine("OUTPUT_REGISTER", "u1"));
 
 			handles[EShaderType::IrradianceBlending] = pManager->CompileFromFile(
-				file_dir + kBlendingShaderFile,
+				sl12::JoinPath(shaderDirectory_, kBlendingShaderFile),
 				kShaderEntryPoints[EShaderType::IrradianceBlending],
 				ShaderType::Compute, 6, 6, nullptr, &defines);
 		}
@@ -335,7 +328,7 @@ namespace sl12
 			defines.push_back(ShaderDefine("OUTPUT_REGISTER", "u2"));
 
 			handles[EShaderType::DistanceBlending] = pManager->CompileFromFile(
-				file_dir + kBlendingShaderFile,
+				sl12::JoinPath(shaderDirectory_, kBlendingShaderFile),
 				kShaderEntryPoints[EShaderType::DistanceBlending],
 				ShaderType::Compute, 6, 6, nullptr, &defines);
 		}
@@ -343,12 +336,12 @@ namespace sl12
 		// relocation shader.
 		{
 			handles[EShaderType::ProbeRelocation] = pManager->CompileFromFile(
-				file_dir + kRelocationShaderFile,
+				sl12::JoinPath(shaderDirectory_, kRelocationShaderFile),
 				kShaderEntryPoints[EShaderType::ProbeRelocation],
 				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
 
 			handles[EShaderType::ProbeRelocationReset] = pManager->CompileFromFile(
-				file_dir + kRelocationShaderFile,
+				sl12::JoinPath(shaderDirectory_, kRelocationShaderFile),
 				kShaderEntryPoints[EShaderType::ProbeRelocationReset],
 				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
 		}
@@ -356,12 +349,12 @@ namespace sl12
 		// classification shader.
 		{
 			handles[EShaderType::ProbeClassification] = pManager->CompileFromFile(
-				file_dir + kClassificationShaderFile,
+				sl12::JoinPath(shaderDirectory_, kClassificationShaderFile),
 				kShaderEntryPoints[EShaderType::ProbeClassification],
 				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
 
 			handles[EShaderType::ProbeClassificationReset] = pManager->CompileFromFile(
-				file_dir + kClassificationShaderFile,
+				sl12::JoinPath(shaderDirectory_, kClassificationShaderFile),
 				kShaderEntryPoints[EShaderType::ProbeClassificationReset],
 				ShaderType::Compute, 6, 6, nullptr, &baseDefines);
 		}
@@ -373,7 +366,7 @@ namespace sl12
 			defines.push_back(ShaderDefine("RTXGI_DDGI_WAVE_LANE_COUNT", wave_lane_text.c_str()));
 
 			handles[EShaderType::VariabilityReduction] = pManager->CompileFromFile(
-				file_dir + kBlendingShaderFile,
+				sl12::JoinPath(shaderDirectory_, kReductionShaderFile),
 				kShaderEntryPoints[EShaderType::VariabilityReduction],
 				ShaderType::Compute, 6, 6, nullptr, &defines);
 		}
@@ -385,7 +378,7 @@ namespace sl12
 			defines.push_back(ShaderDefine("RTXGI_DDGI_WAVE_LANE_COUNT", wave_lane_text.c_str()));
 
 			handles[EShaderType::ExtraReduction] = pManager->CompileFromFile(
-				file_dir + kBlendingShaderFile,
+				sl12::JoinPath(shaderDirectory_, kReductionShaderFile),
 				kShaderEntryPoints[EShaderType::ExtraReduction],
 				ShaderType::Compute, 6, 6, nullptr, &defines);
 		}
@@ -414,6 +407,7 @@ namespace sl12
 		desc.depth = 1;
 		desc.mipLevels = 1;
 		desc.sampleCount = 1;
+		desc.clearColor[0] = desc.clearColor[1] = desc.clearColor[2] = 0.0f; desc.clearColor[3] = 1.0f;
 
 		// create texture resources.
 		{
@@ -431,7 +425,7 @@ namespace sl12
 			// irradiance.
 			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Irradiance, desc.width, desc.height, desc.depth);
 			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Irradiance, ddgiDesc.probeIrradianceFormat);
-			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.initialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 			desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
 			if (!textures_[ETextureType::Irradiance].Initialize(pParentDevice_, desc))
 			{
@@ -442,7 +436,7 @@ namespace sl12
 			// distance.
 			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Distance, desc.width, desc.height, desc.depth);
 			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Distance, ddgiDesc.probeDistanceFormat);
-			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.initialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 			desc.usage = ResourceUsage::RenderTarget | ResourceUsage::UnorderedAccess;
 			if (!textures_[ETextureType::Distance].Initialize(pParentDevice_, desc))
 			{
@@ -453,7 +447,7 @@ namespace sl12
 			// data.
 			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Data, desc.width, desc.height, desc.depth);
 			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Data, ddgiDesc.probeDataFormat);
-			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.initialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 			desc.usage = ResourceUsage::UnorderedAccess;
 			if (!textures_[ETextureType::ProbeData].Initialize(pParentDevice_, desc))
 			{
@@ -464,7 +458,7 @@ namespace sl12
 			// variability.
 			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::Variability, desc.width, desc.height, desc.depth);
 			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::Variability, ddgiDesc.probeVariabilityFormat);
-			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.initialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 			desc.usage = ResourceUsage::UnorderedAccess;
 			if (!textures_[ETextureType::Variability].Initialize(pParentDevice_, desc))
 			{
@@ -475,7 +469,7 @@ namespace sl12
 			// variability average.
 			rtxgi::GetDDGIVolumeTextureDimensions(ddgiDesc, rtxgi::EDDGIVolumeTextureType::VariabilityAverage, desc.width, desc.height, desc.depth);
 			desc.format = rtxgi::d3d12::GetDDGIVolumeTextureFormat(rtxgi::EDDGIVolumeTextureType::VariabilityAverage, ddgiDesc.probeVariabilityFormat);
-			desc.initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			desc.initialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 			desc.usage = ResourceUsage::UnorderedAccess;
 			if (!textures_[ETextureType::VariabilityAverage].Initialize(pParentDevice_, desc))
 			{
@@ -773,7 +767,7 @@ namespace sl12
 	}
 
 	//----
-	void RtxgiComponent::RelocateProbes(sl12::CommandList* pCmdList, float distanceScale)
+	void RtxgiComponent::RelocateProbes(sl12::CommandList* pCmdList)
 	{
 		auto volumes = ddgiVolume_.get();
 		rtxgi::d3d12::RelocateDDGIVolumeProbes(pCmdList->GetLatestCommandList(), 1, &volumes);

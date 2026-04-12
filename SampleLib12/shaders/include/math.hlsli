@@ -9,9 +9,19 @@ float ToLinearDepth(float perspDepth, float n, float f)
 	return -n / ((n - f) * perspDepth + f);
 }
 
+// [deprecated]
 float ToViewDepth(float perspDepth, float m33, float m43, float m34)
 {
 	return -m43 / (m33 - m34 * perspDepth);
+}
+
+float ClipDepthToViewDepthRH(float D, float4x4 mtxViewToClip)
+{
+	return -(D * mtxViewToClip[3][3] - mtxViewToClip[2][3]) / (mtxViewToClip[2][2] - D * mtxViewToClip[3][2]);
+}
+float ClipDepthToViewDepthLH(float D, float4x4 mtxViewToClip)
+{
+	return (D * mtxViewToClip[3][3] - mtxViewToClip[2][3]) / (mtxViewToClip[2][2] - D * mtxViewToClip[3][2]);
 }
 
 float2 VectorToRadialCoords(in float3 vc)

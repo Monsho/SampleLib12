@@ -160,6 +160,16 @@ namespace sl12
 		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS);
+	bool CreateRaytracingGlobalRootSignature(
+		sl12::Device* pDevice,
+		sl12::u32 asCount,
+		const RaytracingDescriptorCount& globalCount,
+		sl12::RootSignature* pGlobalRS);
+	bool CreateRaytracingLocalRootSignature(
+		sl12::Device* pDevice,
+		const RaytracingDescriptorCount& localCount,
+		sl12::u32 localSpaceId,
+		sl12::RootSignature* pLocalRS);
 	bool CreateRayTracingRootSignatureWithDynamicResource(
 		sl12::Device* pDevice,
 		sl12::u32 asCount,
@@ -167,6 +177,16 @@ namespace sl12
 		sl12::u32 localIndices,
 		sl12::u32 localSpaceId,
 		sl12::RootSignature* pGlobalRS,
+		sl12::RootSignature* pLocalRS);
+	bool CreateRayTracingGlobalRootSignatureWithDynamicResource(
+		sl12::Device* pDevice,
+		sl12::u32 asCount,
+		sl12::u32 globalIndices,
+		sl12::RootSignature* pGlobalRS);
+	bool CreateRayTracingLocalRootSignatureWithDynamicResource(
+		sl12::Device* pDevice,
+		sl12::u32 localIndices,
+		sl12::u32 localSpaceId,
 		sl12::RootSignature* pLocalRS);
 
 }	// namespace sl12

@@ -916,6 +916,26 @@ namespace sl12
 		sl12::RootSignature* pGlobalRS,
 		sl12::RootSignature* pLocalRS)
 	{
+		if (!CreateRaytracingGlobalRootSignature(pDevice, asCount, globalCount, pGlobalRS))
+		{
+			return false;
+		}
+
+		if (!CreateRaytracingLocalRootSignature(pDevice, localCount, localSpaceId, pLocalRS))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	//----
+	bool CreateRaytracingGlobalRootSignature(
+		sl12::Device* pDevice,
+		sl12::u32 asCount,
+		const RaytracingDescriptorCount& globalCount,
+		sl12::RootSignature* pGlobalRS)
+	{
 		{
 			sl12::u32 range_cnt = 0;
 			D3D12_DESCRIPTOR_RANGE ranges[4]{};
@@ -1002,6 +1022,17 @@ namespace sl12
 				return false;
 			}
 		}
+
+		return true;
+	}
+
+	//----
+	bool CreateRaytracingLocalRootSignature(
+		sl12::Device* pDevice,
+		const RaytracingDescriptorCount& localCount,
+		sl12::u32 localSpaceId,
+		sl12::RootSignature* pLocalRS)
+	{
 		{
 			D3D12_DESCRIPTOR_RANGE ranges[4]{};
 			int range_cnt = 0;
@@ -1079,6 +1110,25 @@ namespace sl12
 	{
 		assert(localSpaceId != 0);
 
+		if (!CreateRayTracingGlobalRootSignatureWithDynamicResource(pDevice, asCount, globalIndices, pGlobalRS))
+		{
+			return false;
+		}
+		if (!CreateRayTracingLocalRootSignatureWithDynamicResource(pDevice, localIndices, localSpaceId, pLocalRS))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	//----
+	bool CreateRayTracingGlobalRootSignatureWithDynamicResource(
+		sl12::Device* pDevice,
+		sl12::u32 asCount,
+		sl12::u32 globalIndices,
+		sl12::RootSignature* pGlobalRS)
+	{
 		{
 			D3D12_ROOT_PARAMETER params[16];
 			u32 paramCount = 0;
@@ -1112,6 +1162,19 @@ namespace sl12
 				return false;
 			}
 		}
+
+		return true;
+	}
+
+	//----
+	bool CreateRayTracingLocalRootSignatureWithDynamicResource(
+		sl12::Device* pDevice,
+		sl12::u32 localIndices,
+		sl12::u32 localSpaceId,
+		sl12::RootSignature* pLocalRS)
+	{
+		assert(localSpaceId != 0);
+
 		{
 			D3D12_ROOT_PARAMETER param;
 			param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
@@ -1135,7 +1198,6 @@ namespace sl12
 
 		return true;
 	}
-
 }	// namespace sl12
 
 //	EOF

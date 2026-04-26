@@ -67,7 +67,7 @@ namespace sl12
 			{
 				return;
 			}
-			
+
 			if (pObject_)
 			{
 				if (pParentDevice_)

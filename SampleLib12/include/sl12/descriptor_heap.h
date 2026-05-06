@@ -282,6 +282,7 @@ namespace sl12
 		void GetGlobalSamplerHandleStart(u32 frameIndex, D3D12_CPU_DESCRIPTOR_HANDLE& cpu, D3D12_GPU_DESCRIPTOR_HANDLE& gpu);
 		void GetLocalViewHandleStart(u32 frameIndex, D3D12_CPU_DESCRIPTOR_HANDLE& cpu, D3D12_GPU_DESCRIPTOR_HANDLE& gpu);
 		void GetLocalSamplerHandleStart(u32 frameIndex, D3D12_CPU_DESCRIPTOR_HANDLE& cpu, D3D12_GPU_DESCRIPTOR_HANDLE& gpu);
+		bool CanAllocateGlobal(u32 frameIndex, const RaytracingDescriptorCount& count, u32 viewOffset, u32 samplerOffset) const;
 
 		bool CanResizeMaterialCount(u32 materialCount);
 
@@ -326,6 +327,8 @@ namespace sl12
 		RaytracingDescriptorCount	globalCount_;
 		RaytracingDescriptorCount	localCount_;
 		u32							materialCount_ = 0;
+		u32							localViewDescMax_ = 0;
+		u32							localSamplerDescMax_ = 0;
 	};	// class RaytracingDescriptorHeap
 
 	class RaytracingDescriptorManager
@@ -390,12 +393,14 @@ namespace sl12
 		void Destroy();
 
 		void BeginNewFrame();
+		void BeginNewFrame(u32 frameIndex);
 
 		bool ResizeMaterialCount(u32 materialCount);
 
 		void SetHeapToCommandList(sl12::CommandList& cmdList);
 
 		HandleStart IncrementGlobalHandleStart();
+		HandleStart AllocateGlobalHandleStart(const RaytracingDescriptorCount& count);
 		HandleStart IncrementLocalHandleStart();
 
 		u32 GetViewDescSize() const { return pCurrentHeap_->GetViewDescSize(); }
@@ -411,6 +416,10 @@ namespace sl12
 		Device*							pParentDevice_ = nullptr;
 		RaytracingDescriptorHeap*		pCurrentHeap_ = nullptr;
 		std::list<KillPendingHeap>		heapsBeforeKill_;
+		std::mutex						globalMutex_;
+		u32								globalViewOffset_ = 0;
+		u32								globalSamplerOffset_ = 0;
+		u32								currentFrameIndex_ = 0;
 		u32								globalIndex_ = 0;
 		u32								localIndex_ = 0;
 	};	// class RaytracingDescriptorManager

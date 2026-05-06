@@ -756,6 +756,7 @@ namespace sl12
 		RootSignature* pRS,
 		DescriptorSet* pDSet,
 		RaytracingDescriptorManager* pRtDescMan,
+		const RaytracingDescriptorCount& globalCount,
 		D3D12_GPU_VIRTUAL_ADDRESS* asAddress,
 		u32 asAddressCount)
 	{
@@ -770,7 +771,7 @@ namespace sl12
 		pRtDescMan->SetHeapToCommandList(*this);
 
 		// Global用のハンドルを取得する
-		auto global_handle_start = pRtDescMan->IncrementGlobalHandleStart();
+		auto global_handle_start = pRtDescMan->AllocateGlobalHandleStart(globalCount);
 
 		// CBV, SRV, UAVの登録
 		D3D12_CPU_DESCRIPTOR_HANDLE tmp[kSrvMax];
@@ -795,14 +796,14 @@ namespace sl12
 				global_handle_start.viewGpuHandle.ptr += pRtDescMan->GetViewDescSize() * cnt;
 			}
 		};
-		SetViewDesc(pRtDescMan->GetGlobalCbvCount(), 0, pDSet->GetCsCbv().cpuHandles);
-		SetViewDesc(pRtDescMan->GetGlobalSrvCount(), pRtDescMan->GetASCount(), pDSet->GetCsSrv().cpuHandles);
-		SetViewDesc(pRtDescMan->GetGlobalUavCount(), 0, pDSet->GetCsUav().cpuHandles);
+		SetViewDesc(globalCount.cbv, 0, pDSet->GetCsCbv().cpuHandles);
+		SetViewDesc(globalCount.srv, pRtDescMan->GetASCount(), pDSet->GetCsSrv().cpuHandles);
+		SetViewDesc(globalCount.uav, 0, pDSet->GetCsUav().cpuHandles);
 
 		// Samplerの登録
-		if (pRtDescMan->GetGlobalSamplerCount() > 0)
+		if (globalCount.sampler > 0)
 		{
-			auto cnt = pRtDescMan->GetGlobalSamplerCount();
+			auto cnt = globalCount.sampler;
 			auto handles = pDSet->GetCsSampler().cpuHandles;
 			for (u32 i = 0; i < cnt; i++)
 			{

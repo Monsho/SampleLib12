@@ -450,11 +450,13 @@ namespace sl12
 
 		u32 global_view_max = GetGlobalViewCount();
 		u32 global_sampler_max = GetGlobalSamplerCount();
-		u32 local_view_max = GetLocalViewCount() * materialCount;
-		u32 local_sampler_max = GetLocalSamplerCount() * materialCount;
+		localViewDescMax_ = GetLocalViewCount() * materialCount;
+		localSamplerDescMax_ = GetLocalSamplerCount() * materialCount;
 
-		u32 view_max = std::max<u32>(1024, global_view_max * bufferCount_ + local_view_max * Swapchain::kMaxBuffer);
-		u32 sampler_max = std::max<u32>(1024, global_sampler_max * bufferCount_ + local_sampler_max * Swapchain::kMaxBuffer);
+		u32 view_max = std::max<u32>(1024, localViewDescMax_ + global_view_max * bufferCount_);
+		u32 sampler_max = std::min<u32>(std::max<u32>(1024, localSamplerDescMax_ + global_sampler_max * bufferCount_), 2048);
+		viewDescMax_ = view_max;
+		samplerDescMax_ = sampler_max;
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc{};
 
@@ -503,9 +505,9 @@ namespace sl12
 
 		u32 view_cnt = GetGlobalViewCount();
 		cpu = viewCpuHandleStart_;
-		cpu.ptr += view_cnt * frameIndex * viewDescSize_;
+		cpu.ptr += (localViewDescMax_ + view_cnt * frameIndex) * viewDescSize_;
 		gpu = viewGpuHandleStart_;
-		gpu.ptr += view_cnt * frameIndex * viewDescSize_;
+		gpu.ptr += (localViewDescMax_ + view_cnt * frameIndex) * viewDescSize_;
 	}
 
 	//----
@@ -515,9 +517,9 @@ namespace sl12
 
 		u32 sampler_cnt = GetGlobalSamplerCount();
 		cpu = samplerCpuHandleStart_;
-		cpu.ptr += sampler_cnt * frameIndex * samplerDescSize_;
+		cpu.ptr += (localSamplerDescMax_ + sampler_cnt * frameIndex) * samplerDescSize_;
 		gpu = samplerGpuHandleStart_;
-		gpu.ptr += sampler_cnt * frameIndex * samplerDescSize_;
+		gpu.ptr += (localSamplerDescMax_ + sampler_cnt * frameIndex) * samplerDescSize_;
 	}
 
 	//----
@@ -525,12 +527,8 @@ namespace sl12
 	{
 		assert(frameIndex < bufferCount_);
 
-		u32 global_max = GetGlobalViewCount() * bufferCount_;
-		u32 local_max = (viewDescMax_ - global_max) / bufferCount_;
 		cpu = viewCpuHandleStart_;
-		cpu.ptr += (global_max + local_max * frameIndex) * viewDescSize_;
 		gpu = viewGpuHandleStart_;
-		gpu.ptr += (global_max + local_max * frameIndex) * viewDescSize_;
 	}
 
 	//----
@@ -538,12 +536,16 @@ namespace sl12
 	{
 		assert(frameIndex < bufferCount_);
 
-		u32 global_max = GetGlobalSamplerCount() * bufferCount_;
-		u32 local_max = (samplerDescMax_ - global_max) / bufferCount_;
 		cpu = samplerCpuHandleStart_;
-		cpu.ptr += (global_max + local_max * frameIndex) * samplerDescSize_;
 		gpu = samplerGpuHandleStart_;
-		gpu.ptr += (global_max + local_max * frameIndex) * samplerDescSize_;
+	}
+
+	//----
+	bool RaytracingDescriptorHeap::CanAllocateGlobal(u32 frameIndex, const RaytracingDescriptorCount& count, u32 viewOffset, u32 samplerOffset) const
+	{
+		assert(frameIndex < bufferCount_);
+		return viewOffset + count.GetViewTotal() <= GetGlobalViewCount()
+			&& samplerOffset + count.sampler <= GetGlobalSamplerCount();
 	}
 
 	//----
@@ -551,10 +553,7 @@ namespace sl12
 	{
 		u32 local_view_max = GetLocalViewCount() * materialCount;
 		u32 local_sampler_max = GetLocalSamplerCount() * materialCount;
-		u32 global_max = GetGlobalSamplerCount() * bufferCount_;
-		u32 cur_view_max = (viewDescMax_ - global_max) / bufferCount_;
-		u32 cur_sampler_max = (samplerDescMax_ - global_max) / bufferCount_;
-		if (local_view_max > cur_view_max || local_sampler_max > cur_sampler_max)
+		if (local_view_max > localViewDescMax_ || local_sampler_max > localSamplerDescMax_)
 		{
 			return false;
 		}
@@ -577,13 +576,16 @@ namespace sl12
 		pParentDevice_ = pDev;
 
 		pCurrentHeap_ = new RaytracingDescriptorHeap();
-		if (!pCurrentHeap_->Initialize(pDev, renderCount * Swapchain::kMaxBuffer, asCount, globalCbvCount, globalSrvCount, globalUavCount, globalSamplerCount, materialCount))
+		if (!pCurrentHeap_->Initialize(pDev, renderCount, asCount, globalCbvCount, globalSrvCount, globalUavCount, globalSamplerCount, materialCount))
 		{
 			delete pCurrentHeap_;
 			return false;
 		}
 
 		globalIndex_ = localIndex_ = 0;
+		currentFrameIndex_ = 0;
+		globalViewOffset_ = 0;
+		globalSamplerOffset_ = 0;
 
 		return true;
 	}
@@ -600,13 +602,16 @@ namespace sl12
 		pParentDevice_ = pDev;
 
 		pCurrentHeap_ = new RaytracingDescriptorHeap();
-		if (!pCurrentHeap_->Initialize(pDev, renderCount * Swapchain::kMaxBuffer, asCount, globalCount, localCount, materialCount))
+		if (!pCurrentHeap_->Initialize(pDev, renderCount, asCount, globalCount, localCount, materialCount))
 		{
 			delete pCurrentHeap_;
 			return false;
 		}
 
 		globalIndex_ = localIndex_ = 0;
+		currentFrameIndex_ = 0;
+		globalViewOffset_ = 0;
+		globalSamplerOffset_ = 0;
 
 		return true;
 	}
@@ -636,6 +641,20 @@ namespace sl12
 	}
 
 	//----
+	void RaytracingDescriptorManager::BeginNewFrame(u32 frameIndex)
+	{
+		BeginNewFrame();
+
+		if (!pCurrentHeap_)
+			return;
+
+		currentFrameIndex_ = frameIndex % pCurrentHeap_->GetBufferCount();
+		globalIndex_ = currentFrameIndex_;
+		globalViewOffset_ = 0;
+		globalSamplerOffset_ = 0;
+	}
+
+	//----
 	bool RaytracingDescriptorManager::ResizeMaterialCount(u32 materialCount)
 	{
 		if (pCurrentHeap_->CanResizeMaterialCount(materialCount))
@@ -654,6 +673,8 @@ namespace sl12
 		}
 
 		heapsBeforeKill_.push_back(KillPendingHeap(pPrevHeap));
+		globalViewOffset_ = 0;
+		globalSamplerOffset_ = 0;
 
 		return true;
 	}
@@ -677,6 +698,31 @@ namespace sl12
 		pCurrentHeap_->GetGlobalViewHandleStart(globalIndex_, ret.viewCpuHandle, ret.viewGpuHandle);
 		pCurrentHeap_->GetGlobalSamplerHandleStart(globalIndex_, ret.samplerCpuHandle, ret.samplerGpuHandle);
 		globalIndex_ = (globalIndex_ + 1) % pCurrentHeap_->GetBufferCount();
+		return ret;
+	}
+
+	//----
+	RaytracingDescriptorManager::HandleStart RaytracingDescriptorManager::AllocateGlobalHandleStart(const RaytracingDescriptorCount& count)
+	{
+		std::lock_guard<std::mutex> lock(globalMutex_);
+
+		assert(currentFrameIndex_ < pCurrentHeap_->GetBufferCount());
+
+		const auto frameIndex = currentFrameIndex_;
+		const auto viewOffset = globalViewOffset_;
+		const auto samplerOffset = globalSamplerOffset_;
+		assert(pCurrentHeap_->CanAllocateGlobal(frameIndex, count, viewOffset, samplerOffset));
+
+		HandleStart ret;
+		pCurrentHeap_->GetGlobalViewHandleStart(frameIndex, ret.viewCpuHandle, ret.viewGpuHandle);
+		pCurrentHeap_->GetGlobalSamplerHandleStart(frameIndex, ret.samplerCpuHandle, ret.samplerGpuHandle);
+		ret.viewCpuHandle.ptr += pCurrentHeap_->GetViewDescSize() * viewOffset;
+		ret.viewGpuHandle.ptr += pCurrentHeap_->GetViewDescSize() * viewOffset;
+		ret.samplerCpuHandle.ptr += pCurrentHeap_->GetSamplerDescSize() * samplerOffset;
+		ret.samplerGpuHandle.ptr += pCurrentHeap_->GetSamplerDescSize() * samplerOffset;
+
+		globalViewOffset_ += count.GetViewTotal();
+		globalSamplerOffset_ += count.sampler;
 		return ret;
 	}
 

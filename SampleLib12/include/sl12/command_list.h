@@ -17,6 +17,7 @@ namespace sl12
 	class RootSignature;
 	class DescriptorSet;
 	class RaytracingDescriptorManager;
+	struct RaytracingDescriptorCount;
 	class DxrPipelineState;
 
 	struct DispatchRaysDesc
@@ -119,6 +120,7 @@ namespace sl12
 			RootSignature* pRS,
 			DescriptorSet* pDSet,
 			RaytracingDescriptorManager* pRtDescMan,
+			const RaytracingDescriptorCount& globalCount,
 			D3D12_GPU_VIRTUAL_ADDRESS* asAddress,
 			u32 asAddressCount);
 

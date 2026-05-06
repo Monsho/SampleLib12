@@ -414,30 +414,6 @@ namespace sl12
 		Device* pDev,
 		u32 bufferCount,
 		u32 asCount,
-		u32 globalCbvCount,
-		u32 globalSrvCount,
-		u32 globalUavCount,
-		u32 globalSamplerCount,
-		u32 materialCount)
-	{
-		RaytracingDescriptorCount globalCount, localCount;
-		globalCount.cbv = globalCbvCount;
-		globalCount.srv = globalSrvCount;
-		globalCount.uav = globalUavCount;
-		globalCount.sampler = globalSamplerCount;
-		localCount.cbv = kCbvMax - globalCbvCount;
-		localCount.srv = kSrvMax - asCount - globalSrvCount;
-		localCount.uav = kUavMax - globalUavCount;
-		localCount.sampler = kSamplerMax - globalSamplerCount;
-
-		return Initialize(pDev, bufferCount, asCount, globalCount, localCount, materialCount);
-	}
-
-	//----
-	bool RaytracingDescriptorHeap::Initialize(
-		Device* pDev,
-		u32 bufferCount,
-		u32 asCount,
 		const RaytracingDescriptorCount& globalCount,
 		const RaytracingDescriptorCount& localCount,
 		u32 materialCount)
@@ -567,34 +543,6 @@ namespace sl12
 		Device* pDev,
 		u32 renderCount,
 		u32 asCount,
-		u32 globalCbvCount,
-		u32 globalSrvCount,
-		u32 globalUavCount,
-		u32 globalSamplerCount,
-		u32 materialCount)
-	{
-		pParentDevice_ = pDev;
-
-		pCurrentHeap_ = new RaytracingDescriptorHeap();
-		if (!pCurrentHeap_->Initialize(pDev, renderCount, asCount, globalCbvCount, globalSrvCount, globalUavCount, globalSamplerCount, materialCount))
-		{
-			delete pCurrentHeap_;
-			return false;
-		}
-
-		globalIndex_ = localIndex_ = 0;
-		currentFrameIndex_ = 0;
-		globalViewOffset_ = 0;
-		globalSamplerOffset_ = 0;
-
-		return true;
-	}
-
-	//----
-	bool RaytracingDescriptorManager::Initialize(
-		Device* pDev,
-		u32 renderCount,
-		u32 asCount,
 		const RaytracingDescriptorCount& globalCount,
 		const RaytracingDescriptorCount& localCount,
 		u32 materialCount)
@@ -638,17 +586,11 @@ namespace sl12
 				it = heapsBeforeKill_.erase(it);
 			}
 		}
-	}
-
-	//----
-	void RaytracingDescriptorManager::BeginNewFrame(u32 frameIndex)
-	{
-		BeginNewFrame();
 
 		if (!pCurrentHeap_)
 			return;
 
-		currentFrameIndex_ = frameIndex % pCurrentHeap_->GetBufferCount();
+		currentFrameIndex_ = (currentFrameIndex_ + 1) % pCurrentHeap_->GetBufferCount();
 		globalIndex_ = currentFrameIndex_;
 		globalViewOffset_ = 0;
 		globalSamplerOffset_ = 0;
@@ -665,7 +607,7 @@ namespace sl12
 		auto pPrevHeap = pCurrentHeap_;
 
 		pCurrentHeap_ = new RaytracingDescriptorHeap();
-		if (!pCurrentHeap_->Initialize(pParentDevice_, pPrevHeap->GetBufferCount(), pPrevHeap->GetASCount(), pPrevHeap->GetGlobalCbvCount(), pPrevHeap->GetGlobalSrvCount(), pPrevHeap->GetGlobalUavCount(), pPrevHeap->GetGlobalSamplerCount(), materialCount))
+		if (!pCurrentHeap_->Initialize(pParentDevice_, pPrevHeap->GetBufferCount(), pPrevHeap->GetASCount(), pPrevHeap->globalCount_, pPrevHeap->localCount_, materialCount))
 		{
 			delete pCurrentHeap_;
 			pCurrentHeap_ = pPrevHeap;

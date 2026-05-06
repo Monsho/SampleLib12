@@ -252,6 +252,8 @@ namespace sl12
 
 	class RaytracingDescriptorHeap
 	{
+		friend class RaytracingDescriptorManager;
+
 	public:
 		RaytracingDescriptorHeap()
 		{}
@@ -260,15 +262,6 @@ namespace sl12
 			Destroy();
 		}
 
-		bool Initialize(
-			Device* pDev,
-			u32 bufferCount,
-			u32 asCount,
-			u32 globalCbvCount,
-			u32 globalSrvCount,
-			u32 globalUavCount,
-			u32 globalSamplerCount,
-			u32 materialCount);
 		bool Initialize(
 			Device* pDev,
 			u32 bufferCount,
@@ -378,22 +371,12 @@ namespace sl12
 			Device* pDev,
 			u32 renderCount,
 			u32 asCount,
-			u32 globalCbvCount,
-			u32 globalSrvCount,
-			u32 globalUavCount,
-			u32 globalSamplerCount,
-			u32 materialCount);
-		bool Initialize(
-			Device* pDev,
-			u32 renderCount,
-			u32 asCount,
 			const RaytracingDescriptorCount& globalCount,
 			const RaytracingDescriptorCount& localCount,
 			u32 materialCount);
 		void Destroy();
 
 		void BeginNewFrame();
-		void BeginNewFrame(u32 frameIndex);
 
 		bool ResizeMaterialCount(u32 materialCount);
 

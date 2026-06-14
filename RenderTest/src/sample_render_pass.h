@@ -9,7 +9,6 @@
 #include "sl12/pipeline_state.h"
 #include "sl12/unique_handle.h"
 #include "sl12/cbv_manager.h"
-#include "sl12/render_graph_deprecated.h"
 #include "sl12/texture_streamer.h"
 #include "sl12/resource_mesh.h"
 #include "sl12/resource_streaming_texture.h"

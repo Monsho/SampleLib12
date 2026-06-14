@@ -17,46 +17,6 @@ namespace
 {
 	static const char* kResourceDir = "resources";
 	static const char* kShaderDir = "RenderTest/shaders";
-
-	static std::vector<sl12::RenderGraphTargetDesc> gGBufferDescs;
-	static sl12::RenderGraphTargetDesc gAccumDesc;
-	void SetGBufferDesc(sl12::u32 width, sl12::u32 height)
-	{
-		gGBufferDescs.clear();
-		
-		sl12::RenderGraphTargetDesc desc{};
-		desc.name = "GBufferA";
-		desc.width = width;
-		desc.height = height;
-		desc.format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		desc.srvDescs.push_back(sl12::RenderGraphSRVDesc(0, 0, 0, 0));
-		desc.rtvDescs.push_back(sl12::RenderGraphRTVDesc(0, 0, 0));
-		gGBufferDescs.push_back(desc);
-
-		desc.name = "GBufferB";
-		desc.format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		gGBufferDescs.push_back(desc);
-
-		desc.name = "GBufferC";
-		desc.format = DXGI_FORMAT_R10G10B10A2_UNORM;
-		gGBufferDescs.push_back(desc);
-
-		desc.name = "Depth";
-		desc.format = DXGI_FORMAT_D32_FLOAT;
-		desc.clearDepth = 1.0f;
-		desc.rtvDescs.clear();
-		desc.dsvDescs.push_back(sl12::RenderGraphDSVDesc(0, 0, 0));
-		desc.usage = sl12::ResourceUsage::ShaderResource | sl12::ResourceUsage::DepthStencil;
-		gGBufferDescs.push_back(desc);
-
-		gAccumDesc.name = "Accum";
-		gAccumDesc.width = width;
-		gAccumDesc.height = height;
-		gAccumDesc.format = DXGI_FORMAT_R11G11B10_FLOAT;
-		gAccumDesc.usage = sl12::ResourceUsage::ShaderResource | sl12::ResourceUsage::UnorderedAccess;
-		gAccumDesc.srvDescs.push_back(sl12::RenderGraphSRVDesc(0, 0, 0, 0));
-		gAccumDesc.uavDescs.push_back(sl12::RenderGraphUAVDesc(0, 0, 0));
-	}
 }
 
 SampleApplication::SampleApplication(HINSTANCE hInstance, int nCmdShow, int screenWidth, int screenHeight, sl12::ColorSpaceType csType, const std::string& homeDir)
@@ -143,9 +103,6 @@ bool SampleApplication::Initialize()
 	// init cbv manager.
 	cbvMan_ = sl12::MakeUnique<sl12::CbvManager>(nullptr, &device_);
 
-	// get GBuffer target descs.
-	SetGBufferDesc(displayWidth_, displayHeight_);
-	
 	// create sampler.
 	{
 		linearSampler_ = sl12::MakeUnique<sl12::Sampler>(&device_);

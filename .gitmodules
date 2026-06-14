@@ -19,3 +19,6 @@
 [submodule "ThirdParty/RTXGI-DDGI"]
 	path = ThirdParty/RTXGI-DDGI
 	url = https://github.com/Monsho/RTXGI-DDGI.git
+[submodule "ThirdParty/tinygltf"]
+	path = ThirdParty/tinygltf
+	url = https://github.com/syoyo/tinygltf.git

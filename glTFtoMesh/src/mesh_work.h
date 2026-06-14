@@ -1,9 +1,12 @@
 ﻿#pragma once
 
+#define _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING
+
 #include <algorithm>
-#include "GLTFSDK/GLTF.h"
-#include "GLTFSDK/GLBResourceReader.h"
-#include "GLTFSDK/Deserialize.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
 #include "meshoptimizer.h"
 #include "mikktspace.h"
 #define private public

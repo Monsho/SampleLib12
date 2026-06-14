@@ -1,22 +1,24 @@
 ﻿#include "mesh_work.h"
 
+#include <cstring>
 #include <fstream>
-#include <sstream>
 #include <map>
+#include <cstdio>
 
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_USE_RAPIDJSON
+#define TINYGLTF_NO_STB_IMAGE
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#define _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING
+#include "tiny_gltf.h"
 
-using namespace Microsoft::glTF;
+#if defined(_MSC_VER) && defined(_M_X64)
+#pragma comment(linker, "/alternatename:?_Getgloballocale@locale@std@@SAPEAV_Locimp@12@XZ=?_Getgloballocale@locale@std@@CAPEAV_Locimp@12@XZ")
+#endif
+
 
 namespace
 {
-	static const sl12::ResourceMeshMaterialBlendType kBlendTypes[] =
-	{
-		sl12::ResourceMeshMaterialBlendType::Opaque,
-		sl12::ResourceMeshMaterialBlendType::Opaque,
-		sl12::ResourceMeshMaterialBlendType::Translucent,
-		sl12::ResourceMeshMaterialBlendType::Masked,
-	};
-	
 	std::string ConvYenToSlash(const std::string& path)
 	{
 		std::string ret;
@@ -39,22 +41,175 @@ namespace
 		return ret;
 	}
 
-	class StreamReader : public IStreamReader
+	std::string GetImageFormat(const tinygltf::Image& image)
 	{
-	public:
-		StreamReader(const std::string& p)
-			: path_(p)
-		{}
-
-		std::shared_ptr<std::istream> GetInputStream(const std::string& filename) const override
+		static const std::string kImage("image/");
+		auto p = image.mimeType.find(kImage);
+		if (p != std::string::npos)
 		{
-			auto stream = std::make_shared<std::ifstream>(path_ + filename, std::ios_base::binary);
-			return stream;
+			return image.mimeType.substr(p + kImage.length());
 		}
 
-	private:
-		std::string		path_;
-	};
+		auto ext = GetExtent(image.uri);
+		if (!ext.empty() && ext[0] == '.')
+		{
+			ext.erase(ext.begin());
+		}
+		return ext;
+	}
+
+	int GetTextureImageIndex(const tinygltf::Model& model, int textureIndex)
+	{
+		if (textureIndex < 0 || textureIndex >= static_cast<int>(model.textures.size()))
+		{
+			return -1;
+		}
+		return model.textures[textureIndex].source;
+	}
+
+	bool LoadImageDataAsIs(tinygltf::Image* image, const int imageIdx, std::string* err, std::string* warn, int reqWidth, int reqHeight, const unsigned char* bytes, int size, void* userData)
+	{
+		(void)imageIdx;
+		(void)err;
+		(void)warn;
+		(void)reqWidth;
+		(void)reqHeight;
+		(void)userData;
+
+		image->image.resize(static_cast<size_t>(size));
+		memcpy(image->image.data(), bytes, static_cast<size_t>(size));
+		image->as_is = true;
+		return true;
+	}
+
+	const unsigned char* GetAccessorElement(const tinygltf::Model& model, const tinygltf::Accessor& accessor, size_t index)
+	{
+		if (accessor.bufferView < 0 || accessor.bufferView >= static_cast<int>(model.bufferViews.size()))
+		{
+			return nullptr;
+		}
+
+		auto&& view = model.bufferViews[accessor.bufferView];
+		if (view.buffer < 0 || view.buffer >= static_cast<int>(model.buffers.size()))
+		{
+			return nullptr;
+		}
+
+		auto&& buffer = model.buffers[view.buffer];
+		int stride = accessor.ByteStride(view);
+		if (stride < 0)
+		{
+			return nullptr;
+		}
+
+		size_t offset = view.byteOffset + accessor.byteOffset + index * static_cast<size_t>(stride);
+		if (offset >= buffer.data.size())
+		{
+			return nullptr;
+		}
+		return buffer.data.data() + offset;
+	}
+
+	std::vector<uint32_t> ReadIndexBuffer(const tinygltf::Model& model, const tinygltf::Accessor& accessor)
+	{
+		std::vector<uint32_t> ret;
+		ret.reserve(accessor.count);
+		for (size_t i = 0; i < accessor.count; ++i)
+		{
+			auto data = GetAccessorElement(model, accessor, i);
+			if (data == nullptr)
+			{
+				ret.clear();
+				return ret;
+			}
+
+			switch (accessor.componentType)
+			{
+			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+				ret.push_back(*reinterpret_cast<const uint8_t*>(data));
+				break;
+			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+			{
+				uint16_t v;
+				memcpy(&v, data, sizeof(v));
+				ret.push_back(v);
+				break;
+			}
+			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+			{
+				uint32_t v;
+				memcpy(&v, data, sizeof(v));
+				ret.push_back(v);
+				break;
+			}
+			default:
+				ret.clear();
+				return ret;
+			}
+		}
+		return ret;
+	}
+
+	std::vector<float> ReadFloatAccessor(const tinygltf::Model& model, const tinygltf::Accessor& accessor, int componentCount)
+	{
+		std::vector<float> ret;
+		if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
+		{
+			return ret;
+		}
+
+		ret.resize(accessor.count * componentCount);
+		for (size_t i = 0; i < accessor.count; ++i)
+		{
+			auto data = GetAccessorElement(model, accessor, i);
+			if (data == nullptr)
+			{
+				ret.clear();
+				return ret;
+			}
+			memcpy(ret.data() + i * componentCount, data, sizeof(float) * componentCount);
+		}
+		return ret;
+	}
+
+	DirectX::XMFLOAT4X4 GetLocalTransform(const tinygltf::Node& node)
+	{
+		if (node.matrix.size() == 16)
+		{
+			DirectX::XMFLOAT4X4 ret;
+			for (int i = 0; i < 16; ++i)
+			{
+				reinterpret_cast<float*>(&ret)[i] = static_cast<float>(node.matrix[i]);
+			}
+			return ret;
+		}
+
+		DirectX::XMFLOAT3 t(0.0f, 0.0f, 0.0f);
+		DirectX::XMFLOAT4 r(0.0f, 0.0f, 0.0f, 1.0f);
+		DirectX::XMFLOAT3 s(1.0f, 1.0f, 1.0f);
+		if (node.translation.size() == 3)
+		{
+			t = DirectX::XMFLOAT3(static_cast<float>(node.translation[0]), static_cast<float>(node.translation[1]), static_cast<float>(node.translation[2]));
+		}
+		if (node.rotation.size() == 4)
+		{
+			r = DirectX::XMFLOAT4(static_cast<float>(node.rotation[0]), static_cast<float>(node.rotation[1]), static_cast<float>(node.rotation[2]), static_cast<float>(node.rotation[3]));
+		}
+		if (node.scale.size() == 3)
+		{
+			s = DirectX::XMFLOAT3(static_cast<float>(node.scale[0]), static_cast<float>(node.scale[1]), static_cast<float>(node.scale[2]));
+		}
+
+		auto T = DirectX::XMMatrixTranslation(t.x, t.y, t.z);
+		auto R = DirectX::XMMatrixRotationQuaternion(DirectX::XMLoadFloat4(&r));
+		auto S = DirectX::XMMatrixScaling(s.x, s.y, s.z);
+		auto matrix = DirectX::XMMatrixMultiply(S, R);
+		matrix = DirectX::XMMatrixMultiply(matrix, T);
+
+		DirectX::XMFLOAT4X4 ret;
+		DirectX::XMStoreFloat4x4(&ret, matrix);
+		return ret;
+	}
 
 	struct MikkTSpaceMesh
 	{
@@ -218,153 +373,121 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 		is_glb = true;
 	}
 
-	// glTF stream initialize.
-	auto stream_reader = std::make_unique<StreamReader>(inputPath);
-	auto gltf_stream = stream_reader->GetInputStream(inputFile);
-	std::unique_ptr<GLTFResourceReader> resource_reader;
-	std::string manifest;
-	if (!is_glb)
+	tinygltf::TinyGLTF loader;
+	tinygltf::Model document;
+	std::string err;
+	std::string warn;
+	loader.SetImagesAsIs(true);
+	loader.SetImageLoader(LoadImageDataAsIs, nullptr);
+
+	bool loaded = is_glb
+		? loader.LoadBinaryFromFile(&document, &err, &warn, inputPath + inputFile)
+		: loader.LoadASCIIFromFile(&document, &err, &warn, inputPath + inputFile);
+	if (!warn.empty())
 	{
-		auto gltf_res_reader = std::make_unique<GLTFResourceReader>(std::move(stream_reader));
-
-		std::stringstream manifestStream;
-		manifestStream << gltf_stream->rdbuf();
-		manifest = manifestStream.str();
-
-		resource_reader = std::move(gltf_res_reader);
+		fprintf(stderr, "%s", warn.c_str());
 	}
-	else
+	if (!loaded)
 	{
-		auto glb_res_reader = std::make_unique<GLBResourceReader>(std::move(stream_reader), std::move(gltf_stream));
-
-		manifest = glb_res_reader->GetJson();
-
-		resource_reader = std::move(glb_res_reader);
-	}
-
-	if (manifest.empty())
-	{
+		if (!err.empty())
+		{
+			fprintf(stderr, "%s", err.c_str());
+		}
 		return false;
 	}
 
-	auto document = Deserialize(manifest);
-
 	// read texture images.
 	{
-		textures_.reserve(document.images.Size());
-		for (auto&& image : document.images.Elements())
+		textures_.reserve(document.images.size());
+		for (auto&& image : document.images)
 		{
 			auto work = std::make_unique<TextureWork>();
 
-			auto data = resource_reader->ReadBinaryData(document, image);
-			work->binary_.swap(data);
-
-			// get image format from mimeType.
-			static const std::string kImage("image/");
-			size_t p = image.mimeType.find_first_of(kImage);
-			if (p != std::string::npos)
-			{
-				std::string format = image.mimeType.substr(p + kImage.length());
-				work->format_ = format;
-			}
+			work->binary_ = image.image;
+			work->format_ = GetImageFormat(image);
 			
 			textures_.push_back(std::move(work));
 		}
 	}
 
 	// read materials.
-	materials_.reserve(document.materials.Size());
-	for (auto&& mat : document.materials.Elements())
+	auto setMaterialTexture = [this, &document](MaterialWork* work, int textureIndex, int textureKind, const std::string& materialName, const char* suffix)
+	{
+		int imageIndex = GetTextureImageIndex(document, textureIndex);
+		if (imageIndex < 0 || imageIndex >= static_cast<int>(textures_.size()))
+		{
+			return;
+		}
+
+		auto texName = textures_[imageIndex]->name_;
+		if (texName.empty())
+		{
+			texName = materialName + suffix;
+			textures_[imageIndex]->name_ = texName;
+		}
+		work->textures_[textureKind] = texName;
+	};
+
+	materials_.reserve(document.materials.size());
+	for (auto&& mat : document.materials)
 	{
 		std::unique_ptr<MaterialWork> work(new MaterialWork());
 
 		work->name_ = mat.name;
 
-		for (auto&& tex : mat.GetTextures())
+		setMaterialTexture(work.get(), mat.pbrMetallicRoughness.baseColorTexture.index, MaterialWork::TextureKind::BaseColor, mat.name, ".bc.png");
+		setMaterialTexture(work.get(), mat.normalTexture.index, MaterialWork::TextureKind::Normal, mat.name, ".n.png");
+		setMaterialTexture(work.get(), mat.pbrMetallicRoughness.metallicRoughnessTexture.index, MaterialWork::TextureKind::ORM, mat.name, ".orm.png");
+		setMaterialTexture(work.get(), mat.emissiveTexture.index, MaterialWork::TextureKind::Emissive, mat.name, ".em.png");
+
+		auto&& PBR = mat.pbrMetallicRoughness;
+		if (PBR.baseColorFactor.size() >= 4)
 		{
-			if (tex.first.empty())
-			{
-				continue;
-			}
-
-			auto tex_index = std::stoi(tex.first);
-			auto image_index = std::stoi(document.textures.Get(tex_index).imageId);
-			auto tex_name = document.images.Get(image_index).uri;
-			{
-				tex_name = textures_[image_index]->name_;
-				if (tex_name.empty())
-				{
-					tex_name = mat.name;
-					switch (tex.second)
-					{
-					case TextureType::BaseColor:			tex_name += ".bc.png"; break;
-					case TextureType::Normal:				tex_name += ".n.png"; break;
-					case TextureType::MetallicRoughness:	tex_name += ".orm.png"; break;
-					case TextureType::Emissive:				tex_name += ".em.png"; break;
-					}
-					textures_[image_index]->name_ = tex_name;
-				}
-			}
-			switch (tex.second)
-			{
-			case TextureType::BaseColor:			work->textures_[MaterialWork::TextureKind::BaseColor] = tex_name; break;
-			case TextureType::Normal:				work->textures_[MaterialWork::TextureKind::Normal] = tex_name; break;
-			case TextureType::MetallicRoughness:	work->textures_[MaterialWork::TextureKind::ORM] = tex_name; break;
-			case TextureType::Emissive:				work->textures_[MaterialWork::TextureKind::Emissive] = tex_name; break;
-			}
+			work->baseColor_ = DirectX::XMFLOAT4(
+				static_cast<float>(PBR.baseColorFactor[0]),
+				static_cast<float>(PBR.baseColorFactor[1]),
+				static_cast<float>(PBR.baseColorFactor[2]),
+				static_cast<float>(PBR.baseColorFactor[3]));
 		}
-
-		auto&& PBR = mat.metallicRoughness;
-		work->baseColor_ = DirectX::XMFLOAT4(PBR.baseColorFactor.r, PBR.baseColorFactor.g, PBR.baseColorFactor.b, PBR.baseColorFactor.a);
-		work->emissiveColor_ = DirectX::XMFLOAT3(mat.emissiveFactor.r, mat.emissiveFactor.g, mat.emissiveFactor.b);
-		work->roughness_ = PBR.roughnessFactor;
-		work->metallic_ = PBR.metallicFactor;
-		work->blendType_ = kBlendTypes[mat.alphaMode];
+		if (mat.emissiveFactor.size() >= 3)
+		{
+			work->emissiveColor_ = DirectX::XMFLOAT3(
+				static_cast<float>(mat.emissiveFactor[0]),
+				static_cast<float>(mat.emissiveFactor[1]),
+				static_cast<float>(mat.emissiveFactor[2]));
+		}
+		work->roughness_ = static_cast<float>(PBR.roughnessFactor);
+		work->metallic_ = static_cast<float>(PBR.metallicFactor);
+		if (mat.alphaMode == "BLEND")
+		{
+			work->blendType_ = sl12::ResourceMeshMaterialBlendType::Translucent;
+		}
+		else if (mat.alphaMode == "MASK")
+		{
+			work->blendType_ = sl12::ResourceMeshMaterialBlendType::Masked;
+		}
+		else
+		{
+			work->blendType_ = sl12::ResourceMeshMaterialBlendType::Opaque;
+		}
 		work->cullMode_ = mat.doubleSided ? sl12::ResourceMeshMaterialCullMode::None : sl12::ResourceMeshMaterialCullMode::Back;
 
 		materials_.push_back(std::move(work));
 	}
 
 	// read nodes.
-	for (auto&& node : document.nodes.Elements())
+	for (auto&& node : document.nodes)
 	{
 		NodeWork node_work{};
-		DirectX::XMMATRIX matrix = DirectX::XMMatrixIdentity();
 
-		DirectX::XMStoreFloat4x4(&node_work.transformLocal, matrix);
-		node_work.meshIndex = -1;
+		node_work.transformLocal = GetLocalTransform(node);
+		node_work.transformGlobal = node_work.transformLocal;
+		node_work.meshIndex = node.mesh;
 		node_work.children.clear();
-
-		if (!node.meshId.empty())
-		{
-			node_work.meshIndex = std::stoi(node.meshId);
-		}
 		for (auto&& child : node.children)
 		{
-			node_work.children.push_back(std::stoi(child));
+			node_work.children.push_back(static_cast<uint32_t>(child));
 		}
-
-		if (node.GetTransformationType() == Microsoft::glTF::TransformationType::TRANSFORMATION_MATRIX)
-		{
-			node_work.transformLocal = DirectX::XMFLOAT4X4(node.matrix.values.data());
-		}
-		else if (node.GetTransformationType() == Microsoft::glTF::TransformationType::TRANSFORMATION_TRS)
-		{
-			auto t = DirectX::XMFLOAT3(node.translation.x, node.translation.y, node.translation.z);
-			auto r = DirectX::XMFLOAT4(node.rotation.x, node.rotation.y, node.rotation.z, node.rotation.w);
-			auto s = DirectX::XMFLOAT3(node.scale.x, node.scale.y, node.scale.z);
-
-			auto T = DirectX::XMMatrixTranslation(t.x, t.y, t.z);
-			auto R = DirectX::XMMatrixRotationQuaternion(DirectX::XMLoadFloat4(&r));
-			auto S = DirectX::XMMatrixScaling(s.x, s.y, s.z);
-
-			matrix = DirectX::XMMatrixMultiply(S, R);
-			matrix = DirectX::XMMatrixMultiply(matrix, T);
-
-			DirectX::XMStoreFloat4x4(&node_work.transformLocal, matrix);
-		}
-
-		node_work.transformGlobal = node_work.transformLocal;
 
 		nodes_.push_back(node_work);
 	}
@@ -388,47 +511,38 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 		if (node.meshIndex < 0)
 			continue;
 
+		if (node.meshIndex >= static_cast<int>(document.meshes.size()))
+		{
+			continue;
+		}
+
 		auto&& mesh = document.meshes[node.meshIndex];
 		DirectX::XMMATRIX transform = DirectX::XMLoadFloat4x4(&node.transformGlobal);
 		for (auto&& prim : mesh.primitives)
 		{
+			if (prim.mode != TINYGLTF_MODE_TRIANGLES || prim.indices < 0 || prim.indices >= static_cast<int>(document.accessors.size()))
+			{
+				continue;
+			}
+
 			std::unique_ptr<SubmeshWork> work(new SubmeshWork());
 
-			work->materialIndex_ = std::stoi(prim.materialId);
+			work->materialIndex_ = prim.material;
 
 			// create base index buffer.
-			auto&& index_accessor = document.accessors.Get(prim.indicesAccessorId);
-			if (index_accessor.componentType == Microsoft::glTF::ComponentType::COMPONENT_UNSIGNED_BYTE)
+			auto&& index_accessor = document.accessors[prim.indices];
+			work->indexBuffer_ = ReadIndexBuffer(document, index_accessor);
+			if (work->indexBuffer_.empty())
 			{
-				auto indexBuffer = resource_reader->ReadBinaryData<uint8_t>(document, index_accessor);
-				work->indexBuffer_.clear();
-				work->indexBuffer_.reserve(indexBuffer.size());
-				for (auto&& index : indexBuffer)
-				{
-					work->indexBuffer_.push_back((uint32_t)index);
-				}
-			}
-			if (index_accessor.componentType == Microsoft::glTF::ComponentType::COMPONENT_UNSIGNED_SHORT)
-			{
-				auto indexBuffer = resource_reader->ReadBinaryData<uint16_t>(document, index_accessor);
-				work->indexBuffer_.clear();
-				work->indexBuffer_.reserve(indexBuffer.size());
-				for (auto&& index : indexBuffer)
-				{
-					work->indexBuffer_.push_back((uint32_t)index);
-				}
-			}
-			if (index_accessor.componentType == Microsoft::glTF::ComponentType::COMPONENT_UNSIGNED_INT)
-			{
-				work->indexBuffer_ = resource_reader->ReadBinaryData<uint32_t>(document, index_accessor);
+				return false;
 			}
 
 			// create base vertex buffer.
-			std::string accessorId;
-			if (prim.TryGetAttributeAccessorId("POSITION", accessorId))
+			auto attr = prim.attributes.find("POSITION");
+			if (attr != prim.attributes.end() && attr->second >= 0 && attr->second < static_cast<int>(document.accessors.size()))
 			{
-				auto&& posAccessor = document.accessors.Get(accessorId);
-				auto posData = resource_reader->ReadBinaryData<float>(document, posAccessor);
+				auto&& posAccessor = document.accessors[attr->second];
+				auto posData = ReadFloatAccessor(document, posAccessor, 3);
 				size_t vertex_count = posData.size() / 3;
 				work->vertexBuffer_.resize(vertex_count);
 				for (size_t i = 0; i < vertex_count; ++i)
@@ -439,28 +553,40 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 					DirectX::XMStoreFloat3(&work->vertexBuffer_[i].pos, V);
 				}
 
-				if (prim.TryGetAttributeAccessorId("NORMAL", accessorId))
+				attr = prim.attributes.find("NORMAL");
+				if (attr != prim.attributes.end() && attr->second >= 0 && attr->second < static_cast<int>(document.accessors.size()))
 				{
-					auto&& normalAccessor = document.accessors.Get(accessorId);
-					auto normalData = resource_reader->ReadBinaryData<float>(document, normalAccessor);
-					for (size_t i = 0; i < vertex_count; ++i)
+					auto&& normalAccessor = document.accessors[attr->second];
+					auto normalData = ReadFloatAccessor(document, normalAccessor, 3);
+					if (normalData.size() >= vertex_count * 3)
 					{
-						DirectX::XMFLOAT3 n(normalData[i * 3 + 0], normalData[i * 3 + 1], normalData[i * 3 + 2]);
-						DirectX::XMVECTOR N = DirectX::XMLoadFloat3(&n);
-						N = DirectX::XMVector3Normalize(DirectX::XMVector3TransformNormal(N, transform));
-						DirectX::XMStoreFloat3(&work->vertexBuffer_[i].normal, N);
+						for (size_t i = 0; i < vertex_count; ++i)
+						{
+							DirectX::XMFLOAT3 n(normalData[i * 3 + 0], normalData[i * 3 + 1], normalData[i * 3 + 2]);
+							DirectX::XMVECTOR N = DirectX::XMLoadFloat3(&n);
+							N = DirectX::XMVector3Normalize(DirectX::XMVector3TransformNormal(N, transform));
+							DirectX::XMStoreFloat3(&work->vertexBuffer_[i].normal, N);
+						}
 					}
 				}
-				if (prim.TryGetAttributeAccessorId("TEXCOORD_0", accessorId))
+				attr = prim.attributes.find("TEXCOORD_0");
+				if (attr != prim.attributes.end() && attr->second >= 0 && attr->second < static_cast<int>(document.accessors.size()))
 				{
-					auto&& uvAccessor = document.accessors.Get(accessorId);
-					auto uvData = resource_reader->ReadBinaryData<float>(document, uvAccessor);
-					for (size_t i = 0; i < vertex_count; ++i)
+					auto&& uvAccessor = document.accessors[attr->second];
+					auto uvData = ReadFloatAccessor(document, uvAccessor, 2);
+					if (uvData.size() >= vertex_count * 2)
 					{
-						work->vertexBuffer_[i].uv.x = uvData[i * 2 + 0];
-						work->vertexBuffer_[i].uv.y = uvData[i * 2 + 1];
+						for (size_t i = 0; i < vertex_count; ++i)
+						{
+							work->vertexBuffer_[i].uv.x = uvData[i * 2 + 0];
+							work->vertexBuffer_[i].uv.y = uvData[i * 2 + 1];
+						}
 					}
 				}
+			}
+			if (work->vertexBuffer_.empty())
+			{
+				return false;
 			}
 
 			// generate mikk t space.
@@ -488,6 +614,10 @@ bool MeshWork::ReadGLTFMesh(const std::string& inputPath, const std::string& inp
 
 			submeshes_.push_back(std::move(work));
 		}
+	}
+	if (all_points.empty())
+	{
+		return false;
 	}
 
 	// compute mesh bounds.

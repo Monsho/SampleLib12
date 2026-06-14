@@ -1,9 +1,6 @@
 ﻿#pragma comment(lib, "imagehlp.lib")
 
 #include <algorithm>
-#include "GLTFSDK/GLTF.h"
-#include "GLTFSDK/GLBResourceReader.h"
-#include "GLTFSDK/Deserialize.h"
 #include "meshoptimizer.h"
 #include "mikktspace.h"
 
@@ -26,8 +23,6 @@
 #include <windows.h>
 #include <imagehlp.h>
 
-
-using namespace Microsoft::glTF;
 
 struct ToolOptions
 {

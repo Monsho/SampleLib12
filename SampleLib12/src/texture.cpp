@@ -41,7 +41,7 @@ namespace sl12
 		{
 			return false;
 		}
-		
+
 		const D3D12_RESOURCE_DIMENSION kDimensionTable[] = {
 			D3D12_RESOURCE_DIMENSION_TEXTURE1D,
 			D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -65,6 +65,14 @@ namespace sl12
 		bool isRenderTarget = (desc.usage & ResourceUsage::RenderTarget) != 0;
 		bool isDepthStencil = (desc.usage & ResourceUsage::DepthStencil) != 0;
 		bool isUAV = (desc.usage & ResourceUsage::UnorderedAccess) != 0;
+		bool isPlacedTarget = isRenderTarget || isDepthStencil || isUAV;
+		if (desc.allocation == ResourceHeapAllocation::Placed)
+		{
+			if (!desc.pHeapAllocator || !isPlacedTarget || desc.forceSysRam || desc.deviceShared)
+			{
+				return false;
+			}
+		}
 
 		D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
 		if (desc.deviceShared)
@@ -125,7 +133,17 @@ namespace sl12
 			hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, flags, &resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
 			break;
 		case ResourceHeapAllocation::Placed:
-			ConsolePrint("Placed resource is not yet supportted.\n");
+			heapAllocation_ = desc.pHeapAllocator->Allocate(resourceDesc_, desc.heapAliasKey);
+			if (!heapAllocation_.IsValid())
+			{
+				return false;
+			}
+			hr = pDev->GetDeviceDep()->CreatePlacedResource(heapAllocation_.pHeap, heapAllocation_.offset, &resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
+			if (FAILED(hr))
+			{
+				desc.pHeapAllocator->Free(heapAllocation_);
+				heapAllocation_ = HeapAllocation();
+			}
 			break;
 		case ResourceHeapAllocation::Reserved:
 			hr = pDev->GetDeviceDep()->CreateReservedResource(&resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
@@ -139,6 +157,7 @@ namespace sl12
 		}
 
 		textureDesc_ = desc;
+		pHeapAllocator_ = desc.pHeapAllocator;
 
 		SET_DEBUG_NAME(desc.debugName, pResource_)
 
@@ -932,9 +951,21 @@ namespace sl12
 	}
 
 	//----
+	void Texture::ReleaseHeapAllocation()
+	{
+		if (pHeapAllocator_ && heapAllocation_.IsValid())
+		{
+			pHeapAllocator_->Free(heapAllocation_);
+			heapAllocation_ = HeapAllocation();
+			pHeapAllocator_ = nullptr;
+		}
+	}
+
+	//----
 	void Texture::Destroy()
 	{
 		SafeRelease(pResource_);
+		ReleaseHeapAllocation();
 	}
 
 }	// namespace sl12

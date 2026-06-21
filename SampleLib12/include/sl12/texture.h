@@ -2,6 +2,7 @@
 
 #include <sl12/util.h>
 #include <sl12/debug.h>
+#include <sl12/heap_allocator.h>
 #include <DirectXTex.h>
 #include <memory>
 
@@ -29,6 +30,8 @@ namespace sl12
 	struct TextureDesc
 	{
 		ResourceHeapAllocation	allocation				= ResourceHeapAllocation::Committed;
+		HeapAllocator*			pHeapAllocator			= nullptr;
+		u64						heapAliasKey			= 0;
 		TextureDimension::Type	dimension				= TextureDimension::Texture2D;
 		u32						width = 1, height = 1, depth = 1;
 		u32						mipLevels				= 1;
@@ -116,6 +119,7 @@ namespace sl12
 		bool UpdateImage(Device* pDev, CommandList* pCmdList, const DirectX::ScratchImage& image, ID3D12Resource** ppSrcImage);
 		bool UpdateImage(Device* pDev, CommandList* pCmdList, const void* pImageBin, ID3D12Resource** ppSrcImage);
 
+		void ReleaseHeapAllocation();
 		void Destroy();
 
 		// getter
@@ -125,6 +129,8 @@ namespace sl12
 
 	private:
 		ID3D12Resource*			pResource_{ nullptr };
+		HeapAllocator*			pHeapAllocator_{ nullptr };
+		HeapAllocation			heapAllocation_{};
 		TextureDesc				textureDesc_{};
 		D3D12_RESOURCE_DESC		resourceDesc_{};
 		D3D12_CLEAR_VALUE		clearValue_{};

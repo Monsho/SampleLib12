@@ -242,6 +242,17 @@ namespace sl12
 	}
 
 	//----
+	void CommandList::AddAliasingBarrier(Texture* pBefore, Texture* pAfter)
+	{
+		D3D12_RESOURCE_BARRIER barrier;
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Aliasing.pResourceBefore = pBefore ? pBefore->pResource_ : nullptr;
+		barrier.Aliasing.pResourceAfter = pAfter ? pAfter->pResource_ : nullptr;
+		requestBarriers_.push_back(barrier);
+	}
+
+	//----
 	void CommandList::AddUAVBarrier(Texture* p)
 	{
 		if (!p)
@@ -267,6 +278,17 @@ namespace sl12
 			barrier.UAV.pResource = p->pResource_;
 			requestBarriers_.push_back(barrier);
 		}
+	}
+
+	//----
+	void CommandList::DiscardResource(Texture* p)
+	{
+		if (!p)
+		{
+			return;
+		}
+
+		GetCommandList()->DiscardResource(p->pResource_, nullptr);
 	}
 
 	//----

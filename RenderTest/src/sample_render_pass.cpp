@@ -497,7 +497,7 @@ public:
 
 		result.desc.bIsTexture = true;
 		result.desc.textureDesc.Initialize2D(kLightResultFormat, state->GetScreenWidth(), state->GetScreenHeight(), 1, 1, 0);
-		
+
 		ret.push_back(result);
 		return ret;
 	}
@@ -518,7 +518,7 @@ public:
 		auto aoBuffer = pResManager->GetRenderGraphResource(kAOBufferID);
 		auto lightBuffer = pResManager->GetRenderGraphResource(kLightBufferID);
 		auto lightResult = pResManager->GetRenderGraphResource(kLightResultID);
-		
+
 		auto srvGA = pResManager->CreateOrGetTextureView(gbufferA);
 		auto srvGB = pResManager->CreateOrGetTextureView(gbufferB);
 		auto srvGC = pResManager->CreateOrGetTextureView(gbufferC);
@@ -690,11 +690,8 @@ public:
 		sl12::TransientResource light(kLightBufferID, sl12::TransientState::CopyDst);
 
 		light.desc.bIsTexture = false;
-		light.desc.bufferDesc.heap = sl12::BufferHeap::Default;
-		light.desc.bufferDesc.stride = sizeof(LightData);
-		light.desc.bufferDesc.size = light.desc.bufferDesc.stride * 1;
-		light.desc.bufferDesc.usage = sl12::ResourceUsage::ShaderResource;
-		
+		light.desc.bufferDesc.InitializeStructured(sizeof(LightData), 1, sl12::ResourceUsage::ShaderResource);
+
 		ret.push_back(light);
 		return ret;
 	}
@@ -706,7 +703,7 @@ public:
 	{
 		auto state = SceneRenderState::GetInstance();
 		auto pDev = state->GetDevice();
-		
+
 		sl12::UniqueHandle<sl12::Buffer> CopySrcBuffer = sl12::MakeUnique<sl12::Buffer>(pDev);
 		sl12::BufferDesc desc;
 		desc.heap = sl12::BufferHeap::Dynamic;
@@ -723,7 +720,7 @@ public:
 		d = DirectX::XMVector3Normalize(d);
 		DirectX::XMStoreFloat3(&dir, d);
 		time_ += 1.0f;
-		
+
 		LightData* pData = reinterpret_cast<LightData*>(CopySrcBuffer->Map());
 		pData->color = DirectX::XMFLOAT3(10.0f, 0.0f, 0.0f);
 		pData->dir = dir;

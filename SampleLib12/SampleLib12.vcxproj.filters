@@ -204,6 +204,9 @@
     <ClInclude Include="include\sl12\debug.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\sl12\heap_allocator.h">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\swapchain.cpp">
@@ -348,6 +351,9 @@
       <Filter>src\RTXGI\ddgi\gfx</Filter>
     </ClCompile>
     <ClCompile Include="src\render_graph_deprecated.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\heap_allocator.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

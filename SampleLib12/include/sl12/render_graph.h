@@ -214,11 +214,39 @@ namespace sl12
 
 		bool operator<(const TransientResourceDesc& rhs) const
 		{
-			if (operator==(rhs))
+			if (bIsTexture != rhs.bIsTexture)
 			{
+				return bIsTexture < rhs.bIsTexture;
+			}
+
+			if (bIsTexture)
+			{
+				if (textureDesc.format != rhs.textureDesc.format) return textureDesc.format < rhs.textureDesc.format;
+				if (textureDesc.dimension != rhs.textureDesc.dimension) return textureDesc.dimension < rhs.textureDesc.dimension;
+				if (textureDesc.usage != rhs.textureDesc.usage) return textureDesc.usage < rhs.textureDesc.usage;
+				if (textureDesc.width != rhs.textureDesc.width) return textureDesc.width < rhs.textureDesc.width;
+				if (textureDesc.height != rhs.textureDesc.height) return textureDesc.height < rhs.textureDesc.height;
+				if (textureDesc.depth != rhs.textureDesc.depth) return textureDesc.depth < rhs.textureDesc.depth;
+				if (textureDesc.mipLevels != rhs.textureDesc.mipLevels) return textureDesc.mipLevels < rhs.textureDesc.mipLevels;
+				if (textureDesc.sampleCount != rhs.textureDesc.sampleCount) return textureDesc.sampleCount < rhs.textureDesc.sampleCount;
+				if (textureDesc.forceSysRam != rhs.textureDesc.forceSysRam) return textureDesc.forceSysRam < rhs.textureDesc.forceSysRam;
+				if (textureDesc.deviceShared != rhs.textureDesc.deviceShared) return textureDesc.deviceShared < rhs.textureDesc.deviceShared;
+				if (textureDesc.clearColor[0] != rhs.textureDesc.clearColor[0]) return textureDesc.clearColor[0] < rhs.textureDesc.clearColor[0];
+				if (textureDesc.clearColor[1] != rhs.textureDesc.clearColor[1]) return textureDesc.clearColor[1] < rhs.textureDesc.clearColor[1];
+				if (textureDesc.clearColor[2] != rhs.textureDesc.clearColor[2]) return textureDesc.clearColor[2] < rhs.textureDesc.clearColor[2];
+				if (textureDesc.clearColor[3] != rhs.textureDesc.clearColor[3]) return textureDesc.clearColor[3] < rhs.textureDesc.clearColor[3];
+				if (textureDesc.clearDepth != rhs.textureDesc.clearDepth) return textureDesc.clearDepth < rhs.textureDesc.clearDepth;
+				if (textureDesc.clearStencil != rhs.textureDesc.clearStencil) return textureDesc.clearStencil < rhs.textureDesc.clearStencil;
 				return false;
 			}
-			return memcmp(this, &rhs, sizeof(*this)) < 0;
+
+			if (bufferDesc.heap != rhs.bufferDesc.heap) return bufferDesc.heap < rhs.bufferDesc.heap;
+			if (bufferDesc.size != rhs.bufferDesc.size) return bufferDesc.size < rhs.bufferDesc.size;
+			if (bufferDesc.stride != rhs.bufferDesc.stride) return bufferDesc.stride < rhs.bufferDesc.stride;
+			if (bufferDesc.usage != rhs.bufferDesc.usage) return bufferDesc.usage < rhs.bufferDesc.usage;
+			if (bufferDesc.forceSysRam != rhs.bufferDesc.forceSysRam) return bufferDesc.forceSysRam < rhs.bufferDesc.forceSysRam;
+			if (bufferDesc.deviceShared != rhs.bufferDesc.deviceShared) return bufferDesc.deviceShared < rhs.bufferDesc.deviceShared;
+			return false;
 		}
 	};
 
@@ -450,7 +478,12 @@ namespace sl12
 	public:
 		TransientResourceManager(Device* pDev)
 			: pDevice_(pDev)
-		{}
+		{
+			placedRTDSTextureAllocator_ = MakeUnique<HeapAllocator>(nullptr);
+			placedRTDSTextureAllocator_->Initialize(pDev, D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_NON_RT_DS_TEXTURES, 64ull * 1024ull * 1024ull);
+			placedTextureAllocator_ = MakeUnique<HeapAllocator>(nullptr);
+			placedTextureAllocator_->Initialize(pDev, D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES, 64ull * 1024ull * 1024ull);
+		}
 		~TransientResourceManager();
 
 		RenderGraphResource* GetRenderGraphResource(TransientResourceID id);
@@ -470,6 +503,9 @@ namespace sl12
 
 		void ResetResource();
 		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs, const std::vector<std::string>& debugNames);
+		bool SetupPlacedTexture(TextureDesc& desc);
+		void ReleaseHeapAllocation(RDGTransientResourceInstance* pResource);
+		void ReleaseAllHeapAllocations();
 
 		RDGResourceType GetResourceInstance(TransientResourceID id, RDGTransientResourceInstance*& OutTransient, RDGExternalResourceInstance*& OutExternal);
 		RDGTransientResourceInstance* GetTransientResourceInstance(TransientResourceID id);
@@ -477,6 +513,8 @@ namespace sl12
 
 	private:
 		Device*		pDevice_ = nullptr;
+		UniqueHandle<HeapAllocator>														placedRTDSTextureAllocator_;
+		UniqueHandle<HeapAllocator>														placedTextureAllocator_;
 
 		std::vector<std::unique_ptr<RDGTransientResourceInstance>>							committedResources_;
 		std::map<TransientResourceID, RenderGraphResource>									graphResources_;
@@ -573,6 +611,22 @@ namespace sl12
 				: id(_id), before(_before), after(_after)
 			{}
 		};
+		struct AliasBarrier
+		{
+			bool				hasBefore = false;
+			TransientResourceID	before;
+			TransientResourceID	after;
+
+			AliasBarrier(TransientResourceID _after)
+				: before("")
+				, after(_after)
+			{}
+			AliasBarrier(TransientResourceID _before, TransientResourceID _after)
+				: hasBefore(true)
+				, before(_before)
+				, after(_after)
+			{}
+		};
 		struct Command
 		{
 			CommandType::Value		type;
@@ -582,6 +636,8 @@ namespace sl12
 			u16						fenceIndex;
 			u16						loaderIndex;
 			std::vector<Barrier>	barriers;
+			std::vector<AliasBarrier>	aliasBarriers;
+			std::vector<TransientResourceID>	discardResources;
 		};
 		struct Loader
 		{

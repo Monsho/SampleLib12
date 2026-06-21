@@ -95,8 +95,10 @@ namespace sl12
 		void AddTransitionBarrier(Texture* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
 		void AddTransitionBarrier(Texture* p, UINT subresource, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
 		void AddTransitionBarrier(Buffer* p, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
+		void AddAliasingBarrier(Texture* pBefore, Texture* pAfter);
 		void AddUAVBarrier(Texture* p);
 		void AddUAVBarrier(Buffer* p);
+		void DiscardResource(Texture* p);
 
 		// Execute requested barriers.
 		void FlushBarriers();

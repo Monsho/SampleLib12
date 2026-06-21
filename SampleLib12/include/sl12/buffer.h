@@ -38,6 +38,10 @@ namespace sl12
 			stride = _stride;
 			usage = _usage;
 			heap = _heap;
+			initialState = D3D12_RESOURCE_STATE_COMMON;
+			forceSysRam = false;
+			deviceShared = false;
+			debugName = nullptr;
 		}
 		void InitializeByteAddress(size_t _size, u32 _usage, BufferHeap::Type _heap = BufferHeap::Default)
 		{
@@ -45,6 +49,10 @@ namespace sl12
 			stride = 0;
 			usage = _usage;
 			heap = _heap;
+			initialState = D3D12_RESOURCE_STATE_COMMON;
+			forceSysRam = false;
+			deviceShared = false;
+			debugName = nullptr;
 		}
 	};	// struct BufferDesc
 

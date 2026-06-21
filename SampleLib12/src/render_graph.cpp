@@ -80,6 +80,7 @@ namespace sl12
 {
 	TransientResourceManager::~TransientResourceManager()
 	{
+		ReleaseAllHeapAllocations();
 		committedResources_.clear();
 		unusedResources_.clear();
 	}
@@ -112,13 +113,85 @@ namespace sl12
 		return &it->second;
 	}
 
+	bool TransientResourceManager::SetupPlacedTexture(TextureDesc& desc)
+	{
+		if (desc.allocation != ResourceHeapAllocation::Committed || desc.forceSysRam || desc.deviceShared)
+		{
+			return false;
+		}
+
+		const u32 placedUsage = ResourceUsage::RenderTarget | ResourceUsage::DepthStencil | ResourceUsage::UnorderedAccess;
+		if ((desc.usage & placedUsage) == 0)
+		{
+			return false;
+		}
+
+		desc.allocation = ResourceHeapAllocation::Placed;
+		if (desc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil))
+		{
+			desc.pHeapAllocator = &placedRTDSTextureAllocator_;
+		}
+		else
+		{
+			desc.pHeapAllocator = &placedTextureAllocator_;
+		}
+		return desc.pHeapAllocator != nullptr;
+	}
+
+	void TransientResourceManager::ReleaseHeapAllocation(RDGTransientResourceInstance* pResource)
+	{
+		if (pResource && pResource->desc.bIsTexture && pResource->texture.IsValid())
+		{
+			pResource->texture->ReleaseHeapAllocation();
+		}
+	}
+
+	void TransientResourceManager::ReleaseAllHeapAllocations()
+	{
+		for (auto&& res : committedResources_)
+		{
+			ReleaseHeapAllocation(res.get());
+		}
+		for (auto&& res : unusedResources_)
+		{
+			ReleaseHeapAllocation(res.second.get());
+		}
+		for (auto&& res : historyResources_)
+		{
+			ReleaseHeapAllocation(res.second.get());
+		}
+		for (auto&& res : passOnlyResources_)
+		{
+			ReleaseHeapAllocation(res.instance.get());
+		}
+	}
+
+	namespace
+	{
+		bool NeedsPlacedDiscard(const TransientResourceDesc& desc)
+		{
+			if (!desc.bIsTexture || desc.textureDesc.allocation != ResourceHeapAllocation::Placed)
+			{
+				return false;
+			}
+			return (desc.textureDesc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil)) != 0;
+		}
+	}
+
 	RenderGraphResource* TransientResourceManager::CreatePassOnlyResource(const TransientResourceDesc& desc)
 	{
 		std::lock_guard<std::mutex> lock(passOnlyMutex_);
 
 		// search in unused list.
-		auto find_it = unusedResources_.find(desc);
-		if (find_it != unusedResources_.end())
+		auto [find_it, find_end] = unusedResources_.equal_range(desc);
+		for (; find_it != find_end; ++find_it)
+		{
+			if (!desc.bIsTexture || find_it->second->desc.textureDesc.heapAliasKey == desc.textureDesc.heapAliasKey)
+			{
+				break;
+			}
+		}
+		if (find_it != find_end)
 		{
 			// use cached resource instance.
 			RDGPassOnlyResource passOnly;
@@ -147,7 +220,11 @@ namespace sl12
 		{
 			// create new texture.
 			res->texture = MakeUnique<Texture>(pDevice_);
-			if (!res->texture->Initialize(pDevice_, desc.textureDesc))
+			auto copyDesc = desc.textureDesc;
+			SetupPlacedTexture(copyDesc);
+			copyDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
+			res->desc.textureDesc = copyDesc;
+			if (!res->texture->Initialize(pDevice_, copyDesc))
 			{
 				ConsolePrint("Error : Can NOT create transient texture.");
 				assert(false);
@@ -465,6 +542,7 @@ namespace sl12
 				{
 					viewInstances_.erase(views.first, views.second);
 				}
+				ReleaseHeapAllocation(it->second.get());
 				it = unusedResources_.erase(it);
 				continue;
 			}
@@ -551,7 +629,20 @@ namespace sl12
 		int index = 0;
 		for (auto desc : descs)
 		{
-			auto find_it = unusedResources_.find(desc);
+			bool useAliasAllocation = desc.bIsTexture && desc.textureDesc.heapAliasKey != 0;
+			auto find_it = unusedResources_.end();
+			if (!useAliasAllocation)
+			{
+				auto [it, end] = unusedResources_.equal_range(desc);
+				for (; it != end; ++it)
+				{
+					if (!desc.bIsTexture || it->second->desc.textureDesc.heapAliasKey == desc.textureDesc.heapAliasKey)
+					{
+						find_it = it;
+						break;
+					}
+				}
+			}
 			if (find_it != unusedResources_.end())
 			{
 				// use cached resource instance.
@@ -570,6 +661,9 @@ namespace sl12
 					res->texture = MakeUnique<Texture>(pDevice_);
 					auto copyDesc = desc.textureDesc;
 					copyDesc.debugName = debugNames[index].c_str();
+					SetupPlacedTexture(copyDesc);
+					copyDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
+					res->desc.textureDesc = copyDesc;
 					if (!res->texture->Initialize(pDevice_, copyDesc))
 					{
 						ConsolePrint("Error : Can NOT create transient texture.");
@@ -976,24 +1070,54 @@ namespace sl12
 
 	void RenderGraph::CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap, std::vector<std::string>& OutDebugNames)
 	{
+		static u64 sAliasKey = 1;
+		auto IsAliasEligible = [](const TransientResourceDesc& desc)
+		{
+			if (!desc.bIsTexture || desc.historyFrame > 0 || desc.textureDesc.forceSysRam || desc.textureDesc.deviceShared)
+			{
+				return false;
+			}
+			const u32 placedUsage = ResourceUsage::RenderTarget | ResourceUsage::DepthStencil | ResourceUsage::UnorderedAccess;
+			return (desc.textureDesc.usage & placedUsage) != 0;
+		};
+
 		// This structure contains a cached resource desc and a set of IDs to use this resource.
 		struct CachedResource
 		{
 			TransientResourceDesc desc;
 			std::set<TransientResourceID> ids;
+			std::vector<TransientResource> aliasResources;
 			std::vector<TransientResourceLifespan> lifespans;
+			bool aliasEligible = false;
 		};
 		std::multimap<TransientResourceDesc, CachedResource> cache;
 		for (const TransientResource& res : transientResources_)
 		{
 			TransientResourceDesc key = res.desc;
-			if (key.bIsTexture) key.textureDesc.usage = 0;
+			bool aliasEligible = IsAliasEligible(res.desc);
+			if (key.bIsTexture)
+			{
+				if (aliasEligible)
+				{
+					key.textureDesc.usage = (res.desc.textureDesc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil))
+						? ResourceUsage::RenderTarget
+						: ResourceUsage::UnorderedAccess;
+				}
+				else
+				{
+					key.textureDesc.usage = 0;
+				}
+			}
 			else key.bufferDesc.usage = 0;
 
 			auto [it, end] = cache.equal_range(key);
 			for (; it != end; ++it)
 			{
 				CachedResource& cached = it->second;
+				if (cached.aliasEligible != aliasEligible)
+				{
+					continue;
+				}
 				bool bOverlapped = false;
 				for (auto life : cached.lifespans)
 				{
@@ -1006,7 +1130,11 @@ namespace sl12
 				if (!bOverlapped)
 				{
 					// reuse cache because no overlap.
-					if (cached.desc.bIsTexture)
+					if (aliasEligible)
+					{
+						cached.aliasResources.emplace_back(res);
+					}
+					else if (cached.desc.bIsTexture)
 					{
 						cached.desc.textureDesc.usage |= res.desc.textureDesc.usage;
 					}
@@ -1022,7 +1150,16 @@ namespace sl12
 			if (it == end)
 			{
 				// add desc because no hit cache.
-				cache.emplace(key, CachedResource{res.desc, {res.id}, {res.lifespan}});
+				CachedResource cached;
+				cached.desc = res.desc;
+				cached.ids.emplace(res.id);
+				cached.lifespans.emplace_back(res.lifespan);
+				cached.aliasEligible = aliasEligible;
+				if (aliasEligible)
+				{
+					cached.aliasResources.emplace_back(res);
+				}
+				cache.emplace(key, std::move(cached));
 			}
 		}
 
@@ -1030,13 +1167,29 @@ namespace sl12
 		// OutIDMap : The dictionary of TransientResourceID to OutDescs index.
 		for (auto it = cache.begin(); it != cache.end(); ++it)
 		{
-			u16 no = (u16)OutDescs.size();
-			OutDescs.emplace_back(it->second.desc);
-			for (auto&& id : it->second.ids)
+			if (it->second.aliasEligible)
 			{
-				OutIDMap[id] = no;
+				u64 aliasKey = it->second.aliasResources.size() > 1 ? sAliasKey++ : 0;
+				for (auto&& res : it->second.aliasResources)
+				{
+					u16 no = (u16)OutDescs.size();
+					TransientResourceDesc desc = res.desc;
+					desc.textureDesc.heapAliasKey = aliasKey;
+					OutDescs.emplace_back(desc);
+					OutIDMap[res.id] = no;
+					OutDebugNames.emplace_back(res.id.name);
+				}
 			}
-			OutDebugNames.emplace_back(it->second.ids.begin()->name);
+			else
+			{
+				u16 no = (u16)OutDescs.size();
+				OutDescs.emplace_back(it->second.desc);
+				for (auto&& id : it->second.ids)
+				{
+					OutIDMap[id] = no;
+				}
+				OutDebugNames.emplace_back(it->second.ids.begin()->name);
+			}
 		}
 	}
 
@@ -1351,10 +1504,13 @@ namespace sl12
 		}
 
 		// set resource barrier.
+		std::map<u64, TransientResourceID> activeAliasResources;
+		std::set<TransientResourceID> discardedPlacedResources;
 		for (auto&& transition : graphicsTransitions)
 		{
 			auto&& cmd = tempCommands[HardwareQueue::Graphics][transition.commandIndex];
 			assert(cmd.type == CommandType::Barrier);
+			std::set<TransientResourceID> commandDiscardResources;
 
 			std::map<TransientResourceID, TransientResource> transientRess;
 			for (auto nodeID : transition.relativeNodeIDs)
@@ -1380,6 +1536,36 @@ namespace sl12
 				{
 				case TransientResourceManager::RDGResourceType::Transient:
 				case TransientResourceManager::RDGResourceType::History:
+					if (pTRes->desc.bIsTexture && pTRes->desc.textureDesc.heapAliasKey != 0)
+					{
+						u64 aliasKey = pTRes->desc.textureDesc.heapAliasKey;
+						auto activeIt = activeAliasResources.find(aliasKey);
+						if (activeIt == activeAliasResources.end())
+						{
+							cmd.aliasBarriers.push_back(AliasBarrier(res.first));
+							activeAliasResources.emplace(aliasKey, res.first);
+							if (NeedsPlacedDiscard(pTRes->desc))
+							{
+								commandDiscardResources.emplace(res.first);
+								discardedPlacedResources.emplace(res.first);
+							}
+						}
+						else if (!(activeIt->second == res.first))
+						{
+							cmd.aliasBarriers.push_back(AliasBarrier(activeIt->second, res.first));
+							activeIt->second = res.first;
+							if (NeedsPlacedDiscard(pTRes->desc))
+							{
+								commandDiscardResources.emplace(res.first);
+								discardedPlacedResources.emplace(res.first);
+							}
+						}
+					}
+					else if (NeedsPlacedDiscard(pTRes->desc) && discardedPlacedResources.find(res.first) == discardedPlacedResources.end())
+					{
+						commandDiscardResources.emplace(res.first);
+						discardedPlacedResources.emplace(res.first);
+					}
 					if (pTRes->state != res.second.state)
 					{
 						cmd.barriers.push_back(Barrier(res.first, pTRes->state, res.second.state));
@@ -1404,6 +1590,7 @@ namespace sl12
 					break;
 				}
 			}
+			cmd.discardResources.insert(cmd.discardResources.end(), commandDiscardResources.begin(), commandDiscardResources.end());
 		}
 
 		// create fences.
@@ -1604,6 +1791,16 @@ namespace sl12
 				else
 				{
 					// barrier.
+					for (auto&& aliasBarrier : cmd.aliasBarriers)
+					{
+						RenderGraphResource* beforeRes = aliasBarrier.hasBefore ? resManager_->GetRenderGraphResource(aliasBarrier.before) : nullptr;
+						RenderGraphResource* afterRes = resManager_->GetRenderGraphResource(aliasBarrier.after);
+						Texture* beforeTexture = (beforeRes && beforeRes->bIsTexture) ? beforeRes->pTexture : nullptr;
+						Texture* afterTexture = (afterRes && afterRes->bIsTexture) ? afterRes->pTexture : nullptr;
+						loader.pCmdList->AddAliasingBarrier(beforeTexture, afterTexture);
+					}
+					loader.pCmdList->FlushBarriers();
+
 					for (auto&& barrier : cmd.barriers)
 					{
 						RenderGraphResource* res = resManager_->GetRenderGraphResource(barrier.id);
@@ -1642,6 +1839,15 @@ namespace sl12
 						}
 					}
 					loader.pCmdList->FlushBarriers();
+
+					for (auto&& discard : cmd.discardResources)
+					{
+						RenderGraphResource* res = resManager_->GetRenderGraphResource(discard);
+						if (res && res->bIsTexture)
+						{
+							loader.pCmdList->DiscardResource(res->pTexture);
+						}
+					}
 				}
 			}
 			if (loader.bLastCommand)

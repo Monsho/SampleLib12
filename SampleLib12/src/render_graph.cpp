@@ -1,5 +1,6 @@
 ﻿#include <sl12/render_graph.h>
 
+#include <algorithm>
 #include <set>
 
 #include "sl12/buffer.h"
@@ -63,6 +64,61 @@ namespace
 		return kD3D12States[static_cast<int>(state)];
 	}
 
+	D3D12_RESOURCE_DESC TextureDescToD3D12ResourceDesc(const sl12::TextureDesc& desc)
+	{
+		static const D3D12_RESOURCE_DIMENSION kDimensionTable[] = {
+			D3D12_RESOURCE_DIMENSION_TEXTURE1D,
+			D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+			D3D12_RESOURCE_DIMENSION_TEXTURE3D,
+		};
+
+		bool isRenderTarget = (desc.usage & sl12::ResourceUsage::RenderTarget) != 0;
+		bool isDepthStencil = (desc.usage & sl12::ResourceUsage::DepthStencil) != 0;
+		bool isUAV = (desc.usage & sl12::ResourceUsage::UnorderedAccess) != 0;
+
+		D3D12_RESOURCE_DESC ret{};
+		ret.Dimension = kDimensionTable[desc.dimension];
+		ret.Alignment = 0;
+		ret.Width = desc.width;
+		ret.Height = desc.height;
+		ret.DepthOrArraySize = desc.depth;
+		ret.MipLevels = desc.mipLevels;
+		ret.Format = desc.format;
+		ret.SampleDesc.Count = desc.sampleCount;
+		ret.SampleDesc.Quality = 0;
+		ret.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		ret.Flags = isRenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
+		ret.Flags |= isDepthStencil ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
+		ret.Flags |= isUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+		ret.Flags |= desc.deviceShared ? D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+
+		switch (ret.Format)
+		{
+		case DXGI_FORMAT_D32_FLOAT:
+			ret.Format = DXGI_FORMAT_R32_TYPELESS; break;
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+			ret.Format = DXGI_FORMAT_R32G8X24_TYPELESS; break;
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+			ret.Format = DXGI_FORMAT_R24G8_TYPELESS; break;
+		case DXGI_FORMAT_D16_UNORM:
+			ret.Format = DXGI_FORMAT_R16_TYPELESS; break;
+		}
+		return ret;
+	}
+
+	enum class EAliasHeapType
+	{
+		RTDS,
+		NonRTDS,
+	};
+
+	EAliasHeapType GetAliasHeapType(const sl12::TransientResourceDesc& desc)
+	{
+		return (desc.textureDesc.usage & (sl12::ResourceUsage::RenderTarget | sl12::ResourceUsage::DepthStencil)) != 0
+			? EAliasHeapType::RTDS
+			: EAliasHeapType::NonRTDS;
+	}
+
 	[[nodiscard]] sl12::u16 NodeID2PassNo(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::RenderPassID nodeID) noexcept
 	{
 		auto dist = std::distance(sortedNodeIDs.begin(), std::find(sortedNodeIDs.begin(), sortedNodeIDs.end(), nodeID));
@@ -111,6 +167,33 @@ namespace sl12
 			return nullptr;
 		}
 		return &it->second;
+	}
+
+	RenderGraphHeapStatistics TransientResourceManager::GetHeapStatistics() const
+	{
+		auto AddStatistics = [](HeapAllocator::Statistics& lhs, const HeapAllocator::Statistics& rhs)
+		{
+			lhs.totalSize += rhs.totalSize;
+			lhs.allocatedSize += rhs.allocatedSize;
+			lhs.logicalAllocatedSize += rhs.logicalAllocatedSize;
+			lhs.freeSize += rhs.freeSize;
+			lhs.overlappedSize += rhs.overlappedSize;
+			lhs.heapCount += rhs.heapCount;
+			lhs.aliasAllocationCount += rhs.aliasAllocationCount;
+		};
+
+		RenderGraphHeapStatistics ret;
+		if (placedRTDSTextureAllocator_.IsValid())
+		{
+			ret.placedRTDSTextures = placedRTDSTextureAllocator_->GetStatistics();
+			AddStatistics(ret.total, ret.placedRTDSTextures);
+		}
+		if (placedTextureAllocator_.IsValid())
+		{
+			ret.placedTextures = placedTextureAllocator_->GetStatistics();
+			AddStatistics(ret.total, ret.placedTextures);
+		}
+		return ret;
 	}
 
 	bool TransientResourceManager::SetupPlacedTexture(TextureDesc& desc)
@@ -1072,6 +1155,14 @@ namespace sl12
 	void RenderGraph::CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap, std::vector<std::string>& OutDebugNames)
 	{
 		static u64 sAliasKey = 1;
+		auto AlignUp = [](u64 value, u64 alignment)
+		{
+			if (alignment == 0)
+			{
+				return value;
+			}
+			return ((value + alignment - 1) / alignment) * alignment;
+		};
 		auto IsAliasEligible = [](const TransientResourceDesc& desc)
 		{
 			if (!desc.bIsTexture || desc.historyFrame > 0 || desc.textureDesc.forceSysRam || desc.textureDesc.deviceShared)
@@ -1081,33 +1172,105 @@ namespace sl12
 			const u32 placedUsage = ResourceUsage::RenderTarget | ResourceUsage::DepthStencil | ResourceUsage::UnorderedAccess;
 			return (desc.textureDesc.usage & placedUsage) != 0;
 		};
+		auto GetAllocationInfo = [this, &AlignUp](const TransientResourceDesc& desc, u64& OutSize, u64& OutAlignment)
+		{
+			OutSize = 0;
+			OutAlignment = 0;
+			if (!desc.bIsTexture || !pDevice_)
+			{
+				return false;
+			}
+
+			D3D12_RESOURCE_DESC d3dDesc = TextureDescToD3D12ResourceDesc(desc.textureDesc);
+			auto info = pDevice_->GetDeviceDep()->GetResourceAllocationInfo(0, 1, &d3dDesc);
+			if (info.SizeInBytes == 0 || info.SizeInBytes == UINT64_MAX)
+			{
+				return false;
+			}
+			OutAlignment = info.Alignment != 0 ? info.Alignment : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+			OutSize = AlignUp(info.SizeInBytes, OutAlignment);
+			return true;
+		};
+
+		struct AliasGroup
+		{
+			EAliasHeapType heapType = EAliasHeapType::RTDS;
+			std::vector<TransientResource> resources;
+			std::vector<TransientResourceLifespan> lifespans;
+			u64 allocationSize = 0;
+			u64 allocationAlignment = 0;
+		};
+
+		std::vector<AliasGroup> aliasGroups;
 
 		// This structure contains a cached resource desc and a set of IDs to use this resource.
 		struct CachedResource
 		{
 			TransientResourceDesc desc;
 			std::set<TransientResourceID> ids;
-			std::vector<TransientResource> aliasResources;
 			std::vector<TransientResourceLifespan> lifespans;
-			bool aliasEligible = false;
 		};
 		std::multimap<TransientResourceDesc, CachedResource> cache;
 		for (const TransientResource& res : transientResources_)
 		{
-			TransientResourceDesc key = res.desc;
 			bool aliasEligible = IsAliasEligible(res.desc);
-			if (key.bIsTexture)
+			if (aliasEligible)
 			{
+				u64 allocationSize = 0;
+				u64 allocationAlignment = 0;
+				aliasEligible = GetAllocationInfo(res.desc, allocationSize, allocationAlignment);
 				if (aliasEligible)
 				{
-					key.textureDesc.usage = (res.desc.textureDesc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil))
-						? ResourceUsage::RenderTarget
-						: ResourceUsage::UnorderedAccess;
+					EAliasHeapType heapType = GetAliasHeapType(res.desc);
+					auto groupIt = aliasGroups.end();
+					for (auto it = aliasGroups.begin(); it != aliasGroups.end(); ++it)
+					{
+						if (it->heapType != heapType)
+						{
+							continue;
+						}
+
+						bool bOverlapped = false;
+						for (auto life : it->lifespans)
+						{
+							if (TestOverlap(CrossQueueDeps, life, res.lifespan) == EOverlapResult::Overlapped)
+							{
+								bOverlapped = true;
+								break;
+							}
+						}
+						if (!bOverlapped)
+						{
+							groupIt = it;
+							break;
+						}
+					}
+
+					if (groupIt == aliasGroups.end())
+					{
+						AliasGroup group;
+						group.heapType = heapType;
+						group.resources.emplace_back(res);
+						group.lifespans.emplace_back(res.lifespan);
+						group.allocationSize = allocationSize;
+						group.allocationAlignment = allocationAlignment;
+						aliasGroups.emplace_back(std::move(group));
+					}
+					else
+					{
+						groupIt->resources.emplace_back(res);
+						groupIt->lifespans.emplace_back(res.lifespan);
+						groupIt->allocationAlignment = std::max(groupIt->allocationAlignment, allocationAlignment);
+						groupIt->allocationSize = std::max(groupIt->allocationSize, allocationSize);
+					}
+					continue;
 				}
-				else
-				{
-					key.textureDesc.usage = 0;
-				}
+			}
+
+			TransientResourceDesc key = res.desc;
+			if (key.bIsTexture)
+			{
+				key.textureDesc.usage = 0;
 			}
 			else key.bufferDesc.usage = 0;
 
@@ -1115,10 +1278,6 @@ namespace sl12
 			for (; it != end; ++it)
 			{
 				CachedResource& cached = it->second;
-				if (cached.aliasEligible != aliasEligible)
-				{
-					continue;
-				}
 				bool bOverlapped = false;
 				for (auto life : cached.lifespans)
 				{
@@ -1131,11 +1290,7 @@ namespace sl12
 				if (!bOverlapped)
 				{
 					// reuse cache because no overlap.
-					if (aliasEligible)
-					{
-						cached.aliasResources.emplace_back(res);
-					}
-					else if (cached.desc.bIsTexture)
+					if (cached.desc.bIsTexture)
 					{
 						cached.desc.textureDesc.usage |= res.desc.textureDesc.usage;
 					}
@@ -1155,42 +1310,38 @@ namespace sl12
 				cached.desc = res.desc;
 				cached.ids.emplace(res.id);
 				cached.lifespans.emplace_back(res.lifespan);
-				cached.aliasEligible = aliasEligible;
-				if (aliasEligible)
-				{
-					cached.aliasResources.emplace_back(res);
-				}
 				cache.emplace(key, std::move(cached));
 			}
 		}
 
 		// OutDescs : The array of descs of non-overlapping resources to generated.
 		// OutIDMap : The dictionary of TransientResourceID to OutDescs index.
-		for (auto it = cache.begin(); it != cache.end(); ++it)
+		for (auto&& group : aliasGroups)
 		{
-			if (it->second.aliasEligible)
-			{
-				u64 aliasKey = it->second.aliasResources.size() > 1 ? sAliasKey++ : 0;
-				for (auto&& res : it->second.aliasResources)
-				{
-					u16 no = (u16)OutDescs.size();
-					TransientResourceDesc desc = res.desc;
-					desc.textureDesc.heapAliasKey = aliasKey;
-					OutDescs.emplace_back(desc);
-					OutIDMap[res.id] = no;
-					OutDebugNames.emplace_back(res.id.name);
-				}
-			}
-			else
+			u64 aliasKey = group.resources.size() > 1 ? sAliasKey++ : 0;
+			u64 aliasSize = aliasKey != 0 ? AlignUp(group.allocationSize, group.allocationAlignment) : 0;
+			u64 aliasAlignment = aliasKey != 0 ? group.allocationAlignment : 0;
+			for (auto&& res : group.resources)
 			{
 				u16 no = (u16)OutDescs.size();
-				OutDescs.emplace_back(it->second.desc);
-				for (auto&& id : it->second.ids)
-				{
-					OutIDMap[id] = no;
-				}
-				OutDebugNames.emplace_back(it->second.ids.begin()->name);
+				TransientResourceDesc desc = res.desc;
+				desc.textureDesc.heapAliasKey = aliasKey;
+				desc.textureDesc.heapAliasSize = aliasSize;
+				desc.textureDesc.heapAliasAlignment = aliasAlignment;
+				OutDescs.emplace_back(desc);
+				OutIDMap[res.id] = no;
+				OutDebugNames.emplace_back(res.id.name);
 			}
+		}
+		for (auto it = cache.begin(); it != cache.end(); ++it)
+		{
+			u16 no = (u16)OutDescs.size();
+			OutDescs.emplace_back(it->second.desc);
+			for (auto&& id : it->second.ids)
+			{
+				OutIDMap[id] = no;
+			}
+			OutDebugNames.emplace_back(it->second.ids.begin()->name);
 		}
 	}
 
@@ -1927,6 +2078,15 @@ namespace sl12
 			allPassMicroSec_ = GetMicroSec(frameEnd - frameStart);
 		}
 		countIndex_ = (countIndex_ + 1) % 3;
+	}
+
+	RenderGraphHeapStatistics RenderGraph::GetHeapStatistics() const
+	{
+		if (!resManager_.IsValid())
+		{
+			return RenderGraphHeapStatistics();
+		}
+		return resManager_->GetHeapStatistics();
 	}
 
 }	// namespace sl12

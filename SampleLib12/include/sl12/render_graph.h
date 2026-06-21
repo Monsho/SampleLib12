@@ -289,6 +289,14 @@ namespace sl12
 			Buffer*				pBuffer;
 		};
 	};
+
+	//----
+	struct RenderGraphHeapStatistics
+	{
+		HeapAllocator::Statistics	placedRTDSTextures;
+		HeapAllocator::Statistics	placedTextures;
+		HeapAllocator::Statistics	total;
+	};
 	
 	//----
 	class TransientResourceManager
@@ -471,7 +479,7 @@ namespace sl12
 			RDGPassOnlyResource(RDGPassOnlyResource& rhs) = delete;
 			RDGPassOnlyResource& operator=(RDGPassOnlyResource& rhs) = delete;
 		};
-		
+
 	public:
 		TransientResourceManager(Device* pDev)
 			: pDevice_(pDev)
@@ -493,7 +501,9 @@ namespace sl12
 		DepthStencilView* CreateOrGetDepthStencilView(RenderGraphResource* pResource, u32 mipSlice = 0, u32 firstArray = 0, u32 arraySize = 1);
 		UnorderedAccessView* CreateOrGetUnorderedAccessTextureView(RenderGraphResource* pResource, u32 mipSlice = 0, u32 firstArray = 0, u32 arraySize = 1);
 		UnorderedAccessView* CreateOrGetUnorderedAccessBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride, u32 offset);
-		
+
+		RenderGraphHeapStatistics GetHeapStatistics() const;
+
 	private:
 		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState state);
 		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState state);
@@ -585,7 +595,7 @@ namespace sl12
 			RenderPassID		id_;
 			RenderGraph*		parent_ = nullptr;
 		};
-		
+
 	private:
 		struct CommandType
 		{
@@ -650,7 +660,7 @@ namespace sl12
 			std::vector<std::pair<std::string, HardwareQueue::Value>>	passIndices;
 			PerformanceResult			passResults[HardwareQueue::Max];
 		};
-		
+
 	public:
 		RenderGraph();
 		~RenderGraph();
@@ -665,7 +675,7 @@ namespace sl12
 
 		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState state);
 		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState state);
-		
+
 		bool Compile();
 		void LoadCommand();
 		void Execute();
@@ -678,6 +688,7 @@ namespace sl12
 		{
 			return allPassMicroSec_;
 		}
+		RenderGraphHeapStatistics GetHeapStatistics() const;
 
 	private:
 		void PreCompile();
@@ -690,7 +701,7 @@ namespace sl12
 
 	private:
 		typedef std::pair<RenderPassID, RenderPassID> GraphEdge;
-		
+
 	private:
 		Device*							pDevice_ = nullptr;
 		UniqueHandle<TransientResourceManager>	resManager_;
@@ -703,17 +714,17 @@ namespace sl12
 		std::vector<Command>			execCommands_;
 		std::vector<Loader>				commandLoaders_;
 
-		std::vector<Fence*>						fences_;				
+		std::vector<Fence*>						fences_;
 		std::vector<UniqueHandle<Fence>>		fenceStorage_;
 		std::vector<CommandList*>				commandLists_;
 		std::vector<UniqueHandle<CommandList>>	commandListStorages_[HardwareQueue::Max];
 		u8										commandListFrame_;
-		
+
 		PerformanceCounter				counters_[3];
 		int								countIndex_ = 0;
 		float							allPassMicroSec_ = 0.0f;
 	};
-	
+
 }	// namespace sl12
 
 //	EOF

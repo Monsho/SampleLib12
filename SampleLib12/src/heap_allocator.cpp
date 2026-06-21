@@ -2,6 +2,8 @@
 
 #include <sl12/device.h>
 
+#include <algorithm>
+
 
 namespace
 {
@@ -40,21 +42,18 @@ namespace sl12
 	//----
 	HeapAllocation HeapAllocator::Allocate(const D3D12_RESOURCE_DESC& desc, u64 aliasKey)
 	{
+		return Allocate(desc, aliasKey, 0, 0);
+	}
+
+	//----
+	HeapAllocation HeapAllocator::Allocate(const D3D12_RESOURCE_DESC& desc, u64 aliasKey, u64 aliasSize, u64 aliasAlignment)
+	{
 		std::lock_guard<std::mutex> lock(mutex_);
 
 		HeapAllocation ret;
 		if (!pDevice_)
 		{
 			return ret;
-		}
-		if (aliasKey != 0)
-		{
-			auto aliasIt = aliasAllocations_.find(aliasKey);
-			if (aliasIt != aliasAllocations_.end())
-			{
-				aliasIt->second.refCount++;
-				return aliasIt->second.allocation;
-			}
 		}
 
 		auto info = pDevice_->GetDeviceDep()->GetResourceAllocationInfo(0, 1, &desc);
@@ -63,17 +62,45 @@ namespace sl12
 			return ret;
 		}
 
-		u64 alignment = info.Alignment != 0 ? info.Alignment : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-		u64 size = AlignUp(info.SizeInBytes, alignment);
+		u64 requestedAlignment = info.Alignment != 0 ? info.Alignment : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		u64 requestedSize = AlignUp(info.SizeInBytes, requestedAlignment);
+		if (aliasKey != 0)
+		{
+			auto aliasIt = aliasAllocations_.find(aliasKey);
+			if (aliasIt != aliasAllocations_.end())
+			{
+				if ((aliasSize != 0 && aliasIt->second.allocation.size < aliasSize)
+					|| (aliasAlignment != 0 && aliasIt->second.allocation.alignment < aliasAlignment))
+				{
+					assert(!"[Error] Alias allocation is smaller than requested.");
+					return ret;
+				}
+				aliasIt->second.refCount++;
+				aliasIt->second.logicalSize += requestedSize;
+
+				ret = aliasIt->second.allocation;
+				ret.requestedSize = requestedSize;
+				return ret;
+			}
+		}
+
+		u64 alignment = requestedAlignment;
+		u64 size = requestedSize;
+		if (aliasKey != 0 && aliasSize != 0)
+		{
+			alignment = std::max(alignment, aliasAlignment);
+			size = AlignUp(std::max(size, aliasSize), alignment);
+		}
 
 		for (u32 i = 0; i < heaps_.size(); i++)
 		{
 			if (AllocateFromBlock(i, size, alignment, ret))
 			{
 				ret.aliasKey = aliasKey;
+				ret.requestedSize = requestedSize;
 				if (aliasKey != 0)
 				{
-					aliasAllocations_[aliasKey] = AliasAllocation{ ret, 1 };
+					aliasAllocations_[aliasKey] = AliasAllocation{ ret, requestedSize, 1 };
 				}
 				return ret;
 			}
@@ -86,9 +113,10 @@ namespace sl12
 		}
 		AllocateFromBlock(heapIndex, size, alignment, ret);
 		ret.aliasKey = aliasKey;
+		ret.requestedSize = requestedSize;
 		if (aliasKey != 0)
 		{
-			aliasAllocations_[aliasKey] = AliasAllocation{ ret, 1 };
+			aliasAllocations_[aliasKey] = AliasAllocation{ ret, requestedSize, 1 };
 		}
 		return ret;
 	}
@@ -108,6 +136,14 @@ namespace sl12
 			if (aliasIt == aliasAllocations_.end())
 			{
 				return;
+			}
+			if (allocation.requestedSize <= aliasIt->second.logicalSize)
+			{
+				aliasIt->second.logicalSize -= allocation.requestedSize;
+			}
+			else
+			{
+				aliasIt->second.logicalSize = 0;
 			}
 			if (--aliasIt->second.refCount > 0)
 			{
@@ -147,6 +183,36 @@ namespace sl12
 				heap.freeRanges.erase(next);
 			}
 		}
+	}
+
+	//----
+	HeapAllocator::Statistics HeapAllocator::GetStatistics() const
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+
+		Statistics ret;
+		ret.heapCount = (u32)heaps_.size();
+		ret.aliasAllocationCount = (u32)aliasAllocations_.size();
+
+		for (auto&& heap : heaps_)
+		{
+			ret.totalSize += heap.size;
+			for (auto&& range : heap.freeRanges)
+			{
+				ret.freeSize += range.size;
+			}
+		}
+		ret.allocatedSize = ret.totalSize >= ret.freeSize ? ret.totalSize - ret.freeSize : 0;
+
+		for (auto&& alias : aliasAllocations_)
+		{
+			if (alias.second.logicalSize > alias.second.allocation.size)
+			{
+				ret.overlappedSize += alias.second.logicalSize - alias.second.allocation.size;
+			}
+		}
+		ret.logicalAllocatedSize = ret.allocatedSize + ret.overlappedSize;
+		return ret;
 	}
 
 	//----

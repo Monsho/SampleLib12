@@ -32,6 +32,8 @@ namespace sl12
 		ResourceHeapAllocation	allocation				= ResourceHeapAllocation::Committed;
 		HeapAllocator*			pHeapAllocator			= nullptr;
 		u64						heapAliasKey			= 0;
+		u64						heapAliasSize			= 0;
+		u64						heapAliasAlignment		= 0;
 		TextureDimension::Type	dimension				= TextureDimension::Texture2D;
 		u32						width = 1, height = 1, depth = 1;
 		u32						mipLevels				= 1;

@@ -133,7 +133,7 @@ namespace sl12
 			hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, flags, &resourceDesc_, init_state, pClearValue, IID_PPV_ARGS(&pResource_));
 			break;
 		case ResourceHeapAllocation::Placed:
-			heapAllocation_ = desc.pHeapAllocator->Allocate(resourceDesc_, desc.heapAliasKey);
+			heapAllocation_ = desc.pHeapAllocator->Allocate(resourceDesc_, desc.heapAliasKey, desc.heapAliasSize, desc.heapAliasAlignment);
 			if (!heapAllocation_.IsValid())
 			{
 				return false;

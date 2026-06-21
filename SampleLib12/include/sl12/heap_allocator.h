@@ -16,6 +16,7 @@ namespace sl12
 		u64				offset = 0;
 		u64				size = 0;
 		u64				alignment = 0;
+		u64				requestedSize = 0;
 		u64				aliasKey = 0;
 		u32				heapIndex = 0xffffffff;
 
@@ -28,13 +29,26 @@ namespace sl12
 	class HeapAllocator
 	{
 	public:
+		struct Statistics
+		{
+			u64		totalSize = 0;
+			u64		allocatedSize = 0;
+			u64		logicalAllocatedSize = 0;
+			u64		freeSize = 0;
+			u64		overlappedSize = 0;
+			u32		heapCount = 0;
+			u32		aliasAllocationCount = 0;
+		};
+
 		HeapAllocator()
 		{}
 		~HeapAllocator();
 
 		bool Initialize(Device* pDev, D3D12_HEAP_FLAGS heapFlags, u64 blockSize);
 		HeapAllocation Allocate(const D3D12_RESOURCE_DESC& desc, u64 aliasKey = 0);
+		HeapAllocation Allocate(const D3D12_RESOURCE_DESC& desc, u64 aliasKey, u64 aliasSize, u64 aliasAlignment);
 		void Free(const HeapAllocation& allocation);
+		Statistics GetStatistics() const;
 		void Destroy();
 
 	private:
@@ -54,6 +68,7 @@ namespace sl12
 		struct AliasAllocation
 		{
 			HeapAllocation	allocation;
+			u64				logicalSize = 0;
 			u32				refCount = 0;
 		};
 
@@ -67,7 +82,7 @@ namespace sl12
 		u64						blockSize_ = 64 * 1024 * 1024;
 		std::vector<HeapBlock>	heaps_;
 		std::map<u64, AliasAllocation>	aliasAllocations_;
-		std::mutex				mutex_;
+		mutable std::mutex				mutex_;
 	};	// class HeapAllocator
 
 }	// namespace sl12

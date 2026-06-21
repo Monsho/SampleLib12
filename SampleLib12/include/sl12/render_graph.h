@@ -81,20 +81,17 @@ namespace sl12
 	};
 	
 	//----
-	struct TransientState
+	enum class TransientState
 	{
-		enum Value
-		{
-			Common,
-			RenderTarget,
-			DepthStencil,
-			ShaderResource,
-			UnorderedAccess,
-			IndirectArgument,
-			CopySrc,
-			CopyDst,
-			Present,
-		};
+		Common,
+		RenderTarget,
+		DepthStencil,
+		ShaderResource,
+		UnorderedAccess,
+		IndirectArgument,
+		CopySrc,
+		CopyDst,
+		Present,
 	};
 
 	//----
@@ -256,17 +253,17 @@ namespace sl12
 		TransientResourceID			id;
 		TransientResourceDesc		desc;
 		TransientResourceLifespan	lifespan;
-		TransientState::Value		state;
+		TransientState				state;
 
 		TransientResource()
 			: id("")
 			, state(TransientState::Common)
 		{}
-		TransientResource(const std::string& _name, TransientState::Value _state)
+		TransientResource(const std::string& _name, TransientState _state)
 			: id(_name)
 			, state(_state)
 		{}
-		TransientResource(const TransientResourceID& _id, TransientState::Value _state)
+		TransientResource(const TransientResourceID& _id, TransientState _state)
 			: id(_id)
 			, state(_state)
 		{}
@@ -309,7 +306,7 @@ namespace sl12
 		struct RDGTransientResourceInstance
 		{
 			TransientResourceDesc	desc;
-			TransientState::Value	state;
+			TransientState			state;
 			UniqueHandle<Texture>	texture;
 			UniqueHandle<Buffer>	buffer;
 			u8						unusedFrame = 0;
@@ -340,7 +337,7 @@ namespace sl12
 		struct RDGExternalResourceInstance
 		{
 			bool					bIsTexture;
-			TransientState::Value	state;
+			TransientState			state;
 			union
 			{
 				Texture*			pTexture;
@@ -498,8 +495,8 @@ namespace sl12
 		UnorderedAccessView* CreateOrGetUnorderedAccessBufferView(RenderGraphResource* pResource, u32 firstElement, u32 numElement, u32 stride, u32 offset);
 		
 	private:
-		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state);
-		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state);
+		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState state);
+		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState state);
 
 		void ResetResource();
 		bool CommitResources(const std::vector<TransientResourceDesc>& descs, const std::map<TransientResourceID, u16>& idMap, const std::set<TransientResourceID>& keepHistoryTransientIDs, const std::vector<std::string>& debugNames);
@@ -604,10 +601,10 @@ namespace sl12
 		struct Barrier
 		{
 			TransientResourceID		id;
-			TransientState::Value	before;
-			TransientState::Value	after;
+			TransientState			before;
+			TransientState			after;
 
-			Barrier(TransientResourceID _id, TransientState::Value _before, TransientState::Value _after)
+			Barrier(TransientResourceID _id, TransientState _before, TransientState _after)
 				: id(_id), before(_before), after(_after)
 			{}
 		};
@@ -666,8 +663,8 @@ namespace sl12
 		bool AddGraphEdge(RenderPassID ParentID, RenderPassID ChildID);
 		int AddGraphEdges(const std::vector<RenderPassID>& ParentIDs, const std::vector<RenderPassID>& ChildID);
 
-		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state);
-		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state);
+		void AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState state);
+		void AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState state);
 		
 		bool Compile();
 		void LoadCommand();

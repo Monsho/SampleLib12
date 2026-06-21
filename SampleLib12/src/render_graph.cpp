@@ -31,7 +31,7 @@ namespace
 		return before ? EOverlapResult::LHS_Before_RHS : (after ? EOverlapResult::LHS_After_RHS : EOverlapResult::Overlapped);
 	}
 
-	sl12::u32 StateToUsage(sl12::TransientState::Value state)
+	sl12::u32 StateToUsage(sl12::TransientState state)
 	{
 		static const sl12::u32 kUsages[] = {
 			0,										// Common
@@ -44,10 +44,10 @@ namespace
 			0,										// CopyDst
 			0,										// Present
 		};
-		return kUsages[state];
+		return kUsages[static_cast<int>(state)];
 	}
 
-	D3D12_RESOURCE_STATES StateToD3D12State(sl12::TransientState::Value state)
+	D3D12_RESOURCE_STATES StateToD3D12State(sl12::TransientState state)
 	{
 		static const D3D12_RESOURCE_STATES kD3D12States[] = {
 			D3D12_RESOURCE_STATE_COMMON,				// Common
@@ -60,7 +60,7 @@ namespace
 			D3D12_RESOURCE_STATE_COPY_DEST,				// CopyDst
 			D3D12_RESOURCE_STATE_PRESENT,				// Present
 		};
-		return kD3D12States[state];
+		return kD3D12States[static_cast<int>(state)];
 	}
 
 	[[nodiscard]] sl12::u16 NodeID2PassNo(const std::vector<sl12::RenderPassID>& sortedNodeIDs, sl12::RenderPassID nodeID) noexcept
@@ -85,7 +85,7 @@ namespace sl12
 		unusedResources_.clear();
 	}
 
-	void TransientResourceManager::AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state)
+	void TransientResourceManager::AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState state)
 	{
 		RDGExternalResourceInstance inst;
 		inst.bIsTexture = true;
@@ -94,7 +94,7 @@ namespace sl12
 		externalResources_[id] = inst;
 	}
 
-	void TransientResourceManager::AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state)
+	void TransientResourceManager::AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState state)
 	{
 		RDGExternalResourceInstance inst;
 		inst.bIsTexture = false;
@@ -168,13 +168,14 @@ namespace sl12
 
 	namespace
 	{
-		bool NeedsPlacedDiscard(const TransientResourceDesc& desc)
+		bool NeedsPlacedDiscard(const TransientResourceDesc& desc, TransientState state)
 		{
 			if (!desc.bIsTexture || desc.textureDesc.allocation != ResourceHeapAllocation::Placed)
 			{
 				return false;
 			}
-			return (desc.textureDesc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil)) != 0;
+			return ((desc.textureDesc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil)) != 0)
+				&& (state == TransientState::RenderTarget || state == TransientState::DepthStencil);
 		}
 	}
 
@@ -814,12 +815,12 @@ namespace sl12
 		return count;
 	}
 
-	void RenderGraph::AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState::Value state)
+	void RenderGraph::AddExternalTexture(TransientResourceID id, Texture* pTexture, TransientState state)
 	{
 		resManager_->AddExternalTexture(id, pTexture, state);
 	}
 
-	void RenderGraph::AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState::Value state)
+	void RenderGraph::AddExternalBuffer(TransientResourceID id, Buffer* pBuffer, TransientState state)
 	{
 		resManager_->AddExternalBuffer(id, pBuffer, state);
 	}
@@ -1544,7 +1545,7 @@ namespace sl12
 						{
 							cmd.aliasBarriers.push_back(AliasBarrier(res.first));
 							activeAliasResources.emplace(aliasKey, res.first);
-							if (NeedsPlacedDiscard(pTRes->desc))
+							if (NeedsPlacedDiscard(pTRes->desc, res.second.state))
 							{
 								commandDiscardResources.emplace(res.first);
 								discardedPlacedResources.emplace(res.first);
@@ -1554,14 +1555,14 @@ namespace sl12
 						{
 							cmd.aliasBarriers.push_back(AliasBarrier(activeIt->second, res.first));
 							activeIt->second = res.first;
-							if (NeedsPlacedDiscard(pTRes->desc))
+							if (NeedsPlacedDiscard(pTRes->desc, res.second.state))
 							{
 								commandDiscardResources.emplace(res.first);
 								discardedPlacedResources.emplace(res.first);
 							}
 						}
 					}
-					else if (NeedsPlacedDiscard(pTRes->desc) && discardedPlacedResources.find(res.first) == discardedPlacedResources.end())
+					else if (NeedsPlacedDiscard(pTRes->desc, res.second.state) && discardedPlacedResources.find(res.first) == discardedPlacedResources.end())
 					{
 						commandDiscardResources.emplace(res.first);
 						discardedPlacedResources.emplace(res.first);

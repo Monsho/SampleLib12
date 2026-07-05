@@ -66,9 +66,10 @@ namespace sl12
 		bool isDepthStencil = (desc.usage & ResourceUsage::DepthStencil) != 0;
 		bool isUAV = (desc.usage & ResourceUsage::UnorderedAccess) != 0;
 		bool isPlacedTarget = isRenderTarget || isDepthStencil || isUAV;
+		bool canUsePlacedTexture = isPlacedTarget || (pDev && pDev->GetResourceHeapTier() >= D3D12_RESOURCE_HEAP_TIER_2);
 		if (desc.allocation == ResourceHeapAllocation::Placed)
 		{
-			if (!desc.pHeapAllocator || !isPlacedTarget || desc.forceSysRam || desc.deviceShared)
+			if (!desc.pHeapAllocator || !canUsePlacedTexture || desc.forceSysRam || desc.deviceShared)
 			{
 				return false;
 			}

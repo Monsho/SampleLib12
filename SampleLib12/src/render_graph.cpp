@@ -226,10 +226,13 @@ namespace sl12
 			return false;
 		}
 
-		const u32 placedUsage = ResourceUsage::RenderTarget | ResourceUsage::DepthStencil | ResourceUsage::UnorderedAccess;
-		if ((desc.usage & placedUsage) == 0)
+		if (!usesUnifiedTextureAllocator_)
 		{
-			return false;
+			const u32 placedUsage = ResourceUsage::RenderTarget | ResourceUsage::DepthStencil | ResourceUsage::UnorderedAccess;
+			if ((desc.usage & placedUsage) == 0)
+			{
+				return false;
+			}
 		}
 
 		desc.allocation = ResourceHeapAllocation::Placed;
@@ -1191,11 +1194,15 @@ namespace sl12
 			}
 			return ((value + alignment - 1) / alignment) * alignment;
 		};
-		auto IsAliasEligible = [](const TransientResourceDesc& desc)
+		auto IsAliasEligible = [usesUnifiedTextureAllocator](const TransientResourceDesc& desc)
 		{
 			if (!desc.bIsTexture || desc.historyFrame > 0 || desc.textureDesc.forceSysRam || desc.textureDesc.deviceShared)
 			{
 				return false;
+			}
+			if (usesUnifiedTextureAllocator)
+			{
+				return true;
 			}
 			const u32 placedUsage = ResourceUsage::RenderTarget | ResourceUsage::DepthStencil | ResourceUsage::UnorderedAccess;
 			return (desc.textureDesc.usage & placedUsage) != 0;

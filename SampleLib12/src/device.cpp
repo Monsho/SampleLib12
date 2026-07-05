@@ -161,6 +161,12 @@ namespace sl12
 		pDevice_ = pDevice;
 		pLatestDevice_ = pLatestDevice;
 
+		D3D12_FEATURE_DATA_D3D12_OPTIONS featureOptions{};
+		if (SUCCEEDED(pDevice_->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureOptions, sizeof(featureOptions))))
+		{
+			resourceHeapTier_ = featureOptions.ResourceHeapTier;
+		}
+
 		// enumerate displays.
 		// NOTE: if multi GPU exists, only get Output from 0 index adapter.
 		IDXGIOutput* pOutput{ nullptr };

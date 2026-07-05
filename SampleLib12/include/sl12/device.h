@@ -252,6 +252,10 @@ namespace sl12
 		{
 			return isDynamicResourceSupported_;
 		}
+		D3D12_RESOURCE_HEAP_TIER GetResourceHeapTier() const
+		{
+			return resourceHeapTier_;
+		}
 
 		void CopyToBuffer(CommandList* pCmdList, Buffer* pDstBuffer, u32 dstOffset, const void* pSrcData, u32 srcSize);
 
@@ -268,6 +272,7 @@ namespace sl12
 		bool			isDxrSupported_ = false;
 		bool			isMeshShaderSupported_ = false;
 		bool			isWorkGraphSupported_ = false;
+		D3D12_RESOURCE_HEAP_TIER	resourceHeapTier_ = D3D12_RESOURCE_HEAP_TIER_1;
 
 		ColorSpaceType	colorSpaceType_ = ColorSpaceType::Rec709;
 		RECT			desktopCoordinates_;

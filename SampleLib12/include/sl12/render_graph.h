@@ -481,14 +481,7 @@ namespace sl12
 		};
 
 	public:
-		TransientResourceManager(Device* pDev)
-			: pDevice_(pDev)
-		{
-			placedRTDSTextureAllocator_ = MakeUnique<HeapAllocator>(nullptr);
-			placedRTDSTextureAllocator_->Initialize(pDev, D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_NON_RT_DS_TEXTURES, 64ull * 1024ull * 1024ull);
-			placedTextureAllocator_ = MakeUnique<HeapAllocator>(nullptr);
-			placedTextureAllocator_->Initialize(pDev, D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES, 64ull * 1024ull * 1024ull);
-		}
+		TransientResourceManager(Device* pDev);
 		~TransientResourceManager();
 
 		RenderGraphResource* GetRenderGraphResource(TransientResourceID id);
@@ -520,6 +513,7 @@ namespace sl12
 
 	private:
 		Device*		pDevice_ = nullptr;
+		bool		usesUnifiedTextureAllocator_ = false;
 		UniqueHandle<HeapAllocator>														placedRTDSTextureAllocator_;
 		UniqueHandle<HeapAllocator>														placedTextureAllocator_;
 

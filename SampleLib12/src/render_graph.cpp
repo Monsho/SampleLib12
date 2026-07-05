@@ -108,12 +108,17 @@ namespace
 
 	enum class EAliasHeapType
 	{
+		Unified,
 		RTDS,
 		NonRTDS,
 	};
 
-	EAliasHeapType GetAliasHeapType(const sl12::TransientResourceDesc& desc)
+	EAliasHeapType GetAliasHeapType(const sl12::TransientResourceDesc& desc, bool usesUnifiedTextureAllocator)
 	{
+		if (usesUnifiedTextureAllocator)
+		{
+			return EAliasHeapType::Unified;
+		}
 		return (desc.textureDesc.usage & (sl12::ResourceUsage::RenderTarget | sl12::ResourceUsage::DepthStencil)) != 0
 			? EAliasHeapType::RTDS
 			: EAliasHeapType::NonRTDS;
@@ -134,6 +139,24 @@ namespace
 
 namespace sl12
 {
+	TransientResourceManager::TransientResourceManager(Device* pDev)
+		: pDevice_(pDev)
+		, usesUnifiedTextureAllocator_(pDev && pDev->GetResourceHeapTier() >= D3D12_RESOURCE_HEAP_TIER_2)
+	{
+		const D3D12_HEAP_FLAGS textureHeapFlags = usesUnifiedTextureAllocator_
+			? D3D12_HEAP_FLAG_NONE
+			: D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES;
+
+		placedTextureAllocator_ = MakeUnique<HeapAllocator>(nullptr);
+		placedTextureAllocator_->Initialize(pDev, textureHeapFlags, 64ull * 1024ull * 1024ull);
+
+		if (!usesUnifiedTextureAllocator_)
+		{
+			placedRTDSTextureAllocator_ = MakeUnique<HeapAllocator>(nullptr);
+			placedRTDSTextureAllocator_->Initialize(pDev, D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_NON_RT_DS_TEXTURES, 64ull * 1024ull * 1024ull);
+		}
+	}
+
 	TransientResourceManager::~TransientResourceManager()
 	{
 		ReleaseAllHeapAllocations();
@@ -210,7 +233,11 @@ namespace sl12
 		}
 
 		desc.allocation = ResourceHeapAllocation::Placed;
-		if (desc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil))
+		if (usesUnifiedTextureAllocator_)
+		{
+			desc.pHeapAllocator = &placedTextureAllocator_;
+		}
+		else if (desc.usage & (ResourceUsage::RenderTarget | ResourceUsage::DepthStencil))
 		{
 			desc.pHeapAllocator = &placedRTDSTextureAllocator_;
 		}
@@ -1155,6 +1182,7 @@ namespace sl12
 	void RenderGraph::CompileReuseResources(const CrossQueueDepsType& CrossQueueDeps, std::vector<TransientResourceDesc>& OutDescs, std::map<TransientResourceID, u16>& OutIDMap, std::vector<std::string>& OutDebugNames)
 	{
 		static u64 sAliasKey = 1;
+		const bool usesUnifiedTextureAllocator = resManager_.IsValid() && resManager_->usesUnifiedTextureAllocator_;
 		auto AlignUp = [](u64 value, u64 alignment)
 		{
 			if (alignment == 0)
@@ -1221,7 +1249,7 @@ namespace sl12
 				aliasEligible = GetAllocationInfo(res.desc, allocationSize, allocationAlignment);
 				if (aliasEligible)
 				{
-					EAliasHeapType heapType = GetAliasHeapType(res.desc);
+					EAliasHeapType heapType = GetAliasHeapType(res.desc, usesUnifiedTextureAllocator);
 					auto groupIt = aliasGroups.end();
 					for (auto it = aliasGroups.begin(); it != aliasGroups.end(); ++it)
 					{

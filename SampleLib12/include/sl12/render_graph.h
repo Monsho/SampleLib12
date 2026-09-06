@@ -288,6 +288,24 @@ namespace sl12
 			Texture*			pTexture;
 			Buffer*				pBuffer;
 		};
+
+		bool IsSameTextureSize(u32 width, u32 height, u32 depth = 1) const
+		{
+			if (!bIsTexture || !pTexture)
+			{
+				return false;
+			}
+			auto&& desc = pTexture->GetTextureDesc();
+			return desc.width == width && desc.height == height && desc.depth == depth;
+		}
+		bool IsSameBufferSize(size_t size) const
+		{
+			if (bIsTexture || !pBuffer)
+			{
+				return false;
+			}
+			return pBuffer->GetBufferDesc().size == size;
+		}
 	};
 
 	//----

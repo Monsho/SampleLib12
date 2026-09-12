@@ -358,7 +358,7 @@ namespace sl12
 		creationDesc.size = sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) * maxCount;
 		creationDesc.usage = ResourceUsage::Unknown;
 		creationDesc.heap = BufferHeap::ReadBack;
-		creationDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+		creationDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 		pCompactionReadback_ = std::make_shared<Buffer>();
 		if (!pCompactionReadback_->Initialize(pDevice_, creationDesc))
 		{

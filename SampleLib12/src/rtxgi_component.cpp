@@ -483,7 +483,7 @@ namespace sl12
 			bufferDesc.size = sizeof(float) * 2;
 			bufferDesc.stride = 0;
 			bufferDesc.usage = ResourceUsage::Unknown;
-			bufferDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+			bufferDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 			if (!buffers_[EBufferType::VariabilityReadBack].Initialize(pParentDevice_, bufferDesc))
 			{
 				return false;

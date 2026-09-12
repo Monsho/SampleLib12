@@ -198,9 +198,6 @@
     <ClInclude Include="include\sl12\work_graph.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\sl12\render_graph_deprecated.h">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="include\sl12\debug.h">
       <Filter>include</Filter>
     </ClInclude>
@@ -349,9 +346,6 @@
     </ClCompile>
     <ClCompile Include="..\ThirdParty\RTXGI-DDGI\rtxgi-sdk\src\ddgi\gfx\DDGIVolume_D3D12.cpp">
       <Filter>src\RTXGI\ddgi\gfx</Filter>
-    </ClCompile>
-    <ClCompile Include="src\render_graph_deprecated.cpp">
-      <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\heap_allocator.cpp">
       <Filter>src</Filter>

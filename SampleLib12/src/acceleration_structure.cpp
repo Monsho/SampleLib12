@@ -317,7 +317,7 @@ namespace sl12
 
 			infoDesc.usage = ResourceUsage::Unknown;
 			infoDesc.heap = BufferHeap::ReadBack;
-			infoDesc.initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+			infoDesc.initialState = D3D12_RESOURCE_STATE_COMMON;
 			if (!pPostBuildReadBuffer_->Initialize(pDevice, infoDesc))
 			{
 				SafeDelete(pInfoBuffer);

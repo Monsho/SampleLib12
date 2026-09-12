@@ -41,7 +41,7 @@ namespace sl12
 		rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		rd.Flags = D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
-		hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, D3D12_HEAP_FLAG_NONE, &rd, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&pResource_));
+		hr = pDev->GetDeviceDep()->CreateCommittedResource(&prop, D3D12_HEAP_FLAG_NONE, &rd, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&pResource_));
 		if (FAILED(hr))
 		{
 			return false;

@@ -230,7 +230,8 @@ namespace sl12
 			&heapProp,
 			D3D12_HEAP_FLAG_NONE,
 			&desc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_COMMON,
+			//D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
 			IID_PPV_ARGS(&pResource_));
 		if (FAILED(hr))
@@ -301,7 +302,7 @@ namespace sl12
 		// TGAファイルフォーマットからイメージリソースを作成
 		std::unique_ptr<DirectX::ScratchImage> image(new DirectX::ScratchImage());
 		DirectX::TexMetadata info;
-		auto hr = DirectX::LoadFromDDSMemory(pTgaBin, size, DirectX::DDS_FLAGS_NONE, &info, *image);
+		auto hr = DirectX::LoadFromDDSMemory(static_cast<const std::byte*>(pTgaBin), size, DirectX::DDS_FLAGS_NONE, &info, *image);
 		if (FAILED(hr))
 		{
 			return false;
@@ -358,7 +359,7 @@ namespace sl12
 
 		// TGAファイルフォーマットからイメージリソースを作成
 		std::unique_ptr<DirectX::ScratchImage> image(new DirectX::ScratchImage());
-		auto hr = DirectX::LoadFromTGAMemory(pTgaBin, size, nullptr, *image);
+		auto hr = DirectX::LoadFromTGAMemory(static_cast<const std::byte*>(pTgaBin), size, DirectX::TGA_FLAGS_NONE, nullptr, *image);
 		if (FAILED(hr))
 		{
 			return false;
@@ -684,7 +685,7 @@ namespace sl12
 
 		// TGAファイルフォーマットからイメージリソースを作成
 		std::unique_ptr<DirectX::ScratchImage> image(new DirectX::ScratchImage());
-		auto hr = DirectX::LoadFromHDRMemory(pTgaBin, size, nullptr, *image);
+		auto hr = DirectX::LoadFromHDRMemory(static_cast<const std::byte*>(pTgaBin), size, nullptr, *image);
 		if (FAILED(hr))
 		{
 			return false;
